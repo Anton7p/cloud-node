@@ -1,233 +1,93 @@
-# CloudNode VPN Telegram Bot
+# cloud-node-service
 
-Профессиональный VPN-сервис в Telegram на NestJS с архитектурой Clean Architecture и SOLID принципами.
 
-## Архитектура (Clean Architecture)
 
-```
-src/
-├── app.module.ts              # Корневой модуль
-├── main.ts                    # Точка входа
-├── shared/                    # Общие сервисы
-│   ├── prisma/                # Prisma ORM
-│   │   ├── prisma.module.ts
-│   │   └── prisma.service.ts
-│   ├── config/                # Конфигурация
-│   │   └── configuration.ts
-│   └── health/                # Health check
-│       └── health.controller.ts
-├── modules/                   # Domain модули
-│   ├── users/                 # Модуль пользователей
-│   │   ├── repositories/
-│   │   │   └── users.repository.ts
-│   │   ├── users.module.ts
-│   │   └── users.service.ts
-│   ├── rentals/               # Модуль аренды
-│   │   ├── repositories/
-│   │   │   └── rentals.repository.ts
-│   │   ├── rentals.module.ts
-│   │   └── rentals.service.ts
-│   └── bot/                   # Telegram Bot модуль
-│       ├── application/
-│       │   ├── base.action.ts
-│       │   └── commands/
-│       │       ├── start.command.ts
-│       │       ├── profile.command.ts
-│       │       ├── rent-server.command.ts
-│       │       ├── rent-term.command.ts
-│       │       ├── pay-rental.command.ts
-│       │       ├── get-access.command.ts
-│       │       ├── instructions.command.ts
-│       │       ├── platform-instruction.command.ts
-│       │       ├── referral.command.ts
-│       │       └── help.command.ts
-│       ├── filters/
-│       │   └── bot-exception.filter.ts
-│       ├── types/
-│       │   └── bot.types.ts
-│       ├── ui/                # UI Layer
-│       │   ├── templates/
-│       │   │   ├── common.templates.ts
-│       │   │   ├── start.templates.ts
-│       │   │   ├── profile.templates.ts
-│       │   │   ├── rent.templates.ts
-│       │   │   ├── instructions.templates.ts
-│       │   │   └── navigation.templates.ts
-│       │   └── keyboards/
-│       │       ├── start.keyboards.ts
-│       │       ├── profile.keyboards.ts
-│       │       ├── rent.keyboards.ts
-│       │       └── instructions.keyboards.ts
-│       ├── bot.update.ts
-│       ├── bot-actions.service.ts
-│       └── bot.module.ts
-└── prisma/
-    └── schema.prisma          # Схема БД
-```
+## Getting started
 
-## Ключевые паттерны
+To make it easy for you to get started with GitLab, here's a list of recommended next steps.
 
-### 1. Command Pattern с Map-based роутингом
-```typescript
-@Injectable()
-export class StartCommand extends BaseAction {
-  readonly pattern = ['start', 'back_to_start'];
+Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
 
-  async execute(context: CommandContext): Promise<void> {
-    // Логика команды
-  }
-}
-```
+## Add your files
 
-BotActionsService использует Map для O(1) поиска команд:
-```typescript
-private patternHandlers = new Map<string, BaseAction>();
-
-registerHandler(handler: BaseAction): void {
-  this.registerPatterns(handler);
-}
-```
-
-### 2. Repository Pattern
-```typescript
-// UsersRepository — изоляция доступа к User
-// RentalsRepository — изоляция доступа к Rental
-// telegramId конвертируется в BigInt автоматически
-```
-
-### 3. Strict Module Boundaries
-- `UsersModule` и `RentalsModule` не зависят от Telegram API
-- `BotModule` является единственным адаптером для Telegram
-- Все модули используют Shared слой для инфраструктуры
-
-## Технологии
-
-- **NestJS** — фреймворк для Node.js
-- **nestjs-telegraf** — интеграция с Telegram Bot API
-- **Prisma ORM** — работа с PostgreSQL
-- **@nestjs/config** — управление конфигурацией
-- **@nestjs/terminus** — health checks
-- **Joi** — валидация переменных окружения
-
-## Установка
-
-```bash
-npm install
-```
-
-## Настройка
-
-1. Создайте файл `.env`:
-```bash
-cp .env.example .env
-```
-
-2. Заполните `.env`:
-```env
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
-NODE_ENV=development
-PORT=3000
-DATABASE_URL="postgresql://user:pass@localhost:5432/cloudnode?schema=public"
-```
-
-3. Инициализируйте БД:
-```bash
-npx prisma migrate dev --name init
-npx prisma generate
-```
-
-## Запуск
-
-```bash
-# Разработка
-npm run start:dev
-
-# Продакшн
-npm run build
-npm run start:prod
-```
-
-## Health Check
+* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
+* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
 
 ```
-GET http://localhost:3000/health
+cd existing_repo
+git remote add origin https://gitlab.com/antonlebedev1987av/cloud-node-service.git
+git branch -M main
+git push -uf origin main
 ```
 
-## Команды бота
+## Integrate with your tools
 
-- `/start` — Приветствие и главное меню
-- **Профиль** — Информация о пользователе и подписке
-- **Арендовать сервер** — Выбор срока аренды (1/3/12 месяцев)
-- **Инструкции** — Подключение для iOS/Android/Windows/macOS
-- **Партнерская программа** — Реферальные ссылки
-- **Помощь** — Справка и поддержка
+* [Set up project integrations](https://gitlab.com/antonlebedev1987av/cloud-node-service/-/settings/integrations)
 
-## Добавление новой команды
+## Collaborate with your team
 
-```typescript
-// 1. Создайте класс команды
-@Injectable()
-export class MyCommand extends BaseAction {
-  readonly pattern = 'my_action'; // или RegExp
+* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
+* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
+* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
+* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
+* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
 
-  async execute(context: CommandContext): Promise<void> {
-    const { ctx } = context;
-    await ctx.reply('Hello!');
-  }
-}
+## Test and Deploy
 
-// 2. Добавьте в commandHandlers в bot.module.ts
-const commandHandlers = [
-  // ... существующие команды
-  MyCommand, // ← только здесь
-];
-```
+Use the built-in continuous integration in GitLab.
 
-**BotActionsService не требует изменений** — Open/Closed Principle в действии!
+* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
+* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
+* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
+* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
+* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
 
-## Структура данных
+***
 
-### User
-```typescript
-{
-  id: number;
-  telegramId: bigint;
-  username?: string;
-  firstName?: string;
-  status: 'active' | 'expired';
-  subscriptionType: 'free' | 'premium';
-  expiresAt?: Date;
-  rentals: Rental[];
-}
-```
+# Editing this README
 
-### Rental
-```typescript
-{
-  id: number;
-  userId: number;
-  term: number;           // срок в месяцах
-  status: 'pending' | 'active' | 'expired';
-  startDate?: Date;
-  endDate?: Date;
-}
-```
+When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
 
-## Будущие улучшения
+## Suggestions for a good README
 
-- [x] Интеграция Prisma ORM
-- [x] Clean Architecture рефакторинг
-- [x] Command/Handler паттерн
-- [x] Модульная система UI
-- [x] Map-based роутинг команд
-- [x] Joi валидация конфигурации
-- [ ] BullMQ для очередей задач
-- [ ] Платежная интеграция (Stripe/Crypto)
-- [ ] VPN-конфигурации WireGuard/Xray
-- [ ] Админ-панель
+Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
 
+## Name
+Choose a self-explaining name for your project.
 
-Android	https://telegra.ph/Podklyuchenie-VPN-na-Android-01-12
-iOS (iPhone)	https://telegra.ph
-Windows	https://telegra.ph
-macOS	https://telegra.ph
+## Description
+Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+
+## Badges
+On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+
+## Visuals
+Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+
+## Installation
+Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+
+## Usage
+Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+
+## Support
+Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+
+## Roadmap
+If you have ideas for releases in the future, it is a good idea to list them in the README.
+
+## Contributing
+State if you are open to contributions and what your requirements are for accepting them.
+
+For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+
+You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+
+## Authors and acknowledgment
+Show your appreciation to those who have contributed to the project.
+
+## License
+For open source projects, say how it is licensed.
+
+## Project status
+If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
