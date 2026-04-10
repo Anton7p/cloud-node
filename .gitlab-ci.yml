@@ -6,7 +6,7 @@ variables:
   DOCKER_IMAGE_NAME: $CI_REGISTRY_IMAGE
   DOCKER_IMAGE_TAG: $CI_COMMIT_SHORT_SHA
   DOCKER_IMAGE_LATEST: $CI_REGISTRY_IMAGE:latest
-  SERVER_IP: 62.60.229.227
+  SERVER_IP: ${SERVER_IP:-62.60.229.227}
 
 # Build stage - Build Docker image
 build:
@@ -45,11 +45,11 @@ deploy:
   script:
     - echo "Deploying to server $SERVER_IP..."
     - |
-      ssh -o StrictHostKeyChecking=no root@$SERVER_IP << 'EOF'
+      ssh -o StrictHostKeyChecking=no ${SERVER_USER:-root}@${SERVER_IP} << 'EOF'
         set -e
         
         echo "[DEPLOY] Connecting to server..."
-        cd /opt/cloudnode || mkdir -p /opt/cloudnode && cd /opt/cloudnode
+        cd /var/www/cloudnode || mkdir -p /var/www/cloudnode && cd /var/www/cloudnode
         
         # Pull latest docker-compose and env files if stored in repo
         # or use existing files on server
@@ -59,20 +59,21 @@ deploy:
         docker pull $DOCKER_IMAGE_NAME:latest
         
         echo "[DEPLOY] Stopping existing containers..."
-        docker-compose down || true
+        docker compose down || true
         
         echo "[DEPLOY] Starting new containers..."
-        export DB_PASSWORD=$DB_PASSWORD
-        export BOT_TOKEN=$BOT_TOKEN
-        export ENCRYPTION_KEY=$ENCRYPTION_KEY
-        export CI_REGISTRY=$CI_REGISTRY
-        export CI_REGISTRY_USER=$CI_REGISTRY_USER
-        export CI_REGISTRY_PASSWORD=$CI_REGISTRY_PASSWORD
+        export DB_PASSWORD=${DB_PASSWORD}
+        export BOT_TOKEN=${BOT_TOKEN}
+        export ENCRYPTION_KEY=${ENCRYPTION_KEY}
+        export CI_REGISTRY=${CI_REGISTRY}
+        export CI_REGISTRY_USER=${CI_REGISTRY_USER}
+        export CI_REGISTRY_PASSWORD=${CI_REGISTRY_PASSWORD}
+        export SERVER_USER=${SERVER_USER:-root}
         
-        docker-compose up -d
+        docker compose up -d
         
         echo "[DEPLOY] Running database migrations..."
-        docker-compose exec -T bot npx prisma migrate deploy || echo "Migration check completed"
+        docker compose exec -T bot npx prisma migrate deploy || echo "Migration check completed"
         
         echo "[DEPLOY] Cleaning up old images..."
         docker image prune -f
