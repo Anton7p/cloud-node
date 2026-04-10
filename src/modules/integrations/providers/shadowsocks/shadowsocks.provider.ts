@@ -11,7 +11,7 @@ import {
 
 /**
  * ShadowsocksProvider - Shadowsocks protocol Server Rental implementation
- * 
+ *
  * Manages Shadowsocks servers and Computing Slots through
  * integration with compatible panel APIs.
  */
@@ -94,10 +94,7 @@ export class ShadowsocksProvider extends AbstractServerProvider {
   /**
    * Allocate a Computing Slot
    */
-  async allocateSlot(
-    rentalId: string,
-    userId: string,
-  ): Promise<ComputingSlot> {
+  async allocateSlot(rentalId: string, userId: string): Promise<ComputingSlot> {
     this.logger.log(
       `Allocating Shadowsocks slot for user ${userId} on rental ${rentalId}`,
     );

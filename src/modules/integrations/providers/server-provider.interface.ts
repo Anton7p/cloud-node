@@ -1,9 +1,9 @@
 /**
  * ServerProvider Interface - Unified contract for server rental integrations
- * 
+ *
  * This interface defines the standard operations for managing Server Rentals
  * and Computing Slots across different VPN protocols (VLESS, Shadowsocks, etc.).
- * 
+ *
  * Terminology:
  * - Server Rental: A leased computing resource with specific configuration
  * - Computing Slot: An allocated resource unit within a rental (e.g., user slot)
@@ -78,7 +78,7 @@ export interface TrafficStats {
 
 /**
  * ServerProvider - Base interface for all server rental integrations
- * 
+ *
  * Implementations:
  * - VlessProvider: VLESS protocol management
  * - ShadowsocksProvider: Shadowsocks protocol management

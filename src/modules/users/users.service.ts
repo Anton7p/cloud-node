@@ -1,6 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { User } from '@prisma/client';
-import { UsersRepository, CreateUserData, UserStatus, UserSubscriptionType } from './repositories/users.repository';
+import {
+  UsersRepository,
+  CreateUserData,
+  UserStatus,
+  UserSubscriptionType,
+} from './repositories/users.repository';
 
 export { CreateUserData, UserStatus, UserSubscriptionType };
 
@@ -28,7 +33,10 @@ export class UsersService {
     return this.usersRepository.findByTelegramId(telegramId);
   }
 
-  async findOrCreate(telegramId: number, data?: Partial<CreateUserData>): Promise<User> {
+  async findOrCreate(
+    telegramId: number,
+    data?: Partial<CreateUserData>,
+  ): Promise<User> {
     // Используем атомарный upsert для предотвращения race conditions
     return this.usersRepository.upsert({
       telegramId,
@@ -47,15 +55,27 @@ export class UsersService {
     return this.usersRepository.update(telegramId, updates);
   }
 
-  async updateStatus(telegramId: number, status: UserStatus): Promise<User | null> {
+  async updateStatus(
+    telegramId: number,
+    status: UserStatus,
+  ): Promise<User | null> {
     return this.usersRepository.updateStatus(telegramId, status);
   }
 
-  async updateSubscriptionType(telegramId: number, subscriptionType: UserSubscriptionType): Promise<User | null> {
-    return this.usersRepository.updateSubscriptionType(telegramId, subscriptionType);
+  async updateSubscriptionType(
+    telegramId: number,
+    subscriptionType: UserSubscriptionType,
+  ): Promise<User | null> {
+    return this.usersRepository.updateSubscriptionType(
+      telegramId,
+      subscriptionType,
+    );
   }
 
-  async updateSubscription(telegramId: number, days: number): Promise<User | null> {
+  async updateSubscription(
+    telegramId: number,
+    days: number,
+  ): Promise<User | null> {
     return this.usersRepository.updateSubscription(telegramId, days);
   }
 
@@ -63,7 +83,13 @@ export class UsersService {
     return this.usersRepository.delete(telegramId);
   }
 
-  async getStats(): Promise<{ total: number; active: number; expired: number; free: number; premium: number }> {
+  async getStats(): Promise<{
+    total: number;
+    active: number;
+    expired: number;
+    free: number;
+    premium: number;
+  }> {
     return this.usersRepository.getStats();
   }
 

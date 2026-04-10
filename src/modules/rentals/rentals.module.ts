@@ -8,11 +8,7 @@ import { RentalsSchedulerService } from './rentals-scheduler.service';
 
 @Module({
   imports: [PrismaModule, UsersModule, ScheduleModule.forRoot()],
-  providers: [
-    RentalsService,
-    RentalsRepository,
-    RentalsSchedulerService,
-  ],
+  providers: [RentalsService, RentalsRepository, RentalsSchedulerService],
   exports: [RentalsService, RentalsRepository],
 })
 export class RentalsModule {}

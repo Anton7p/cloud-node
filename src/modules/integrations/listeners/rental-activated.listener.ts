@@ -29,7 +29,7 @@ export class RentalActivatedListener {
     const { rentalId, telegramId, term } = payload;
 
     this.logger.log(
-      `Processing server slot activation for user ${telegramId}, rental ${rentalId}, term ${term} months`
+      `Processing server slot activation for user ${telegramId}, rental ${rentalId}, term ${term} months`,
     );
 
     // Имитация генерации Access Key
@@ -39,7 +39,7 @@ export class RentalActivatedListener {
     await this.rentalsService.updateAccessKey(rentalId, accessKey);
 
     this.logger.log(
-      `Access Key issued for rental ${rentalId}: ${accessKey.substring(0, 8)}...`
+      `Access Key issued for rental ${rentalId}: ${accessKey.substring(0, 8)}...`,
     );
   }
 

@@ -115,7 +115,10 @@ export class UsersRepository {
   /**
    * Обновление статуса пользователя
    */
-  async updateStatus(telegramId: number, status: UserStatus): Promise<User | null> {
+  async updateStatus(
+    telegramId: number,
+    status: UserStatus,
+  ): Promise<User | null> {
     return this.update(telegramId, { status });
   }
 
@@ -132,7 +135,10 @@ export class UsersRepository {
   /**
    * Обновление подписки с датой окончания
    */
-  async updateSubscription(telegramId: number, days: number): Promise<User | null> {
+  async updateSubscription(
+    telegramId: number,
+    days: number,
+  ): Promise<User | null> {
     const now = new Date();
     const expiresAt = new Date();
     expiresAt.setDate(now.getDate() + days);

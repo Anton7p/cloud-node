@@ -8,16 +8,18 @@ export const RENT_MESSAGES = {
   SELECT_TERM: () =>
     `${EMOJI.SERVER} *Аренда сервера*\n\n` +
     `Выберите срок аренды:\n\n` +
-    RENTAL_PRICES.map(p => `${EMOJI.BULLET} ${p.label}`).join('\n'),
+    RENTAL_PRICES.map((p) => `${EMOJI.BULLET} ${p.label}`).join('\n'),
 
   TERM_DETAILS: (months: number, priceLabel: string) => {
     const monthLabel = UI_UTILS.getMonthLabel(months);
-    return `${EMOJI.INSTRUCTIONS} *Детали аренды*\n\n` +
+    return (
+      `${EMOJI.INSTRUCTIONS} *Детали аренды*\n\n` +
       `${EMOJI.SERVER} Услуга: Аренда VPS сервера\n` +
       `${EMOJI.LOCATION} Локация: Автоподбор (Финляндия)\n` +
       `${EMOJI.TIME} Срок: ${months} ${monthLabel}\n` +
       `${EMOJI.MONEY} Стоимость: ${priceLabel}\n\n` +
-      `Для завершения оформления нажмите кнопку оплаты:`;
+      `Для завершения оформления нажмите кнопку оплаты:`
+    );
   },
 
   RENT_ACTIVATED: (endDate: string) =>

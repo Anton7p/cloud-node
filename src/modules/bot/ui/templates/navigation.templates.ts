@@ -25,7 +25,8 @@ export const NAVIGATION_ACTIONS = {
   INSTRUCTION_MACOS: 'instruction_macos',
 } as const;
 
-export type NavigationAction = typeof NAVIGATION_ACTIONS[keyof typeof NAVIGATION_ACTIONS];
+export type NavigationAction =
+  (typeof NAVIGATION_ACTIONS)[keyof typeof NAVIGATION_ACTIONS];
 
 export const NAVIGATION_LABELS = {
   PROFILE: 'Мой профиль',

@@ -16,9 +16,8 @@ jest.mock('../../ui', () => ({
 }));
 
 // Import after mock
-const { START_MESSAGES, START_ACTIONS, startKeyboard } = jest.requireMock('../../ui') as {
+const { START_MESSAGES, startKeyboard } = jest.requireMock('../../ui') as {
   START_MESSAGES: { WELCOME: jest.Mock };
-  START_ACTIONS: { BACK_TO_START: string; START: string };
   startKeyboard: jest.Mock;
 };
 
@@ -91,14 +90,16 @@ describe('StartCommand (Integration)', () => {
       expect(startKeyboard).toHaveBeenCalled();
 
       // Verify reply was sent
-      expect(context.ctx.reply).toHaveBeenCalledWith(
-        'Welcome Test',
-        { reply_markup: 'keyboard' }
-      );
+      expect(context.ctx.reply).toHaveBeenCalledWith('Welcome Test', {
+        reply_markup: 'keyboard',
+      });
     });
 
     it('should not create user when already exists', async () => {
-      usersService.findByTelegramId.mockResolvedValue({ id: 1, telegramId: mockUserId });
+      usersService.findByTelegramId.mockResolvedValue({
+        id: 1,
+        telegramId: mockUserId,
+      });
 
       const context = createMockContext('start');
       await command.execute(context);
@@ -110,7 +111,10 @@ describe('StartCommand (Integration)', () => {
 
     it('should handle missing user data gracefully', async () => {
       const context: CommandContext = {
-        ctx: { from: undefined, reply: jest.fn() } as unknown as CommandContext['ctx'],
+        ctx: {
+          from: undefined,
+          reply: jest.fn(),
+        } as unknown as CommandContext['ctx'],
         userId: mockUserId,
         data: 'start',
         args: [],

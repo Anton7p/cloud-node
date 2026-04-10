@@ -6,8 +6,8 @@ import { CommandContext } from '../base.action';
 // Mock the UI module
 jest.mock('../../ui', () => ({
   RENT_MESSAGES: {
-    TERM_DETAILS: jest.fn((months: number, price: string) =>
-      `Rent for ${months} months: ${price}`
+    TERM_DETAILS: jest.fn(
+      (months: number, price: string) => `Rent for ${months} months: ${price}`,
     ),
   },
   RENT_PATTERNS: {
@@ -15,19 +15,20 @@ jest.mock('../../ui', () => ({
   },
   UI_UTILS: {
     getRentalPrice: jest.fn((months: number) =>
-      months === 1 ? { months: 1, price: 10, label: '1 month' } : null
+      months === 1 ? { months: 1, price: 10, label: '1 month' } : null,
     ),
   },
   rentTermDetailsKeyboard: jest.fn(() => ({ reply_markup: 'keyboard' })),
 }));
 
 // Import after mock
-const { RENT_MESSAGES, RENT_PATTERNS, UI_UTILS, rentTermDetailsKeyboard } = jest.requireMock('../../ui') as {
-  RENT_MESSAGES: { TERM_DETAILS: jest.Mock };
-  RENT_PATTERNS: { RENT_TERM: RegExp };
-  UI_UTILS: { getRentalPrice: jest.Mock };
-  rentTermDetailsKeyboard: jest.Mock;
-};
+const { RENT_MESSAGES, RENT_PATTERNS, UI_UTILS, rentTermDetailsKeyboard } =
+  jest.requireMock('../../ui') as {
+    RENT_MESSAGES: { TERM_DETAILS: jest.Mock };
+    RENT_PATTERNS: { RENT_TERM: RegExp };
+    UI_UTILS: { getRentalPrice: jest.Mock };
+    rentTermDetailsKeyboard: jest.Mock;
+  };
 
 describe('RentTermCommand (Integration)', () => {
   let command: RentTermCommand;
@@ -78,7 +79,10 @@ describe('RentTermCommand (Integration)', () => {
       await command.execute(context);
 
       // Verify repository call
-      expect(rentalsService.createPendingRental).toHaveBeenCalledWith(mockUserId, 1);
+      expect(rentalsService.createPendingRental).toHaveBeenCalledWith(
+        mockUserId,
+        1,
+      );
 
       // Verify UI utilities were called
       expect(UI_UTILS.getRentalPrice).toHaveBeenCalledWith(1);
@@ -86,10 +90,10 @@ describe('RentTermCommand (Integration)', () => {
       expect(rentTermDetailsKeyboard).toHaveBeenCalled();
 
       // Verify reply was sent with correct options
-      expect(context.ctx.reply).toHaveBeenCalledWith(
-        'Rent for 1 months: 10$',
-        { parse_mode: 'Markdown', reply_markup: 'keyboard' }
-      );
+      expect(context.ctx.reply).toHaveBeenCalledWith('Rent for 1 months: 10$', {
+        parse_mode: 'Markdown',
+        reply_markup: 'keyboard',
+      });
     });
 
     it('should handle 3 months term', async () => {
@@ -97,13 +101,18 @@ describe('RentTermCommand (Integration)', () => {
 
       // Update mock for 3 months
       (UI_UTILS.getRentalPrice as jest.Mock).mockReturnValue({
-        months: 3, price: 25, label: '3 months'
+        months: 3,
+        price: 25,
+        label: '3 months',
       });
 
       const context = createMockContext('rent_3m', ['3']);
       await command.execute(context);
 
-      expect(rentalsService.createPendingRental).toHaveBeenCalledWith(mockUserId, 3);
+      expect(rentalsService.createPendingRental).toHaveBeenCalledWith(
+        mockUserId,
+        3,
+      );
       expect(UI_UTILS.getRentalPrice).toHaveBeenCalledWith(3);
     });
 
@@ -122,7 +131,10 @@ describe('RentTermCommand (Integration)', () => {
       const context = createMockContext('rent_99m', ['99']);
       await command.execute(context);
 
-      expect(rentalsService.createPendingRental).toHaveBeenCalledWith(mockUserId, 99);
+      expect(rentalsService.createPendingRental).toHaveBeenCalledWith(
+        mockUserId,
+        99,
+      );
       expect(RENT_MESSAGES.TERM_DETAILS).toHaveBeenCalledWith(99, 'Неизвестно');
     });
   });

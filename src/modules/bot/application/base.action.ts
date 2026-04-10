@@ -75,7 +75,8 @@ export abstract class BaseAction {
    * Валидация доступа (заглушка для проверки банов/прав)
    * Переопределите в наследниках для реальной проверки
    */
-  async validate(context: CommandContext): Promise<boolean> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async validate(_context: CommandContext): Promise<boolean> {
     return true; // Заезд для проверки банов или прав доступа
   }
 
@@ -83,7 +84,9 @@ export abstract class BaseAction {
    * Вспомогательный метод для логирования
    */
   protected logExecution(data: string, userId: number): void {
-    this.logger.log(`Executing ${this.constructor.name} for user ${userId} with data: ${data}`);
+    this.logger.log(
+      `Executing ${this.constructor.name} for user ${userId} with data: ${data}`,
+    );
   }
 }
 

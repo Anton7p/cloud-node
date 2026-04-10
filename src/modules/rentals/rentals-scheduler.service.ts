@@ -34,11 +34,12 @@ export class RentalsSchedulerService {
 
       // Логируем ID пользователей с истекающими арендами
       const userIds = expiringRentals.map((r) => r.userId).join(', ');
-      this.logger.warn(`Found ${expiringRentals.length} rentals expiring within 24h. User IDs: ${userIds}`);
+      this.logger.warn(
+        `Found ${expiringRentals.length} rentals expiring within 24h. User IDs: ${userIds}`,
+      );
 
       // TODO: Отправка уведомлений пользователям
       // TODO: Обновление lastNotifiedAt
-
     } catch (error) {
       this.logger.error(`Failed to check expiring rentals: ${error}`);
     }

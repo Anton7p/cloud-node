@@ -51,21 +51,32 @@ export class RentalsService {
       return null;
     }
 
-    const pendingRental = await this.rentalsRepository.findPendingByUserId(user.id);
+    const pendingRental = await this.rentalsRepository.findPendingByUserId(
+      user.id,
+    );
     if (!pendingRental) {
       this.logger.warn(`No pending rental found for user: ${telegramId}`);
       return null;
     }
 
     const now = dayjs();
-    const activeRental = await this.rentalsRepository.findActiveByUserId(user.id);
+    const activeRental = await this.rentalsRepository.findActiveByUserId(
+      user.id,
+    );
 
     // Транзакция: либо продлеваем активную, либо активируем новую
     const result = await this.prisma.$transaction(async (tx) => {
       // Если есть активная аренда и она не просрочена - продлеваем
-      if (activeRental && activeRental.endDate && dayjs(activeRental.endDate).isAfter(now)) {
+      if (
+        activeRental &&
+        activeRental.endDate &&
+        dayjs(activeRental.endDate).isAfter(now)
+      ) {
         const newTerm = activeRental.term + pendingRental.term;
-        const newEndDate = dayjs(activeRental.endDate).add(pendingRental.term, 'month');
+        const newEndDate = dayjs(activeRental.endDate).add(
+          pendingRental.term,
+          'month',
+        );
 
         // Помечаем pending как COMPLETED (не удаляем для истории)
         await tx.rental.update({
@@ -84,7 +95,7 @@ export class RentalsService {
 
         this.logger.log(
           `Extended server rental ${updated.id} for user ${telegramId}, ` +
-          `new term: ${newTerm} months, expires: ${newEndDate.format('YYYY-MM-DD')}`
+            `new term: ${newTerm} months, expires: ${newEndDate.format('YYYY-MM-DD')}`,
         );
         return updated;
       }
@@ -103,7 +114,7 @@ export class RentalsService {
 
       this.logger.log(
         `Activated server rental ${updated.id} for user ${telegramId}, ` +
-        `expires: ${endDate.format('YYYY-MM-DD')}`
+          `expires: ${endDate.format('YYYY-MM-DD')}`,
       );
       return updated;
     });
@@ -174,7 +185,10 @@ export class RentalsService {
   /**
    * Обновление Access Key для аренды
    */
-  async updateAccessKey(rentalId: number, accessKey: string): Promise<Rental | null> {
+  async updateAccessKey(
+    rentalId: number,
+    accessKey: string,
+  ): Promise<Rental | null> {
     try {
       const updated = await this.prisma.rental.update({
         where: { id: rentalId },
@@ -183,7 +197,9 @@ export class RentalsService {
       this.logger.log(`Updated Access Key for rental ${rentalId}`);
       return updated;
     } catch (error) {
-      this.logger.error(`Failed to update Access Key for rental ${rentalId}: ${error}`);
+      this.logger.error(
+        `Failed to update Access Key for rental ${rentalId}: ${error}`,
+      );
       return null;
     }
   }

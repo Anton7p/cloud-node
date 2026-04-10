@@ -60,7 +60,7 @@ const commandHandlers = [
 
               if (message) {
                 logger.log(
-                  `Incoming message from user ${user?.id} (@${user?.username || 'unknown'}): ${JSON.stringify(message)}`
+                  `Incoming message from user ${user?.id} (@${user?.username || 'unknown'}): ${JSON.stringify(message)}`,
                 );
               }
 

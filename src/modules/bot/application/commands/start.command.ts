@@ -5,10 +5,7 @@ import { START_MESSAGES, START_ACTIONS, startKeyboard } from '../../ui';
 
 @Injectable()
 export class StartCommand extends BaseAction {
-  readonly pattern = [
-    START_ACTIONS.BACK_TO_START,
-    'start',
-  ];
+  readonly pattern = [START_ACTIONS.BACK_TO_START, 'start'];
 
   constructor(private readonly usersService: UsersService) {
     super(StartCommand.name);
@@ -40,7 +37,9 @@ export class StartCommand extends BaseAction {
     });
 
     if (referralCode) {
-      this.logger.log(`User ${userId} registered with referral code: ${referralCode}`);
+      this.logger.log(
+        `User ${userId} registered with referral code: ${referralCode}`,
+      );
       // TODO: Обработка реферального кода
     }
 

@@ -1,7 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { RentalsService } from '../../../rentals/rentals.service';
 import { BaseAction, CommandContext } from '../base.action';
-import { PROFILE_MESSAGES, PROFILE_ACTIONS, noServersKeyboard, accessInfoKeyboard, UI_UTILS } from '../../ui';
+import {
+  PROFILE_MESSAGES,
+  PROFILE_ACTIONS,
+  noServersKeyboard,
+  accessInfoKeyboard,
+  UI_UTILS,
+} from '../../ui';
 
 @Injectable()
 export class GetAccessCommand extends BaseAction {

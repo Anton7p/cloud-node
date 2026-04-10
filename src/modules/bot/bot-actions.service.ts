@@ -38,7 +38,7 @@ export class BotActionsService implements OnModuleInit {
   async onModuleInit(): Promise<void> {
     await this.buildHandlerMap();
     this.logger.log(
-      `Initialized with ${this.handlerMap.size} direct handlers and ${this.patternHandlers.length} pattern handlers`
+      `Initialized with ${this.handlerMap.size} direct handlers and ${this.patternHandlers.length} pattern handlers`,
     );
   }
 
@@ -62,7 +62,7 @@ export class BotActionsService implements OnModuleInit {
     ];
 
     const handlers = await Promise.all(
-      handlerClasses.map(cls => this.moduleRef.get(cls, { strict: false }))
+      handlerClasses.map((cls) => this.moduleRef.get(cls, { strict: false })),
     );
 
     for (const handler of handlers) {
@@ -102,7 +102,7 @@ export class BotActionsService implements OnModuleInit {
     }
 
     // Затем проверяем RegExp паттерны
-    return this.patternHandlers.find(handler => handler.canHandle(data));
+    return this.patternHandlers.find((handler) => handler.canHandle(data));
   }
 
   /**
@@ -125,7 +125,11 @@ export class BotActionsService implements OnModuleInit {
    * Обработка callback query
    * Паттерн Command/Handler: находим handler за O(1) и выполняем
    */
-  async handleCallbackQuery(ctx: BotContext, data: string, userId: number): Promise<void> {
+  async handleCallbackQuery(
+    ctx: BotContext,
+    data: string,
+    userId: number,
+  ): Promise<void> {
     this.logger.log(`Processing: ${data} from user ${userId}`);
 
     const handler = this.findHandler(data);

@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { RentalsService } from '../../../rentals/rentals.service';
 import { BaseAction, CommandContext } from '../base.action';
-import { RENT_MESSAGES, RENT_PATTERNS, UI_UTILS, rentTermDetailsKeyboard } from '../../ui';
+import {
+  RENT_MESSAGES,
+  RENT_PATTERNS,
+  UI_UTILS,
+  rentTermDetailsKeyboard,
+} from '../../ui';
 
 @Injectable()
 export class RentTermCommand extends BaseAction {

@@ -5,16 +5,19 @@ import { EMOJI, PLATFORM_APPS } from './common.templates';
 // ============================================================================
 
 export const INSTRUCTIONS_MESSAGES = {
-  SELECT_PLATFORM: `${EMOJI.INSTRUCTIONS} *Инструкции по подключению*\n\n` +
+  SELECT_PLATFORM:
+    `${EMOJI.INSTRUCTIONS} *Инструкции по подключению*\n\n` +
     `Выберите вашу платформу:`,
 
   PLATFORM_INFO: (platform: string) => {
     const appName = PLATFORM_APPS[platform] || 'приложение для вашей платформы';
-    return `${EMOJI.PHONE} *Инструкция для ${platform}*\n\n` +
+    return (
+      `${EMOJI.PHONE} *Инструкция для ${platform}*\n\n` +
       `${EMOJI.ONE} Скачайте приложение *${appName}* из официального магазина\n\n` +
       `${EMOJI.TWO} Скопируйте ключ подключения из раздела «${EMOJI.KEY} Получить доступ к узлу» в вашем Профиле\n\n` +
       `${EMOJI.THREE} Вставьте ключ в приложение и нажмите *Подключиться*\n\n` +
-      `${EMOJI.BULB} Если нужна помощь — обратитесь в поддержку @support`;
+      `${EMOJI.BULB} Если нужна помощь — обратитесь в поддержку @support`
+    );
   },
 } as const;
 

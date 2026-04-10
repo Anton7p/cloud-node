@@ -1,5 +1,4 @@
-import { User } from '@prisma/client';
-import { RentalData, RentalPrice } from '../../types/bot.types';
+import { RentalPrice } from '../../types/bot.types';
 
 // ============================================================================
 // ЭМОДЗИ
@@ -81,7 +80,7 @@ export const UI_UTILS = {
   },
 
   getRentalPrice: (months: number): RentalPrice | undefined => {
-    return RENTAL_PRICES.find(p => p.months === months);
+    return RENTAL_PRICES.find((p) => p.months === months);
   },
 
   formatUserId: (telegramId: bigint): string => {

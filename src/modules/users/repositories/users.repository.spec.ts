@@ -79,7 +79,11 @@ describe('UsersRepository', () => {
         subscriptionType: 'premium',
       };
 
-      const premiumUser = { ...mockUser, subscriptionType: 'premium', status: 'expired' };
+      const premiumUser = {
+        ...mockUser,
+        subscriptionType: 'premium',
+        status: 'expired',
+      };
       mockPrisma.user.create.mockResolvedValue(premiumUser);
 
       await repository.create(createData);

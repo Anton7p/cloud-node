@@ -10,21 +10,11 @@ export {
   COMMON_MESSAGES,
 } from './common.templates';
 
-export {
-  START_MESSAGES,
-  START_ACTIONS,
-} from './start.templates';
+export { START_MESSAGES, START_ACTIONS } from './start.templates';
 
-export {
-  PROFILE_MESSAGES,
-  PROFILE_ACTIONS,
-} from './profile.templates';
+export { PROFILE_MESSAGES, PROFILE_ACTIONS } from './profile.templates';
 
-export {
-  RENT_MESSAGES,
-  RENT_ACTIONS,
-  RENT_PATTERNS,
-} from './rent.templates';
+export { RENT_MESSAGES, RENT_ACTIONS, RENT_PATTERNS } from './rent.templates';
 
 export {
   INSTRUCTIONS_MESSAGES,

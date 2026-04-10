@@ -9,7 +9,7 @@ import {
 
 /**
  * AbstractServerProvider - Base implementation for Server Rental integrations
- * 
+ *
  * Provides common functionality shared across all provider implementations:
  * - Logging
  * - Error handling
@@ -51,7 +51,10 @@ export abstract class AbstractServerProvider implements IServerProvider {
   /**
    * Allocate a Computing Slot
    */
-  abstract allocateSlot(rentalId: string, userId: string): Promise<ComputingSlot>;
+  abstract allocateSlot(
+    rentalId: string,
+    userId: string,
+  ): Promise<ComputingSlot>;
 
   /**
    * Revoke a Computing Slot

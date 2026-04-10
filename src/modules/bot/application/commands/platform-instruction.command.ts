@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { BaseAction, CommandContext } from '../base.action';
-import { INSTRUCTIONS_MESSAGES, INSTRUCTIONS_PATTERNS, platformInfoKeyboard } from '../../ui';
+import {
+  INSTRUCTIONS_MESSAGES,
+  INSTRUCTIONS_PATTERNS,
+  platformInfoKeyboard,
+} from '../../ui';
 
 @Injectable()
 export class PlatformInstructionCommand extends BaseAction {

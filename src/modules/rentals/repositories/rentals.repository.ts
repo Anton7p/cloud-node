@@ -48,7 +48,9 @@ export class RentalsRepository {
       },
     });
 
-    this.logger.log(`Created pending rental for user ${userId}, term: ${term} months`);
+    this.logger.log(
+      `Created pending rental for user ${userId}, term: ${term} months`,
+    );
     return rental;
   }
 
@@ -84,7 +86,9 @@ export class RentalsRepository {
         },
       });
 
-      this.logger.log(`Extended rental ${updated.id} for user ${userId}, new term: ${newTerm} months, expires: ${newEndDate.toISOString()}`);
+      this.logger.log(
+        `Extended rental ${updated.id} for user ${userId}, new term: ${newTerm} months, expires: ${newEndDate.toISOString()}`,
+      );
       return updated;
     }
 
@@ -101,7 +105,9 @@ export class RentalsRepository {
       },
     });
 
-    this.logger.log(`Activated rental ${updated.id} for user ${userId}, expires: ${endDate.toISOString()}`);
+    this.logger.log(
+      `Activated rental ${updated.id} for user ${userId}, expires: ${endDate.toISOString()}`,
+    );
     return updated;
   }
 
@@ -136,7 +142,7 @@ export class RentalsRepository {
     return this.prisma.rental.findFirst({
       where: {
         userId,
-        status: { in: [RentalStatus.ACTIVE, RentalStatus.PENDING] }
+        status: { in: [RentalStatus.ACTIVE, RentalStatus.PENDING] },
       },
       orderBy: {
         createdAt: 'desc',

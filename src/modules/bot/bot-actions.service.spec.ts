@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BotActionsService } from './bot-actions.service';
 import { ModuleRef } from '@nestjs/core';
-import { BaseAction } from './application/base.action';
 import { BotContext } from './types/bot.types';
 
 // Store handlers for assertions
@@ -94,7 +93,18 @@ describe('BotActionsService', () => {
     mockHandlers = {};
     capturedHandlers = {};
     let callCount = 0;
-    const handlerNames = ['StartCommand', 'ProfileCommand', 'RentServerCommand', 'RentTermCommand', 'PayRentalCommand', 'GetAccessCommand', 'InstructionsCommand', 'PlatformInstructionCommand', 'ReferralCommand', 'HelpCommand'];
+    const handlerNames = [
+      'StartCommand',
+      'ProfileCommand',
+      'RentServerCommand',
+      'RentTermCommand',
+      'PayRentalCommand',
+      'GetAccessCommand',
+      'InstructionsCommand',
+      'PlatformInstructionCommand',
+      'ReferralCommand',
+      'HelpCommand',
+    ];
     const patterns: (string | string[] | RegExp)[] = [
       ['start', 'back_to_start'],
       'profile',
@@ -109,7 +119,7 @@ describe('BotActionsService', () => {
     ];
 
     moduleRef = {
-      get: jest.fn((_cls, _options) => {
+      get: jest.fn(() => {
         const pattern = patterns[callCount];
         const handlerName = handlerNames[callCount];
         callCount++;

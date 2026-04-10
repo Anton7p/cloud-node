@@ -1,5 +1,4 @@
 import { Update, Start, Ctx, On } from 'nestjs-telegraf';
-import { Context } from 'telegraf';
 import { Logger, UseFilters } from '@nestjs/common';
 import { BotActionsService } from './bot-actions.service';
 import { BotContext } from './types/bot.types';

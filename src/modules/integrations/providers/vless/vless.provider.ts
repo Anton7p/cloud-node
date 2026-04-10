@@ -1,8 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  AbstractServerProvider,
-} from '../abstract-server.provider';
+import { AbstractServerProvider } from '../abstract-server.provider';
 import {
   ServerRental,
   RentalConfig,
@@ -13,7 +11,7 @@ import {
 
 /**
  * VlessProvider - VLESS protocol Server Rental implementation
- * 
+ *
  * Manages VLESS servers and Computing Slots through
  * integration with 3x-UI / Xray-core panel APIs.
  */
@@ -68,7 +66,9 @@ export class VlessProvider extends AbstractServerProvider {
       config,
       status: 'active',
       createdAt: new Date(),
-      expiresAt: new Date(Date.now() + config.durationDays * 24 * 60 * 60 * 1000),
+      expiresAt: new Date(
+        Date.now() + config.durationDays * 24 * 60 * 60 * 1000,
+      ),
       metadata: {
         apiVersion: 'v2',
         panelType: '3x-ui',
@@ -98,11 +98,13 @@ export class VlessProvider extends AbstractServerProvider {
    * Allocate a Computing Slot (user access)
    */
   async allocateSlot(rentalId: string, userId: string): Promise<ComputingSlot> {
-    this.logger.log(`Allocating VLESS slot for user ${userId} on rental ${rentalId}`);
-    
+    this.logger.log(
+      `Allocating VLESS slot for user ${userId} on rental ${rentalId}`,
+    );
+
     const slotId = this.generateSlotId(rentalId, userId);
     const accessKey = this.generateVlessUUID();
-    
+
     // Mock connection URL - in production, fetched from panel API
     const connectionUrl = `vless://${accessKey}@server.example:443?encryption=none&security=tls&type=ws&path=/vless`;
 
@@ -145,7 +147,7 @@ export class VlessProvider extends AbstractServerProvider {
    */
   async getSlotTraffic(slotId: string): Promise<TrafficStats> {
     this.logger.log(`Fetching traffic for slot: ${slotId}`);
-    
+
     // Mock implementation - replace with actual API call
     return {
       slotId,
@@ -168,8 +170,13 @@ export class VlessProvider extends AbstractServerProvider {
   /**
    * Renew rental duration
    */
-  async renewRental(rentalId: string, additionalDays: number): Promise<ServerRental> {
-    this.logger.log(`Renewing VLESS rental ${rentalId} by ${additionalDays} days`);
+  async renewRental(
+    rentalId: string,
+    additionalDays: number,
+  ): Promise<ServerRental> {
+    this.logger.log(
+      `Renewing VLESS rental ${rentalId} by ${additionalDays} days`,
+    );
     // Implement actual renew API call
     throw new Error('Method not implemented');
   }
@@ -197,8 +204,8 @@ export class VlessProvider extends AbstractServerProvider {
    */
   private generateVlessUUID(): string {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = Math.random() * 16 | 0;
-      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
       return v.toString(16);
     });
   }

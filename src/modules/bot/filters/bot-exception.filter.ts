@@ -11,10 +11,14 @@ export class BotExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(BotExceptionFilter.name);
 
   private readonly ERROR_MESSAGES = {
-    DEFAULT: '⚠️ *Произошла небольшая ошибка*\n\nМы уже работаем над её устранением. Попробуйте позже или обратитесь в поддержку.',
-    DATABASE: '⚠️ *Проблема с базой данных*\n\nНе удалось сохранить данные. Пожалуйста, попробуйте через минуту.',
-    NETWORK: '⚠️ *Проблема со связью*\n\nНе удалось связаться с сервером. Попробуйте позже.',
-    VALIDATION: '⚠️ *Некорректные данные*\n\nПроверьте ввод и попробуйте снова.',
+    DEFAULT:
+      '⚠️ *Произошла небольшая ошибка*\n\nМы уже работаем над её устранением. Попробуйте позже или обратитесь в поддержку.',
+    DATABASE:
+      '⚠️ *Проблема с базой данных*\n\nНе удалось сохранить данные. Пожалуйста, попробуйте через минуту.',
+    NETWORK:
+      '⚠️ *Проблема со связью*\n\nНе удалось связаться с сервером. Попробуйте позже.',
+    VALIDATION:
+      '⚠️ *Некорректные данные*\n\nПроверьте ввод и попробуйте снова.',
   };
 
   async catch(exception: Error, host: ArgumentsHost): Promise<void> {
@@ -51,17 +55,29 @@ export class BotExceptionFilter implements ExceptionFilter {
     const message = exception.message.toLowerCase();
 
     // Ошибки базы данных
-    if (message.includes('prisma') || message.includes('database') || message.includes('sql')) {
+    if (
+      message.includes('prisma') ||
+      message.includes('database') ||
+      message.includes('sql')
+    ) {
       return this.ERROR_MESSAGES.DATABASE;
     }
 
     // Сетевые ошибки
-    if (message.includes('network') || message.includes('timeout') || message.includes('etimedout')) {
+    if (
+      message.includes('network') ||
+      message.includes('timeout') ||
+      message.includes('etimedout')
+    ) {
       return this.ERROR_MESSAGES.NETWORK;
     }
 
     // Ошибки валидации
-    if (message.includes('validation') || message.includes('invalid') || message.includes('required')) {
+    if (
+      message.includes('validation') ||
+      message.includes('invalid') ||
+      message.includes('required')
+    ) {
       return this.ERROR_MESSAGES.VALIDATION;
     }
 
