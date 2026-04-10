@@ -11,8 +11,8 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install dependencies (ignore-scripts to skip Husky in container)
+RUN npm ci --only=production --ignore-scripts && npm cache clean --force
 
 # Generate Prisma Client
 RUN npx prisma generate
@@ -31,8 +31,8 @@ COPY prisma ./prisma/
 COPY tsconfig.json ./
 COPY tsconfig.build.json ./
 
-# Install all dependencies (including dev)
-RUN npm ci
+# Install all dependencies (including dev) - ignore-scripts to skip Husky
+RUN npm ci --ignore-scripts
 
 # Generate Prisma Client
 RUN npx prisma generate
@@ -79,4 +79,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD node -e "require('http').get('http://localhost:3000/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1))" || exit 1
 
 # Start application
-CMD ["node", "dist/main"]
+CMD ["node", "dist/main.js"]
