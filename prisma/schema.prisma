@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id               Int      @id @default(autoincrement())
+  telegramId       BigInt   @unique
+  username         String?
+  firstName        String?
+  languageCode     String?
+  status           String   @default("active")
+  subscriptionType String   @default("free")
+  balance          Decimal  @default(0) @db.Decimal(10, 2)
+  expiresAt        DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  rentals          Rental[]
+  @@map("user")
+}
+
+model Rental {
+  id              Int          @id @default(autoincrement())
+  userId          Int
+  user            User         @relation(fields: [userId], references: [id])
+  term            Int          // срок в месяцах
+  status          RentalStatus @default(PENDING)
+  startDate       DateTime?
+  endDate         DateTime?
+  lastNotifiedAt  DateTime?
+  accessKey       String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([userId, status])
+  @@index([status, endDate])
+  @@map("rental")
+}
+
+enum RentalStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  COMPLETED
+}
