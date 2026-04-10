@@ -1,0 +1,88 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  DOCKER_IMAGE_NAME: $CI_REGISTRY_IMAGE
+  DOCKER_IMAGE_TAG: $CI_COMMIT_SHORT_SHA
+  DOCKER_IMAGE_LATEST: $CI_REGISTRY_IMAGE:latest
+  SERVER_IP: 62.60.229.227
+
+# Build stage - Build Docker image
+build:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - echo "Building Docker image..."
+    - docker build 
+        --build-arg NODE_ENV=production
+        -t $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG
+        -t $DOCKER_IMAGE_LATEST
+        .
+    - echo "Pushing Docker image to registry..."
+    - docker push $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG
+    - docker push $DOCKER_IMAGE_LATEST
+    - echo "Build completed successfully!"
+  only:
+    - main
+    - master
+    - develop
+
+# Deploy stage - Deploy to server via SSH
+deploy:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client rsync
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - ssh-keyscan -H $SERVER_IP >> ~/.ssh/known_hosts
+  script:
+    - echo "Deploying to server $SERVER_IP..."
+    - |
+      ssh -o StrictHostKeyChecking=no root@$SERVER_IP << 'EOF'
+        set -e
+        
+        echo "[DEPLOY] Connecting to server..."
+        cd /opt/cloudnode || mkdir -p /opt/cloudnode && cd /opt/cloudnode
+        
+        # Pull latest docker-compose and env files if stored in repo
+        # or use existing files on server
+        
+        echo "[DEPLOY] Pulling latest Docker image..."
+        docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+        docker pull $DOCKER_IMAGE_NAME:latest
+        
+        echo "[DEPLOY] Stopping existing containers..."
+        docker-compose down || true
+        
+        echo "[DEPLOY] Starting new containers..."
+        export DB_PASSWORD=$DB_PASSWORD
+        export BOT_TOKEN=$BOT_TOKEN
+        export ENCRYPTION_KEY=$ENCRYPTION_KEY
+        export CI_REGISTRY=$CI_REGISTRY
+        export CI_REGISTRY_USER=$CI_REGISTRY_USER
+        export CI_REGISTRY_PASSWORD=$CI_REGISTRY_PASSWORD
+        
+        docker-compose up -d
+        
+        echo "[DEPLOY] Running database migrations..."
+        docker-compose exec -T bot npx prisma migrate deploy || echo "Migration check completed"
+        
+        echo "[DEPLOY] Cleaning up old images..."
+        docker image prune -f
+        
+        echo "[DEPLOY] Deployment completed successfully!"
+      EOF
+    - echo "Deployment finished!"
+  only:
+    - main
+    - master
+  environment:
+    name: production
+    url: http://$SERVER_IP
