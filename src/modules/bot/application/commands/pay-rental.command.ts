@@ -15,6 +15,9 @@ export class PayRentalCommand extends BaseAction {
     const { ctx, userId } = context;
     this.logExecution(context.data, userId);
 
+    // Typing эффект для атмосферы
+    await ctx.sendChatAction('typing');
+
     const rental = await this.rentalsService.getRental(userId);
 
     if (!rental || rental.status !== RentalStatus.PENDING) {

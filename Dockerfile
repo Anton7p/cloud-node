@@ -40,6 +40,9 @@ RUN npx prisma generate
 # Copy source code
 COPY src ./src
 
+# Copy assets
+COPY assets ./assets
+
 # Build application
 RUN npm run build
 
@@ -61,6 +64,9 @@ COPY --from=dependencies /app/package*.json ./
 
 # Copy Prisma files
 COPY --from=builder /app/prisma ./prisma
+
+# Copy assets (HUD icons, images)
+COPY --from=builder /app/assets ./assets
 
 # Copy built application
 COPY --from=builder /app/dist ./dist

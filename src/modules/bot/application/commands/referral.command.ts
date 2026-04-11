@@ -14,6 +14,9 @@ export class ReferralCommand extends BaseAction {
     const { ctx } = context;
     this.logExecution(context.data, context.userId);
 
+    // Typing эффект для атмосферы
+    await ctx.sendChatAction('typing');
+
     await ctx.reply(PROFILE_MESSAGES.REFERRAL_TITLE, {
       parse_mode: 'Markdown',
       ...referralKeyboard(),

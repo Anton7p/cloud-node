@@ -21,6 +21,9 @@ export class GetAccessCommand extends BaseAction {
     const { ctx, userId } = context;
     this.logExecution(context.data, userId);
 
+    // Typing эффект для атмосферы
+    await ctx.sendChatAction('typing');
+
     const rental = await this.rentalsService.getActiveRental(userId);
 
     if (!rental || !rental.endDate) {

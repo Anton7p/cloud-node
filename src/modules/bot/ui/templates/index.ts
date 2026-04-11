@@ -1,5 +1,5 @@
 // ============================================================================
-// РЕЭКСПОРТЫ ШАБЛОНОВ
+// CYBERPUNK UI: РЕЭКСПОРТЫ ШАБЛОНОВ
 // ============================================================================
 
 export {
@@ -27,3 +27,14 @@ export {
   NAVIGATION_LABELS,
   type NavigationAction,
 } from './navigation.templates';
+
+// CYBERPUNK: Экспорты для корпоративного интерфейса
+export {
+  CYBER_EMOJI,
+  SYS_PREFIX,
+  HUD_ICONS,
+  TERMINAL,
+  CYBER_MESSAGES,
+  REPLY_KEYBOARD_CONFIG,
+  CHAT_MENU_BUTTON,
+} from './cyberpunk.templates';

@@ -18,6 +18,9 @@ export class PlatformInstructionCommand extends BaseAction {
     const { ctx, args } = context;
     this.logExecution(context.data, context.userId);
 
+    // Typing эффект для атмосферы
+    await ctx.sendChatAction('typing');
+
     const platform = args[0];
 
     if (!platform) {

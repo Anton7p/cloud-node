@@ -20,6 +20,9 @@ export class RentTermCommand extends BaseAction {
     const { ctx, userId, args } = context;
     this.logExecution(context.data, userId);
 
+    // Typing эффект для атмосферы
+    await ctx.sendChatAction('typing');
+
     const months = parseInt(args[0], 10);
 
     if (isNaN(months)) {

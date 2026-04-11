@@ -5,6 +5,17 @@ import { RentalPrice } from '../../types/bot.types';
 // ============================================================================
 
 export const EMOJI = {
+  // Cyberpunk Core Icons
+  CORE: '💠',
+  SQUARE: '🟦',
+  BOLT: '⚡️',
+  BATTERY: '🔋',
+  SHIELD: '🛡',
+  TERMINAL: '📟',
+  LOCK: '🔒',
+  UNLOCK: '🔓',
+
+  // Standard Icons
   WAVE: '👋',
   SERVER: '🖥️',
   LOCATION: '🌍',
@@ -35,7 +46,6 @@ export const EMOJI = {
   CARD: '💳',
   CHECK: '✅',
   NO: '❌',
-  SHIELD: '🔐',
   ANTENNA: '📡',
   ARROW_RIGHT: '➡️',
   BULLET: '•',

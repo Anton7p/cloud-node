@@ -22,6 +22,9 @@ export class InstructionsCommand extends BaseAction {
     const { ctx } = context;
     this.logExecution(context.data, context.userId);
 
+    // Typing эффект для атмосферы
+    await ctx.sendChatAction('typing');
+
     await ctx.reply(INSTRUCTIONS_MESSAGES.SELECT_PLATFORM, {
       parse_mode: 'Markdown',
       ...instructionsKeyboard(),

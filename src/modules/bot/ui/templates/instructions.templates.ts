@@ -1,22 +1,33 @@
 import { EMOJI, PLATFORM_APPS } from './common.templates';
 
 // ============================================================================
-// ШАБЛОНЫ ИНСТРУКЦИЙ
+// CYBERPUNK: ШАБЛОНЫ ИНСТРУКЦИЙ (Терминальный стиль)
 // ============================================================================
 
+const SYS = {
+  MANUAL: '>_ [ИНСТРУКЦИЯ]',
+  CONNECT: '>_ [ПОДКЛЮЧЕНИЕ]',
+} as const;
+
+const term = (text: string): string => `\`\`\`terminal\n${text}\n\`\`\``;
+
 export const INSTRUCTIONS_MESSAGES = {
-  SELECT_PLATFORM:
-    `${EMOJI.INSTRUCTIONS} *Инструкции по подключению*\n\n` +
-    `Выберите вашу платформу:`,
+  SELECT_PLATFORM: term(
+    `${SYS.MANUAL} Протокол подключения\n\n` +
+      `${EMOJI.TERMINAL} Выберите вашу платформу:`,
+  ),
 
   PLATFORM_INFO: (platform: string) => {
-    const appName = PLATFORM_APPS[platform] || 'приложение для вашей платформы';
-    return (
-      `${EMOJI.PHONE} *Инструкция для ${platform}*\n\n` +
-      `${EMOJI.ONE} Скачайте приложение *${appName}* из официального магазина\n\n` +
-      `${EMOJI.TWO} Скопируйте ключ подключения из раздела «${EMOJI.KEY} Получить доступ к узлу» в вашем Профиле\n\n` +
-      `${EMOJI.THREE} Вставьте ключ в приложение и нажмите *Подключиться*\n\n` +
-      `${EMOJI.BULB} Если нужна помощь — обратитесь в поддержку @support`
+    const appName = PLATFORM_APPS[platform] || 'совместимый клиент';
+    return term(
+      `${SYS.MANUAL} Настройка ${platform.toUpperCase()}\n\n` +
+        `${EMOJI.ONE} УСТАНОВКА: ${appName}\n` +
+        `   └─ Источник: Только официальный магазин\n\n` +
+        `${EMOJI.TWO} АВТОРИЗАЦИЯ: Получите ключ в Профиле\n` +
+        `   └─ ${EMOJI.LOCK} Доступ к узлу\n\n` +
+        `${EMOJI.THREE} ПОДКЛЮЧЕНИЕ: Импортируйте ключ\n` +
+        `   └─ Статус: ${EMOJI.BOLT} Онлайн\n\n` +
+        `${SYS.CONNECT} Поддержка: @support`,
     );
   },
 } as const;

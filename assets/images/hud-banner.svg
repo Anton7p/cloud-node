@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">
+  <defs>
+    <linearGradient id="cyberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#0099cc;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#006699;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#00d4ff" stroke-width="0.5" opacity="0.3"/>
+    </pattern>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="800" height="400" fill="#0a0a0f"/>
+  <rect width="800" height="400" fill="url(#grid)"/>
+  
+  <!-- HUD Circle -->
+  <circle cx="400" cy="200" r="120" fill="none" stroke="url(#cyberGrad)" stroke-width="2" filter="url(#glow)"/>
+  <circle cx="400" cy="200" r="100" fill="none" stroke="#00d4ff" stroke-width="1" opacity="0.6"/>
+  <circle cx="400" cy="200" r="80" fill="none" stroke="#0099cc" stroke-width="1" opacity="0.4"/>
+  
+  <!-- Lock Icon -->
+  <g transform="translate(400, 200)">
+    <rect x="-30" y="-10" width="60" height="50" rx="5" fill="none" stroke="#00d4ff" stroke-width="3" filter="url(#glow)"/>
+    <path d="M -20 -10 L -20 -25 Q -20 -40 0 -40 Q 20 -40 20 -25 L 20 -10" fill="none" stroke="#00d4ff" stroke-width="3"/>
+    <circle cx="0" cy="15" r="8" fill="#00d4ff" opacity="0.8"/>
+  </g>
+  
+  <!-- Corner Brackets -->
+  <g stroke="#00d4ff" stroke-width="2" fill="none">
+    <path d="M 50 80 L 50 50 L 80 50" filter="url(#glow)"/>
+    <path d="M 750 80 L 750 50 L 720 50" filter="url(#glow)"/>
+    <path d="M 50 320 L 50 350 L 80 350" filter="url(#glow)"/>
+    <path d="M 750 320 L 750 350 L 720 350" filter="url(#glow)"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="400" y="360" text-anchor="middle" font-family="monospace" font-size="24" fill="#00d4ff" filter="url(#glow)">CLOUDNODE SECURE SYSTEM</text>
+  <text x="400" y="385" text-anchor="middle" font-family="monospace" font-size="14" fill="#0099cc" opacity="0.8">v2.0 | CORPORATE CYBERPUNK INTERFACE</text>
+  
+  <!-- Status Indicators -->
+  <g font-family="monospace" font-size="12" fill="#00d4ff">
+    <text x="100" y="200">◉ ENCRYPTED</text>
+    <text x="100" y="220">◉ PROTECTED</text>
+    <text x="600" y="200">◉ ONLINE</text>
+    <text x="600" y="220">◉ SECURE</text>
+  </g>
+</svg>

@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Bot service - NestJS Telegram Bot application
   bot:
@@ -7,12 +5,13 @@ services:
     container_name: cloudnode-bot
     restart: always
     environment:
-      - NODE_ENV=production
-      - DATABASE_URL=postgresql://postgres:${DB_PASSWORD}@db:5432/cloudnode?schema=public
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@db:5432/cloudnode?schema=public
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
     env_file:
       - .env
+    command: sh -c "npx prisma migrate deploy && node dist/main.js"
     depends_on:
       db:
         condition: service_healthy

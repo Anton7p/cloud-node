@@ -5,31 +5,35 @@ import {
   NAVIGATION_LABELS,
 } from '../templates/navigation.templates';
 
+// ============================================================================
+// CYBERPUNK INSTRUCTIONS KEYBOARDS
+// ============================================================================
+
 export const instructionsKeyboard = () =>
   Markup.inlineKeyboard([
     [
       Markup.button.callback(
-        `${EMOJI.APPLE} ${NAVIGATION_LABELS.IOS}`,
+        `${EMOJI.SQUARE} ${NAVIGATION_LABELS.IOS}`,
         NAVIGATION_ACTIONS.INSTRUCTION_IOS,
       ),
       Markup.button.callback(
-        `${EMOJI.ANDROID} ${NAVIGATION_LABELS.ANDROID}`,
+        `${EMOJI.SQUARE} ${NAVIGATION_LABELS.ANDROID}`,
         NAVIGATION_ACTIONS.INSTRUCTION_ANDROID,
       ),
     ],
     [
       Markup.button.callback(
-        `${EMOJI.WINDOWS} ${NAVIGATION_LABELS.WINDOWS}`,
+        `${EMOJI.SQUARE} ${NAVIGATION_LABELS.WINDOWS}`,
         NAVIGATION_ACTIONS.INSTRUCTION_WINDOWS,
       ),
       Markup.button.callback(
-        `${EMOJI.MACOS} ${NAVIGATION_LABELS.MACOS}`,
+        `${EMOJI.SQUARE} ${NAVIGATION_LABELS.MACOS}`,
         NAVIGATION_ACTIONS.INSTRUCTION_MACOS,
       ),
     ],
     [
       Markup.button.callback(
-        `${EMOJI.BACK} ${NAVIGATION_LABELS.BACK}`,
+        `${EMOJI.SQUARE} ${NAVIGATION_LABELS.BACK}`,
         NAVIGATION_ACTIONS.BACK_TO_START,
       ),
     ],
@@ -39,19 +43,19 @@ export const platformInfoKeyboard = () =>
   Markup.inlineKeyboard([
     [
       Markup.button.callback(
-        `${EMOJI.PROFILE} Перейти в профиль`,
+        `${EMOJI.CORE} Перейти в профиль`,
         NAVIGATION_ACTIONS.PROFILE,
       ),
     ],
     [
       Markup.button.callback(
-        `${EMOJI.BACK} ${NAVIGATION_LABELS.OTHER_PLATFORMS}`,
+        `${EMOJI.SQUARE} ${NAVIGATION_LABELS.OTHER_PLATFORMS}`,
         NAVIGATION_ACTIONS.INSTRUCTIONS,
       ),
     ],
     [
       Markup.button.callback(
-        `${EMOJI.BACK} ${NAVIGATION_LABELS.BACK_TO_MENU}`,
+        `${EMOJI.SQUARE} ${NAVIGATION_LABELS.BACK_TO_MENU}`,
         NAVIGATION_ACTIONS.BACK_TO_START,
       ),
     ],

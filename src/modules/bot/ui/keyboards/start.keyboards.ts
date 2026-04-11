@@ -5,36 +5,56 @@ import {
   NAVIGATION_LABELS,
 } from '../templates/navigation.templates';
 
+// ============================================================================
+// CYBERPUNK INLINE KEYBOARD (Главное меню)
+// ============================================================================
+
 export const startKeyboard = () =>
   Markup.inlineKeyboard([
     [
       Markup.button.callback(
-        `${EMOJI.PROFILE} ${NAVIGATION_LABELS.PROFILE}`,
+        `${EMOJI.CORE} ${NAVIGATION_LABELS.PROFILE}`,
         NAVIGATION_ACTIONS.PROFILE,
       ),
     ],
     [
       Markup.button.callback(
-        `${EMOJI.SERVER} ${NAVIGATION_LABELS.RENT_SERVER}`,
+        `${EMOJI.SQUARE} ${NAVIGATION_LABELS.RENT_SERVER}`,
         NAVIGATION_ACTIONS.RENT_SERVER,
       ),
     ],
     [
       Markup.button.callback(
-        `${EMOJI.INSTRUCTIONS} ${NAVIGATION_LABELS.INSTRUCTIONS}`,
+        `${EMOJI.TERMINAL} ${NAVIGATION_LABELS.INSTRUCTIONS}`,
         NAVIGATION_ACTIONS.INSTRUCTIONS,
       ),
     ],
     [
       Markup.button.callback(
-        `${EMOJI.REFERRAL} ${NAVIGATION_LABELS.REFERRAL}`,
+        `${EMOJI.BATTERY} ${NAVIGATION_LABELS.REFERRAL}`,
         NAVIGATION_ACTIONS.REFERRAL,
       ),
     ],
     [
       Markup.button.callback(
-        `${EMOJI.HELP} ${NAVIGATION_LABELS.HELP}`,
+        `${EMOJI.SHIELD} ${NAVIGATION_LABELS.HELP}`,
         NAVIGATION_ACTIONS.HELP,
       ),
     ],
   ]);
+
+// ============================================================================
+// REPLY KEYBOARD (Главная кнопка запуска)
+// ============================================================================
+
+// Главная кнопка для reply keyboard
+export const MAIN_LAUNCH_BUTTON = `${EMOJI.CORE} ЗАПУСТИТЬ СИСТЕМУ / ГЛАВНОЕ МЕНЮ`;
+
+// Reply keyboard с перманентной кнопкой запуска
+export const launchReplyKeyboard = () =>
+  Markup.keyboard([[MAIN_LAUNCH_BUTTON]])
+    .resize(true)
+    .persistent(true);
+
+// Убрать reply keyboard
+export const removeReplyKeyboard = () => Markup.removeKeyboard();

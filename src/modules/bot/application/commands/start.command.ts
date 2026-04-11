@@ -1,11 +1,19 @@
 import { Injectable } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
 import { UsersService } from '../../../users/users.service';
 import { BaseAction, CommandContext } from '../base.action';
-import { START_MESSAGES, START_ACTIONS, startKeyboard } from '../../ui';
+import {
+  START_MESSAGES,
+  START_ACTIONS,
+  startKeyboard,
+  launchReplyKeyboard,
+  HUD_ICONS,
+} from '../../ui';
 
 @Injectable()
 export class StartCommand extends BaseAction {
-  readonly pattern = [START_ACTIONS.BACK_TO_START, 'start'];
+  readonly pattern = [START_ACTIONS.BACK_TO_START, 'start', 'launch_system'];
 
   constructor(private readonly usersService: UsersService) {
     super(StartCommand.name);
@@ -21,6 +29,9 @@ export class StartCommand extends BaseAction {
     }
 
     this.logExecution(context.data, userId);
+
+    // Typing эффект для атмосферы
+    await ctx.sendChatAction('typing');
 
     // Извлекаем реферальный код из start_payload (если есть)
     // @ts-expect-error Telegraf types
@@ -43,6 +54,31 @@ export class StartCommand extends BaseAction {
       // TODO: Обработка реферального кода
     }
 
-    await ctx.reply(START_MESSAGES.WELCOME(user.first_name), startKeyboard());
+    // Отправка HUD баннера
+    await this.sendBanner(ctx);
+
+    // Отправка сообщения с reply keyboard
+    await ctx.reply(START_MESSAGES.WELCOME(user.first_name), {
+      reply_markup: {
+        ...launchReplyKeyboard().reply_markup,
+        inline_keyboard: startKeyboard().reply_markup.inline_keyboard,
+      },
+      parse_mode: 'Markdown',
+    });
+  }
+
+  /**
+   * Отправляет HUD баннер если файл существует
+   */
+  private async sendBanner(ctx: CommandContext['ctx']): Promise<void> {
+    try {
+      const bannerPath = path.resolve(HUD_ICONS.BANNER);
+      if (fs.existsSync(bannerPath)) {
+        await ctx.replyWithPhoto({ source: bannerPath });
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to send banner: ${error}`);
+      // Баннер не критичен, продолжаем без него
+    }
   }
 }
