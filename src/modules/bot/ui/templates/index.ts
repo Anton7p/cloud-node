@@ -1,7 +1,18 @@
 // ============================================================================
-// CYBERPUNK UI: РЕЭКСПОРТЫ ШАБЛОНОВ
+// CLEAN UI: УПРОЩЕННЫЙ ИНТЕРФЕЙС
 // ============================================================================
 
+// Новый чистый интерфейс (основной)
+export {
+  MESSAGES,
+  ACTIONS,
+  ACCESS_PRICES,
+  IMAGES,
+  MENU_COMMANDS,
+  CHAT_MENU_BUTTON,
+} from './clean.templates';
+
+// Обратная совместимость (устаревшее)
 export {
   EMOJI,
   RENTAL_PRICES,
@@ -28,7 +39,7 @@ export {
   type NavigationAction,
 } from './navigation.templates';
 
-// CYBERPUNK: Экспорты для корпоративного интерфейса
+// CYBERPUNK: Устаревшие экспорты
 export {
   CYBER_EMOJI,
   SYS_PREFIX,
@@ -36,5 +47,4 @@ export {
   TERMINAL,
   CYBER_MESSAGES,
   REPLY_KEYBOARD_CONFIG,
-  CHAT_MENU_BUTTON,
 } from './cyberpunk.templates';

@@ -3,11 +3,11 @@ import { BaseAction, CommandContext } from '../base.action';
 import { MESSAGES, ACTIONS, backKeyboard } from '../../ui';
 
 @Injectable()
-export class InstructionsCommand extends BaseAction {
-  readonly pattern = [ACTIONS.INSTRUCTIONS, 'help'];
+export class SupportCommand extends BaseAction {
+  readonly pattern = [ACTIONS.SUPPORT, 'support'];
 
   constructor() {
-    super(InstructionsCommand.name);
+    super(SupportCommand.name);
   }
 
   async execute(context: CommandContext): Promise<void> {
@@ -16,37 +16,37 @@ export class InstructionsCommand extends BaseAction {
 
     // Если callback_query - редактируем сообщение
     if (ctx.callbackQuery && 'message' in ctx.callbackQuery) {
-      await this.editToInstructions(ctx);
+      await this.editToSupport(ctx);
     } else {
-      // Если команда /help - отправляем новое сообщение
-      await ctx.reply(MESSAGES.INSTRUCTIONS, {
+      // Если команда /support - отправляем новое сообщение
+      await ctx.reply(MESSAGES.SUPPORT, {
         reply_markup: backKeyboard().reply_markup,
       });
     }
   }
 
   /**
-   * Редактирует текущее сообщение на экран инструкций
+   * Редактирует текущее сообщение на экран поддержки
    */
-  private async editToInstructions(ctx: CommandContext['ctx']): Promise<void> {
+  private async editToSupport(ctx: CommandContext['ctx']): Promise<void> {
     try {
       const message = ctx.callbackQuery?.message;
       if (!message) return;
 
       // Редактируем caption если есть фото, иначе текст
       if ('caption' in message) {
-        await ctx.editMessageCaption(MESSAGES.INSTRUCTIONS, {
+        await ctx.editMessageCaption(MESSAGES.SUPPORT, {
           reply_markup: backKeyboard().reply_markup,
         });
       } else {
-        await ctx.editMessageText(MESSAGES.INSTRUCTIONS, {
+        await ctx.editMessageText(MESSAGES.SUPPORT, {
           reply_markup: backKeyboard().reply_markup,
         });
       }
     } catch (error) {
       this.logger.warn(`Failed to edit message: ${error}`);
       // Fallback на новое сообщение
-      await ctx.reply(MESSAGES.INSTRUCTIONS, {
+      await ctx.reply(MESSAGES.SUPPORT, {
         reply_markup: backKeyboard().reply_markup,
       });
     }

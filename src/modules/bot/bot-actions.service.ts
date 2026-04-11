@@ -2,16 +2,24 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { BotContext } from './types/bot.types';
 import { BaseAction, createCommandContext } from './application/base.action';
-import { COMMON_MESSAGES } from './ui';
+import { MESSAGES } from './ui';
 
-// Импорты всех команд для регистрации в Map
+// CLEAN UI: Новые команды
 import { StartCommand } from './application/commands/start.command';
+import {
+  KeyCommand,
+  Month1Command,
+  Month3Command,
+} from './application/commands/key.command';
+import { InstructionsCommand } from './application/commands/instructions.command';
+import { SupportCommand } from './application/commands/support.command';
+
+// Устаревшие команды
 import { ProfileCommand } from './application/commands/profile.command';
 import { RentServerCommand } from './application/commands/rent-server.command';
 import { RentTermCommand } from './application/commands/rent-term.command';
 import { PayRentalCommand } from './application/commands/pay-rental.command';
 import { GetAccessCommand } from './application/commands/get-access.command';
-import { InstructionsCommand } from './application/commands/instructions.command';
 import { PlatformInstructionCommand } from './application/commands/platform-instruction.command';
 import { ReferralCommand } from './application/commands/referral.command';
 import { HelpCommand } from './application/commands/help.command';
@@ -49,13 +57,19 @@ export class BotActionsService implements OnModuleInit {
    */
   private async buildHandlerMap(): Promise<void> {
     const handlerClasses = [
+      // CLEAN UI: Новые команды
       StartCommand,
+      KeyCommand,
+      Month1Command,
+      Month3Command,
+      InstructionsCommand,
+      SupportCommand,
+      // Устаревшие команды
       ProfileCommand,
       RentServerCommand,
       RentTermCommand,
       PayRentalCommand,
       GetAccessCommand,
-      InstructionsCommand,
       PlatformInstructionCommand,
       ReferralCommand,
       HelpCommand,
@@ -117,7 +131,55 @@ export class BotActionsService implements OnModuleInit {
       await handler.execute(context);
     } else {
       this.logger.error('No handler found for "start" command');
-      await ctx.reply(COMMON_MESSAGES.UNKNOWN_COMMAND);
+      await ctx.reply(MESSAGES.UNKNOWN_COMMAND);
+    }
+  }
+
+  /**
+   * Обработка команды /key
+   */
+  async handleKey(ctx: BotContext): Promise<void> {
+    const userId = ctx.from?.id || 0;
+    const handler = this.findHandler('key');
+
+    if (handler) {
+      const context = createCommandContext(ctx, userId, 'key', handler);
+      await handler.execute(context);
+    } else {
+      this.logger.error('No handler found for "key" command');
+      await ctx.reply(MESSAGES.UNKNOWN_COMMAND);
+    }
+  }
+
+  /**
+   * Обработка команды /help
+   */
+  async handleHelp(ctx: BotContext): Promise<void> {
+    const userId = ctx.from?.id || 0;
+    const handler = this.findHandler('help');
+
+    if (handler) {
+      const context = createCommandContext(ctx, userId, 'help', handler);
+      await handler.execute(context);
+    } else {
+      this.logger.error('No handler found for "help" command');
+      await ctx.reply(MESSAGES.UNKNOWN_COMMAND);
+    }
+  }
+
+  /**
+   * Обработка команды /support
+   */
+  async handleSupport(ctx: BotContext): Promise<void> {
+    const userId = ctx.from?.id || 0;
+    const handler = this.findHandler('support');
+
+    if (handler) {
+      const context = createCommandContext(ctx, userId, 'support', handler);
+      await handler.execute(context);
+    } else {
+      this.logger.error('No handler found for "support" command');
+      await ctx.reply(MESSAGES.UNKNOWN_COMMAND);
     }
   }
 
@@ -139,7 +201,7 @@ export class BotActionsService implements OnModuleInit {
       await handler.execute(context);
     } else {
       this.logger.warn(`No handler for: ${data}`);
-      await ctx.reply(COMMON_MESSAGES.UNKNOWN_COMMAND);
+      await ctx.reply(MESSAGES.UNKNOWN_COMMAND);
     }
   }
 }

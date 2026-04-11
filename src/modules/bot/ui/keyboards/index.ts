@@ -1,12 +1,17 @@
 // ============================================================================
-// CYBERPUNK KEYBOARD EXPORTS
+// CLEAN UI KEYBOARD EXPORTS
 // ============================================================================
 
+// Новый чистый интерфейс (основной)
 export {
-  startKeyboard,
+  mainKeyboard,
+  durationKeyboard,
+  backKeyboard,
   removeReplyKeyboard,
-  MAIN_LAUNCH_BUTTON,
-} from './start.keyboards';
+} from './clean.keyboards';
+
+// Устаревшие экспорты (для обратной совместимости)
+export { startKeyboard, MAIN_LAUNCH_BUTTON } from './start.keyboards';
 
 export {
   profileKeyboard,

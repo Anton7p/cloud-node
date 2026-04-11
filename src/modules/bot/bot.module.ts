@@ -8,13 +8,19 @@ import { UsersModule } from '../users/users.module';
 import { BotUpdate } from './bot.update';
 import { BotActionsService } from './bot-actions.service';
 import {
+  // CLEAN UI: Новые команды
   StartCommand,
+  KeyCommand,
+  Month1Command,
+  Month3Command,
+  InstructionsCommand,
+  SupportCommand,
+  // Устаревшие команды
   ProfileCommand,
   RentServerCommand,
   RentTermCommand,
   PayRentalCommand,
   GetAccessCommand,
-  InstructionsCommand,
   PlatformInstructionCommand,
   ReferralCommand,
   HelpCommand,
@@ -25,13 +31,19 @@ import {
  * Каждая команда автоматически регистрируется в BotActionsService через Map
  */
 const commandHandlers = [
+  // CLEAN UI: Новые команды
   StartCommand,
+  KeyCommand,
+  Month1Command,
+  Month3Command,
+  InstructionsCommand,
+  SupportCommand,
+  // Устаревшие команды
   ProfileCommand,
   RentServerCommand,
   RentTermCommand,
   PayRentalCommand,
   GetAccessCommand,
-  InstructionsCommand,
   PlatformInstructionCommand,
   ReferralCommand,
   HelpCommand,

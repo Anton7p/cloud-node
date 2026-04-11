@@ -5,28 +5,27 @@ import { CommandContext } from '../base.action';
 
 // Mock the UI module before imports
 jest.mock('../../ui', () => ({
-  START_MESSAGES: {
-    WELCOME: jest.fn((name: string) => `Welcome ${name}`),
-    INIT: 'Init message',
+  MESSAGES: {
+    MAIN_TITLE: 'ВЫБЕРИТЕ ДЕЙСТВИЕ:',
   },
-  START_ACTIONS: {
-    BACK_TO_START: 'back_to_start',
-    START: 'start',
+  ACTIONS: {
+    BACK_TO_MAIN: 'back_to_main',
   },
-  startKeyboard: jest.fn(() => ({ reply_markup: { inline_keyboard: [] } })),
+  IMAGES: {
+    START_HUD: 'assets/images/start_hud.jpg.jpg',
+  },
+  mainKeyboard: jest.fn(() => ({ reply_markup: { inline_keyboard: [] } })),
   removeReplyKeyboard: jest.fn(() => ({
     reply_markup: { remove_keyboard: true },
   })),
 }));
 
-// Import after mock
-const { START_MESSAGES, startKeyboard } = jest.requireMock('../../ui') as {
-  START_MESSAGES: { WELCOME: jest.Mock; INIT: string };
-  startKeyboard: jest.Mock;
-  removeReplyKeyboard: jest.Mock;
-};
+// Mock fs
+jest.mock('fs', () => ({
+  existsSync: jest.fn(() => true),
+}));
 
-describe('StartCommand (Integration)', () => {
+describe('StartCommand (Clean UI)', () => {
   let command: StartCommand;
   let usersService: { findOrCreate: jest.Mock };
 
@@ -41,8 +40,8 @@ describe('StartCommand (Integration)', () => {
         username: mockUsername,
         first_name: mockFirstName,
       },
+      replyWithPhoto: jest.fn().mockResolvedValue(undefined),
       reply: jest.fn().mockResolvedValue(undefined),
-      sendChatAction: jest.fn().mockResolvedValue(undefined),
     } as unknown as CommandContext['ctx'],
     userId: mockUserId,
     data,
@@ -69,21 +68,17 @@ describe('StartCommand (Integration)', () => {
   });
 
   it('should have correct pattern', () => {
-    expect(command.pattern).toEqual([
-      'back_to_start',
-      'start',
-      'launch_system',
-    ]);
+    expect(command.pattern).toEqual(['back_to_main', 'start']);
   });
 
   describe('execute', () => {
-    it('should create new user when not exists and send welcome message', async () => {
+    it('should create new user and send main menu with photo', async () => {
       usersService.findOrCreate.mockResolvedValue({ id: 1 });
 
       const context = createMockContext('start');
       await command.execute(context);
 
-      // Verify repository calls
+      // Verify user registration
       expect(usersService.findOrCreate).toHaveBeenCalledWith(mockUserId, {
         telegramId: mockUserId,
         username: mockUsername,
@@ -93,47 +88,22 @@ describe('StartCommand (Integration)', () => {
         subscriptionType: 'free',
       });
 
-      // Verify UI messages were called
-      expect(START_MESSAGES.WELCOME).toHaveBeenCalledWith(mockFirstName);
-      expect(startKeyboard).toHaveBeenCalled();
-
-      // Verify INIT message with removeKeyboard
-      expect(context.ctx.reply).toHaveBeenNthCalledWith(1, 'Init message', {
-        parse_mode: 'Markdown',
-        reply_markup: { remove_keyboard: true },
-      });
-
-      // Verify WELCOME message with inline keyboard
-      expect(context.ctx.reply).toHaveBeenNthCalledWith(2, 'Welcome Test', {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [],
+      // Verify photo was sent with caption and keyboard
+      expect(context.ctx.replyWithPhoto).toHaveBeenCalledWith(
+        { source: expect.any(String) },
+        {
+          caption: 'ВЫБЕРИТЕ ДЕЙСТВИЕ:',
+          reply_markup: { inline_keyboard: [] },
         },
-      });
-    });
-
-    it('should not create user when already exists', async () => {
-      usersService.findOrCreate.mockResolvedValue({
-        id: 1,
-        telegramId: mockUserId,
-      });
-
-      const context = createMockContext('start');
-      await command.execute(context);
-
-      expect(usersService.findOrCreate).toHaveBeenCalledWith(
-        mockUserId,
-        expect.any(Object),
       );
-      expect(context.ctx.reply).toHaveBeenCalled();
     });
 
     it('should handle missing user data gracefully', async () => {
       const context: CommandContext = {
         ctx: {
           from: undefined,
+          replyWithPhoto: jest.fn(),
           reply: jest.fn(),
-          sendChatAction: jest.fn(),
         } as unknown as CommandContext['ctx'],
         userId: mockUserId,
         data: 'start',
@@ -143,7 +113,7 @@ describe('StartCommand (Integration)', () => {
       await command.execute(context);
 
       expect(usersService.findOrCreate).not.toHaveBeenCalled();
-      expect(context.ctx.reply).not.toHaveBeenCalled();
+      expect(context.ctx.replyWithPhoto).not.toHaveBeenCalled();
     });
   });
 });

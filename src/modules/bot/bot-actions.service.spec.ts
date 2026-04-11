@@ -84,6 +84,28 @@ jest.mock('./application/commands/help.command', () => ({
   },
 }));
 
+jest.mock('./application/commands/key.command', () => ({
+  KeyCommand: class MockKeyCommand {
+    readonly pattern = ['get_key', 'key'];
+    execute = jest.fn().mockResolvedValue(undefined);
+  },
+  Month1Command: class MockMonth1Command {
+    readonly pattern = 'month_1';
+    execute = jest.fn().mockResolvedValue(undefined);
+  },
+  Month3Command: class MockMonth3Command {
+    readonly pattern = 'month_3';
+    execute = jest.fn().mockResolvedValue(undefined);
+  },
+}));
+
+jest.mock('./application/commands/support.command', () => ({
+  SupportCommand: class MockSupportCommand {
+    readonly pattern = ['support', 'support_cmd'];
+    execute = jest.fn().mockResolvedValue(undefined);
+  },
+}));
+
 describe('BotActionsService', () => {
   let service: BotActionsService;
   let moduleRef: { get: jest.Mock };
@@ -95,24 +117,32 @@ describe('BotActionsService', () => {
     let callCount = 0;
     const handlerNames = [
       'StartCommand',
+      'KeyCommand',
+      'Month1Command',
+      'Month3Command',
+      'InstructionsCommand',
+      'SupportCommand',
       'ProfileCommand',
       'RentServerCommand',
       'RentTermCommand',
       'PayRentalCommand',
       'GetAccessCommand',
-      'InstructionsCommand',
       'PlatformInstructionCommand',
       'ReferralCommand',
       'HelpCommand',
     ];
     const patterns: (string | string[] | RegExp)[] = [
-      ['start', 'back_to_start'],
+      ['back_to_main', 'start'],
+      ['get_key', 'key'],
+      'month_1',
+      'month_3',
+      ['instructions', 'help'],
+      ['support', 'support_cmd'],
       'profile',
       'rent_server',
       /^rent_(\d+)m$/,
       'pay_rental',
       'get_access',
-      ['instructions', 'back_to_instructions'],
       /^instruction_(.+)$/,
       'referral',
       'help',
@@ -161,7 +191,7 @@ describe('BotActionsService', () => {
   describe('onModuleInit', () => {
     it('should build handler map on initialization', async () => {
       await service.onModuleInit();
-      expect(moduleRef.get).toHaveBeenCalledTimes(10);
+      expect(moduleRef.get).toHaveBeenCalledTimes(14);
     });
   });
 
@@ -197,7 +227,7 @@ describe('BotActionsService', () => {
 
       await service.handleStart(mockCtx);
 
-      expect(mockCtx.reply).toHaveBeenCalledWith('Неизвестная команда');
+      expect(mockCtx.reply).toHaveBeenCalledWith('НЕИЗВЕСТНАЯ КОМАНДА');
     });
   });
 
@@ -218,14 +248,14 @@ describe('BotActionsService', () => {
       expect(profileHandler.execute).toHaveBeenCalled();
     });
 
-    it('should route "back_to_start" callback to StartCommand via Map lookup', async () => {
+    it('should route "back_to_main" callback to StartCommand via Map lookup', async () => {
       const mockCtx = {
         reply: jest.fn().mockResolvedValue(undefined),
       } as unknown as BotContext;
 
       const startHandler = capturedHandlers['StartCommand'];
 
-      await service.handleCallbackQuery(mockCtx, 'back_to_start', 123456789);
+      await service.handleCallbackQuery(mockCtx, 'back_to_main', 123456789);
 
       expect(startHandler.execute).toHaveBeenCalled();
     });
@@ -249,7 +279,7 @@ describe('BotActionsService', () => {
 
       await service.handleCallbackQuery(mockCtx, 'unknown_action', 123456789);
 
-      expect(mockCtx.reply).toHaveBeenCalledWith('Неизвестная команда');
+      expect(mockCtx.reply).toHaveBeenCalledWith('НЕИЗВЕСТНАЯ КОМАНДА');
     });
   });
 });
