@@ -70,13 +70,20 @@ export class MarzbanService implements OnModuleInit {
    * Register infrastructure nodes from INFRASTRUCTURE_IP_LIST
    */
   private async registerInfrastructureNodes(): Promise<void> {
-    const ipList = this.configService.get<AppConfig['infrastructureIpList']>('app.infrastructureIpList');
+    const ipList = this.configService.get<AppConfig['infrastructureIpList']>(
+      'app.infrastructureIpList',
+    );
     if (!ipList) {
-      this.logger.log('INFRASTRUCTURE_IP_LIST not configured, skipping node registration');
+      this.logger.log(
+        'INFRASTRUCTURE_IP_LIST not configured, skipping node registration',
+      );
       return;
     }
 
-    const ips = ipList.split(',').map(ip => ip.trim()).filter(ip => ip);
+    const ips = ipList
+      .split(',')
+      .map((ip) => ip.trim())
+      .filter((ip) => ip);
     if (ips.length === 0) {
       this.logger.log('No infrastructure IPs found');
       return;
@@ -86,7 +93,7 @@ export class MarzbanService implements OnModuleInit {
 
     // Get existing nodes to check for duplicates
     const existingNodes = await this.getExistingNodes();
-    const existingAddresses = new Set(existingNodes.map(n => n.address));
+    const existingAddresses = new Set(existingNodes.map((n) => n.address));
 
     for (const ip of ips) {
       if (existingAddresses.has(ip)) {
@@ -98,7 +105,10 @@ export class MarzbanService implements OnModuleInit {
         await this.createNode(ip);
         this.logger.log(`Successfully registered node: ${ip}`);
       } catch (error) {
-        this.logger.error(`Failed to register node ${ip}:`, error instanceof Error ? error.message : 'Unknown error');
+        this.logger.error(
+          `Failed to register node ${ip}:`,
+          error instanceof Error ? error.message : 'Unknown error',
+        );
       }
     }
   }
@@ -119,7 +129,10 @@ export class MarzbanService implements OnModuleInit {
       const response = await this.httpClient.get<MarzbanNode[]>('/nodes');
       return response.data || [];
     } catch (error) {
-      this.logger.error('Failed to get existing nodes:', error instanceof Error ? error.message : 'Unknown error');
+      this.logger.error(
+        'Failed to get existing nodes:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
       return [];
     }
   }
