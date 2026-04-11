@@ -14,7 +14,7 @@ export interface AppConfig {
   redisPort: number;
   redisPassword: string | undefined;
   // Marzban API
-  marzbanBaseUrl: string | undefined;
+  marzbanUrl: string | undefined;
   marzbanUsername: string | undefined;
   marzbanPassword: string | undefined;
   subBaseUrl: string | undefined;
@@ -26,15 +26,13 @@ export interface AppConfig {
 
 const logger = new Logger('Config');
 
-export const configuration = registerAs(
-  'app',
-  (): AppConfig => {
-    const redisHostValue = process.env.REDIS_HOST?.trim();
-    if (!redisHostValue) {
-      logger.warn('REDIS_HOST is not set or empty. Using default: redis');
-    }
+export const configuration = registerAs('app', (): AppConfig => {
+  const redisHostValue = process.env.REDIS_HOST?.trim();
+  if (!redisHostValue) {
+    logger.warn('REDIS_HOST is not set or empty. Using default: redis');
+  }
 
-    return ({
+  return {
     nodeEnv: process.env.NODE_ENV || 'development',
     port: parseInt(process.env.PORT, 10) || 3000,
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
@@ -46,7 +44,7 @@ export const configuration = registerAs(
     redisPort: parseInt(process.env.REDIS_PORT, 10) || 6379,
     redisPassword: process.env.REDIS_PASSWORD,
     // Marzban API
-    marzbanBaseUrl: process.env.MARZBAN_BASE_URL,
+    marzbanUrl: process.env.MARZBAN_URL,
     marzbanUsername: process.env.MARZBAN_USERNAME,
     marzbanPassword: process.env.MARZBAN_PASSWORD,
     subBaseUrl: process.env.SUB_BASE_URL,
@@ -54,9 +52,8 @@ export const configuration = registerAs(
     acmeEmail: process.env.ACME_EMAIL,
     // Encryption
     encryptionKey: process.env.ENCRYPTION_KEY,
-  });
-  },
-);
+  };
+});
 
 export const validationSchema = Joi.object({
   NODE_ENV: Joi.string()
@@ -83,69 +80,14 @@ export const validationSchema = Joi.object({
   // Redis configuration - allow empty string to trigger warning instead of crash
   REDIS_HOST: Joi.string().allow('').default('redis'),
   REDIS_PORT: Joi.number().port().default(6379),
-  REDIS_PASSWORD: Joi.string().when('NODE_ENV', {
-    is: 'production',
-    then: Joi.required().messages({
-      'any.required':
-        'REDIS_PASSWORD is required in production. Please set a secure Redis password.',
-    }),
-    otherwise: Joi.optional(),
-  }),
-  // Marzban configuration - required in production
-  MARZBAN_BASE_URL: Joi.string()
-    .uri()
-    .when('NODE_ENV', {
-      is: 'production',
-      then: Joi.required().messages({
-        'any.required':
-          'MARZBAN_BASE_URL is required in production. Please set your Marzban panel URL.',
-      }),
-      otherwise: Joi.optional(),
-    }),
-  MARZBAN_USERNAME: Joi.string().when('NODE_ENV', {
-    is: 'production',
-    then: Joi.required().messages({
-      'any.required':
-        'MARZBAN_USERNAME is required in production. Please set your Marzban admin username.',
-    }),
-    otherwise: Joi.optional(),
-  }),
-  MARZBAN_PASSWORD: Joi.string().when('NODE_ENV', {
-    is: 'production',
-    then: Joi.required().messages({
-      'any.required':
-        'MARZBAN_PASSWORD is required in production. Please set your Marzban admin password.',
-    }),
-    otherwise: Joi.optional(),
-  }),
-  SUB_BASE_URL: Joi.string()
-    .uri()
-    .when('NODE_ENV', {
-      is: 'production',
-      then: Joi.required().messages({
-        'any.required':
-          'SUB_BASE_URL is required in production. Please set your subscription base URL.',
-      }),
-      otherwise: Joi.optional(),
-    }),
-  // SSL / Certbot email for Let's Encrypt
-  ACME_EMAIL: Joi.string()
-    .email()
-    .when('NODE_ENV', {
-      is: 'production',
-      then: Joi.required().messages({
-        'any.required':
-          'ACME_EMAIL is required in production for SSL certificates.',
-      }),
-      otherwise: Joi.optional(),
-    }),
-  // Encryption key (32 bytes required, will be hashed to 32 bytes)
-  ENCRYPTION_KEY: Joi.string().when('NODE_ENV', {
-    is: 'production',
-    then: Joi.required().messages({
-      'any.required':
-        'ENCRYPTION_KEY is required in production for data security.',
-    }),
-    otherwise: Joi.optional(),
-  }),
+  REDIS_PASSWORD: Joi.string().optional(),
+  // Marzban configuration - optional, warns only
+  MARZBAN_URL: Joi.string().uri().optional(),
+  MARZBAN_USERNAME: Joi.string().optional(),
+  MARZBAN_PASSWORD: Joi.string().optional(),
+  SUB_BASE_URL: Joi.string().uri().optional(),
+  // SSL / Certbot email for Let's Encrypt - optional
+  ACME_EMAIL: Joi.string().email().optional(),
+  // Encryption key - optional
+  ENCRYPTION_KEY: Joi.string().optional(),
 });

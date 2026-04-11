@@ -43,7 +43,7 @@ export class XuiApiService {
 
   constructor(private readonly configService: ConfigService) {
     const baseUrl =
-      this.configService.get<AppConfig['marzbanBaseUrl']>('app.marzbanBaseUrl');
+      this.configService.get<AppConfig['marzbanUrl']>('app.marzbanUrl');
 
     this.httpClient = axios.create({
       baseURL: baseUrl,
@@ -263,8 +263,8 @@ export class XuiApiService {
 
       const streamSettings = JSON.parse(inbound.streamSettings);
       const baseUrl =
-        this.configService.get<AppConfig['marzbanBaseUrl']>(
-          'app.marzbanBaseUrl',
+        this.configService.get<AppConfig['marzbanUrl']>(
+          'app.marzbanUrl',
         );
       const host = baseUrl ? new URL(baseUrl).hostname : 'localhost';
 

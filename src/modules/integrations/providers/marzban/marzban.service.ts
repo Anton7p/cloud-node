@@ -31,7 +31,7 @@ export class MarzbanService implements OnModuleInit {
 
   constructor(private readonly configService: ConfigService) {
     const baseUrl =
-      this.configService.get<AppConfig['marzbanBaseUrl']>('app.marzbanBaseUrl');
+      this.configService.get<AppConfig['marzbanUrl']>('app.marzbanUrl');
 
     this.httpClient = axios.create({
       baseURL: baseUrl ? `${baseUrl}/api` : undefined,
@@ -91,7 +91,7 @@ export class MarzbanService implements OnModuleInit {
       params.append('password', credentials.password);
 
       const response = await axios.post<MarzbanTokenResponse>(
-        `${this.configService.get<AppConfig['marzbanBaseUrl']>('app.marzbanBaseUrl')}/api/admin/token`,
+        `${this.configService.get<AppConfig['marzbanUrl']>('app.marzbanUrl')}/api/admin/token`,
         params,
         {
           headers: {
