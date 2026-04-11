@@ -116,12 +116,9 @@ export class Month1Command extends BaseAction {
     key: string,
   ): Promise<void> {
     try {
-      await ctx.reply(
-        MESSAGES.KEY_READY(duration, key, MESSAGES.NODES_INFO),
-        {
-          parse_mode: 'Markdown',
-        },
-      );
+      await ctx.reply(MESSAGES.KEY_READY(duration, key, MESSAGES.NODES_INFO), {
+        parse_mode: 'Markdown',
+      });
     } catch (error) {
       this.logger.error(`Failed to send key: ${error}`);
       await ctx.reply(MESSAGES.ERROR);
@@ -164,12 +161,9 @@ export class Month3Command extends BaseAction {
     key: string,
   ): Promise<void> {
     try {
-      await ctx.reply(
-        MESSAGES.KEY_READY(duration, key, MESSAGES.NODES_INFO),
-        {
-          parse_mode: 'Markdown',
-        },
-      );
+      await ctx.reply(MESSAGES.KEY_READY(duration, key, MESSAGES.NODES_INFO), {
+        parse_mode: 'Markdown',
+      });
     } catch (error) {
       this.logger.error(`Failed to send key: ${error}`);
       await ctx.reply(MESSAGES.ERROR);

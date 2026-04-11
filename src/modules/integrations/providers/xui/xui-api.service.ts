@@ -66,10 +66,12 @@ export class XuiApiService {
   }
 
   private getCredentials(): { username: string; password: string } | null {
-    const username =
-      this.configService.get<AppConfig['marzbanUsername']>('app.marzbanUsername');
-    const password =
-      this.configService.get<AppConfig['marzbanPassword']>('app.marzbanPassword');
+    const username = this.configService.get<AppConfig['marzbanUsername']>(
+      'app.marzbanUsername',
+    );
+    const password = this.configService.get<AppConfig['marzbanPassword']>(
+      'app.marzbanPassword',
+    );
 
     if (!username || !password) {
       this.logger.warn('XUI credentials not configured');
@@ -261,7 +263,9 @@ export class XuiApiService {
 
       const streamSettings = JSON.parse(inbound.streamSettings);
       const baseUrl =
-        this.configService.get<AppConfig['marzbanBaseUrl']>('app.marzbanBaseUrl');
+        this.configService.get<AppConfig['marzbanBaseUrl']>(
+          'app.marzbanBaseUrl',
+        );
       const host = baseUrl ? new URL(baseUrl).hostname : 'localhost';
 
       return this.buildConnectionUrl(

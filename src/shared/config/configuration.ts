@@ -11,11 +11,16 @@ export interface AppConfig {
   // Redis
   redisHost: string;
   redisPort: number;
+  redisPassword: string | undefined;
   // Marzban API
   marzbanBaseUrl: string | undefined;
   marzbanUsername: string | undefined;
   marzbanPassword: string | undefined;
   subBaseUrl: string | undefined;
+  // SSL / Certbot
+  acmeEmail: string | undefined;
+  // Encryption
+  encryptionKey: string | undefined;
 }
 
 export const configuration = registerAs(
@@ -30,11 +35,16 @@ export const configuration = registerAs(
     // Redis
     redisHost: process.env.REDIS_HOST || 'localhost',
     redisPort: parseInt(process.env.REDIS_PORT, 10) || 6379,
+    redisPassword: process.env.REDIS_PASSWORD,
     // Marzban API
     marzbanBaseUrl: process.env.MARZBAN_BASE_URL,
     marzbanUsername: process.env.MARZBAN_USERNAME,
     marzbanPassword: process.env.MARZBAN_PASSWORD,
     subBaseUrl: process.env.SUB_BASE_URL,
+    // SSL / Certbot
+    acmeEmail: process.env.ACME_EMAIL,
+    // Encryption
+    encryptionKey: process.env.ENCRYPTION_KEY,
   }),
 );
 
@@ -63,6 +73,14 @@ export const validationSchema = Joi.object({
   // Redis configuration
   REDIS_HOST: Joi.string().default('localhost'),
   REDIS_PORT: Joi.number().port().default(6379),
+  REDIS_PASSWORD: Joi.string().when('NODE_ENV', {
+    is: 'production',
+    then: Joi.required().messages({
+      'any.required':
+        'REDIS_PASSWORD is required in production. Please set a secure Redis password.',
+    }),
+    otherwise: Joi.optional(),
+  }),
   // Marzban configuration - required in production
   MARZBAN_BASE_URL: Joi.string()
     .uri()
@@ -100,4 +118,24 @@ export const validationSchema = Joi.object({
       }),
       otherwise: Joi.optional(),
     }),
+  // SSL / Certbot email for Let's Encrypt
+  ACME_EMAIL: Joi.string()
+    .email()
+    .when('NODE_ENV', {
+      is: 'production',
+      then: Joi.required().messages({
+        'any.required':
+          'ACME_EMAIL is required in production for SSL certificates.',
+      }),
+      otherwise: Joi.optional(),
+    }),
+  // Encryption key (32 bytes required, will be hashed to 32 bytes)
+  ENCRYPTION_KEY: Joi.string().when('NODE_ENV', {
+    is: 'production',
+    then: Joi.required().messages({
+      'any.required':
+        'ENCRYPTION_KEY is required in production for data security.',
+    }),
+    otherwise: Joi.optional(),
+  }),
 });

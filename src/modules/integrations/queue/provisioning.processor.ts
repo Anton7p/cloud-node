@@ -8,6 +8,8 @@ interface ProvisioningJobData {
   rentalId: number;
   telegramId: string;
   months: number;
+  chatId: number;
+  messageId: number;
 }
 
 @Processor('provisioning', {
@@ -39,7 +41,10 @@ export class ProvisioningProcessor extends WorkerHost {
       }
 
       // Update rental with subscription URL
-      await this.rentalsService.updateAccessKey(rentalId, result.subscriptionUrl);
+      await this.rentalsService.updateAccessKey(
+        rentalId,
+        result.subscriptionUrl,
+      );
 
       this.logger.log(
         `Successfully provisioned rental ${rentalId} with subscription URL`,

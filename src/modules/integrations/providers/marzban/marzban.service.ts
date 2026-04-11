@@ -58,10 +58,12 @@ export class MarzbanService implements OnModuleInit {
   }
 
   private getCredentials(): { username: string; password: string } | null {
-    const username =
-      this.configService.get<AppConfig['marzbanUsername']>('app.marzbanUsername');
-    const password =
-      this.configService.get<AppConfig['marzbanPassword']>('app.marzbanPassword');
+    const username = this.configService.get<AppConfig['marzbanUsername']>(
+      'app.marzbanUsername',
+    );
+    const password = this.configService.get<AppConfig['marzbanPassword']>(
+      'app.marzbanPassword',
+    );
 
     if (!username || !password) {
       this.logger.warn('Marzban credentials not configured');
@@ -156,19 +158,21 @@ export class MarzbanService implements OnModuleInit {
         },
       );
 
-      if (response.data.subscription_url) {
-        // Build full subscription URL using SUB_BASE_URL if configured
-        const subBaseUrl = this.configService.get<AppConfig['subBaseUrl']>('app.subBaseUrl');
-        const subscriptionUrl = subBaseUrl
-          ? `${subBaseUrl}/${response.data.subscription_url.split('/').pop()}`
-          : response.data.subscription_url;
+      if (response.data.subscription_url || response.data.username) {
+        // Build subscription URL in format: https://cloudnode-host.ru/{username}
+        const subBaseUrl =
+          this.configService.get<AppConfig['subBaseUrl']>('app.subBaseUrl') ||
+          'https://cloudnode-host.ru';
+        const username = response.data.username;
+        // Format: https://cloudnode-host.ru/{username}
+        const subscriptionUrl = `${subBaseUrl.replace(/\/$/, '')}/${username}`;
 
         this.logger.log(`User ${username} created successfully`);
 
         return {
           success: true,
           subscriptionUrl,
-          username: response.data.username,
+          username: username,
         };
       }
 

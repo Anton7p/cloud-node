@@ -11,13 +11,18 @@ import { AppConfig } from '../../../shared/config/configuration';
   imports: [
     BullModule.forRootAsync({
       useFactory: (configService: ConfigService) => {
-        const redisHost = configService.get<AppConfig['redisHost']>('app.redisHost');
-        const redisPort = configService.get<AppConfig['redisPort']>('app.redisPort');
+        const redisHost =
+          configService.get<AppConfig['redisHost']>('app.redisHost');
+        const redisPort =
+          configService.get<AppConfig['redisPort']>('app.redisPort');
+        const redisPassword =
+          configService.get<AppConfig['redisPassword']>('app.redisPassword');
 
         return {
           connection: {
             host: redisHost || 'localhost',
             port: redisPort || 6379,
+            password: redisPassword,
           },
           defaultJobOptions: {
             removeOnComplete: 100,

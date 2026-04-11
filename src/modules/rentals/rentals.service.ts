@@ -5,6 +5,7 @@ import { PrismaService } from '../../shared/prisma/prisma.service';
 import { RentalsRepository } from './repositories/rentals.repository';
 import { RentalData } from '../bot/types/bot.types';
 import { UsersService } from '../users/users.service';
+import { EncryptionService } from '../../shared/encryption/encryption.service';
 import dayjs from 'dayjs';
 
 export { Rental, RentalStatus } from '@prisma/client';
@@ -27,6 +28,7 @@ export class RentalsService {
     private readonly rentalsRepository: RentalsRepository,
     private readonly usersService: UsersService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly encryptionService: EncryptionService,
   ) {}
 
   async createPendingRental(telegramId: number, term: number): Promise<Rental> {
@@ -127,6 +129,8 @@ export class RentalsService {
         telegramId,
         term: result.term,
         endDate: result.endDate,
+        chatId: 0, // Will be set by caller
+        messageId: 0, // Will be set by caller
       });
     }
 
@@ -183,23 +187,43 @@ export class RentalsService {
   }
 
   /**
-   * Обновление Access Key для аренды
+   * Обновление Access Key для аренды (с шифрованием)
    */
   async updateAccessKey(
     rentalId: number,
     accessKey: string,
   ): Promise<Rental | null> {
     try {
+      // Encrypt the subscription URL before saving
+      const encryptedKey =
+        this.encryptionService.encryptSubscriptionUrl(accessKey);
+
       const updated = await this.prisma.rental.update({
         where: { id: rentalId },
-        data: { accessKey },
+        data: {
+          accessKey: encryptedKey,
+          // clientId will be added after Prisma client regeneration
+        },
       });
-      this.logger.log(`Updated Access Key for rental ${rentalId}`);
+      this.logger.log(`Updated Access Key for rental ${rentalId} (encrypted)`);
       return updated;
     } catch (error) {
       this.logger.error(
         `Failed to update Access Key for rental ${rentalId}: ${error}`,
       );
+      return null;
+    }
+  }
+
+  /**
+   * Получение расшифрованного Access Key
+   */
+  async getDecryptedAccessKey(rental: Rental): Promise<string | null> {
+    if (!rental.accessKey) return null;
+    try {
+      return this.encryptionService.decryptSubscriptionUrl(rental.accessKey);
+    } catch (error) {
+      this.logger.error(`Failed to decrypt Access Key for rental ${rental.id}`);
       return null;
     }
   }

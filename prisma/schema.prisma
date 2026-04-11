@@ -31,12 +31,14 @@ model Rental {
   startDate       DateTime?
   endDate         DateTime?
   lastNotifiedAt  DateTime?
-  accessKey       String?
+  accessKey       String?      // encrypted subscription_url
+  clientId        String?      // Marzban username / client identifier
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
   @@index([userId, status])
   @@index([status, endDate])
+  @@index([clientId])
   @@map("rental")
 }
 

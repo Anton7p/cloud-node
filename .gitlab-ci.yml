@@ -54,10 +54,12 @@ deploy:
       export REMOTE_TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN"
       export REMOTE_ENCRYPTION_KEY="$ENCRYPTION_KEY"
       export REMOTE_REDIS_HOST="$REDIS_HOST"
+      export REMOTE_REDIS_PASSWORD="$REDIS_PASSWORD"
       export REMOTE_MARZBAN_BASE_URL="$MARZBAN_BASE_URL"
       export REMOTE_MARZBAN_USERNAME="$MARZBAN_USERNAME"
       export REMOTE_MARZBAN_PASSWORD="$MARZBAN_PASSWORD"
       export REMOTE_SUB_BASE_URL="$SUB_BASE_URL"
+      export REMOTE_ACME_EMAIL="$ACME_EMAIL"
       ssh -o StrictHostKeyChecking=no ${SERVER_USER:-root}@${SERVER_IP} << EOF
         set -e
 
@@ -72,10 +74,12 @@ deploy:
         echo "ENCRYPTION_KEY=${REMOTE_ENCRYPTION_KEY}" >> .env
         echo "DOCKER_IMAGE_NAME=${REMOTE_DOCKER_IMAGE_NAME}" >> .env
         echo "REDIS_HOST=${REMOTE_REDIS_HOST}" >> .env
+        echo "REDIS_PASSWORD=${REMOTE_REDIS_PASSWORD}" >> .env
         echo "MARZBAN_BASE_URL=${REMOTE_MARZBAN_BASE_URL}" >> .env
         echo "MARZBAN_USERNAME=${REMOTE_MARZBAN_USERNAME}" >> .env
         echo "MARZBAN_PASSWORD=${REMOTE_MARZBAN_PASSWORD}" >> .env
         echo "SUB_BASE_URL=${REMOTE_SUB_BASE_URL}" >> .env
+        echo "ACME_EMAIL=${REMOTE_ACME_EMAIL}" >> .env
 
         echo "[DEPLOY] Logging into Docker Registry..."
         echo "${REMOTE_CI_REGISTRY_PASSWORD}" | docker login -u "${REMOTE_CI_REGISTRY_USER}" --password-stdin ${REMOTE_CI_REGISTRY}
@@ -92,10 +96,12 @@ deploy:
         export ENCRYPTION_KEY=${REMOTE_ENCRYPTION_KEY}
         export DOCKER_IMAGE_NAME=${REMOTE_DOCKER_IMAGE_NAME}
         export REDIS_HOST=${REMOTE_REDIS_HOST}
+        export REDIS_PASSWORD=${REMOTE_REDIS_PASSWORD}
         export MARZBAN_BASE_URL=${REMOTE_MARZBAN_BASE_URL}
         export MARZBAN_USERNAME=${REMOTE_MARZBAN_USERNAME}
         export MARZBAN_PASSWORD=${REMOTE_MARZBAN_PASSWORD}
         export SUB_BASE_URL=${REMOTE_SUB_BASE_URL}
+        export ACME_EMAIL=${REMOTE_ACME_EMAIL}
 
         docker compose up -d
 

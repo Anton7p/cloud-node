@@ -2,10 +2,12 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { Queue } from 'bullmq';
 
-interface ProvisioningJobData {
+export interface ProvisioningJobData {
   rentalId: number;
   telegramId: string;
   months: number;
+  chatId: number;
+  messageId: number;
 }
 
 @Injectable()
@@ -13,7 +15,8 @@ export class ProvisioningQueue {
   private readonly logger = new Logger(ProvisioningQueue.name);
 
   constructor(
-    @InjectQueue('provisioning') private readonly queue: Queue<ProvisioningJobData>,
+    @InjectQueue('provisioning')
+    private readonly queue: Queue<ProvisioningJobData>,
   ) {}
 
   /**
@@ -24,6 +27,8 @@ export class ProvisioningQueue {
     rentalId: number,
     telegramId: string,
     months: number,
+    chatId: number,
+    messageId: number,
   ): Promise<void> {
     await this.queue.add(
       'provision-user',
@@ -31,6 +36,8 @@ export class ProvisioningQueue {
         rentalId,
         telegramId,
         months,
+        chatId,
+        messageId,
       },
       {
         attempts: 10,

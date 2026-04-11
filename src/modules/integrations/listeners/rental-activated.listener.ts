@@ -12,6 +12,8 @@ export interface RentalActivatedPayload {
   telegramId: number;
   term: number;
   endDate: Date | null;
+  chatId: number;
+  messageId: number;
 }
 
 /**
@@ -31,7 +33,7 @@ export class RentalActivatedListener {
 
   @OnEvent('rental.activated')
   async handleRentalActivated(payload: RentalActivatedPayload): Promise<void> {
-    const { rentalId, telegramId, term } = payload;
+    const { rentalId, telegramId, term, chatId, messageId } = payload;
 
     this.logger.log(
       `Queueing VPN provisioning for user ${telegramId}, rental ${rentalId}, term ${term} months`,
@@ -40,11 +42,15 @@ export class RentalActivatedListener {
     try {
       // Add provisioning job to BullMQ queue
       // This allows handling 5000+ users with automatic retries
-      await this.provisioningQueue.addProvisioningJob(rentalId, telegramId.toString(), term);
-
-      this.logger.log(
-        `Provisioning job queued for rental ${rentalId}`,
+      await this.provisioningQueue.addProvisioningJob(
+        rentalId,
+        telegramId.toString(),
+        term,
+        chatId,
+        messageId,
       );
+
+      this.logger.log(`Provisioning job queued for rental ${rentalId}`);
     } catch (error) {
       this.logger.error(
         'Error queueing provisioning job:',

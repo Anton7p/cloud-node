@@ -54,21 +54,49 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Redis service - for BullMQ queues
+  # Redis service - for BullMQ queues (password protected)
   redis:
     image: redis:alpine
     container_name: cloudnode-redis
     restart: always
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
     volumes:
       - redis-data:/data
     networks:
       - cloudnode-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis123}", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Marzban Core - VPN Panel with SSL
+  marzban:
+    image: gozargah/marzban:latest
+    container_name: cloudnode-marzban
+    restart: always
+    environment:
+      - UVICORN_HOST=0.0.0.0
+      - UVICORN_PORT=8000
+      - DASHBOARD_PATH=/dashboard
+      - XRAY_SUBSCRIPTION_URL=https://cloudnode-host.ru
+      - XRAY_EXECUTABLE_PATH=/usr/local/bin/xray
+      - SSL_CERT_FILE=/var/lib/marzban/certs/cloudnode-host.ru.crt
+      - SSL_KEY_FILE=/var/lib/marzban/certs/cloudnode-host.ru.key
+      - SSL_CLIENT_CERT_FILE=/var/lib/marzban/certs/cloudnode-host.ru.crt
+    volumes:
+      - marzban-data:/var/lib/marzban
+      - marzban-certs:/var/lib/marzban/certs
+    networks:
+      - cloudnode-network
+    ports:
+      - "443:443"
+      - "8000:8000"
     logging:
       driver: "json-file"
       options:
@@ -79,6 +107,10 @@ volumes:
   postgres-data:
     driver: local
   redis-data:
+    driver: local
+  marzban-data:
+    driver: local
+  marzban-certs:
     driver: local
 
 networks:
