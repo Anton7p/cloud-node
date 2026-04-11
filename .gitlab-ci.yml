@@ -61,6 +61,7 @@ deploy:
       export REMOTE_MARZBAN_ADMIN_PASSWORD="$MARZBAN_ADMIN_PASSWORD"
       export REMOTE_SUB_BASE_URL="$SUB_BASE_URL"
       export REMOTE_ACME_EMAIL="$ACME_EMAIL"
+      export REMOTE_INFRASTRUCTURE_IP_LIST="$INFRASTRUCTURE_IP_LIST"
       ssh -o StrictHostKeyChecking=no ${SERVER_USER:-root}@${SERVER_IP} << EOF
         set -e
 
@@ -82,6 +83,7 @@ deploy:
         echo "MARZBAN_ADMIN_PASSWORD=${REMOTE_MARZBAN_ADMIN_PASSWORD}" >> .env
         echo "SUB_BASE_URL=${REMOTE_SUB_BASE_URL}" >> .env
         echo "ACME_EMAIL=${REMOTE_ACME_EMAIL}" >> .env
+        echo "INFRASTRUCTURE_IP_LIST=${REMOTE_INFRASTRUCTURE_IP_LIST}" >> .env
 
         echo "[DEPLOY] Logging into Docker Registry..."
         echo "${REMOTE_CI_REGISTRY_PASSWORD}" | docker login -u "${REMOTE_CI_REGISTRY_USER}" --password-stdin ${REMOTE_CI_REGISTRY}
@@ -105,6 +107,7 @@ deploy:
         export MARZBAN_ADMIN_PASSWORD=${REMOTE_MARZBAN_ADMIN_PASSWORD}
         export SUB_BASE_URL=${REMOTE_SUB_BASE_URL}
         export ACME_EMAIL=${REMOTE_ACME_EMAIL}
+        export INFRASTRUCTURE_IP_LIST=${REMOTE_INFRASTRUCTURE_IP_LIST}
 
         docker compose up -d
 

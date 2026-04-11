@@ -22,6 +22,8 @@ export interface AppConfig {
   acmeEmail: string | undefined;
   // Encryption
   encryptionKey: string | undefined;
+  // Infrastructure nodes
+  infrastructureIpList: string | undefined;
 }
 
 const logger = new Logger('Config');
@@ -52,6 +54,8 @@ export const configuration = registerAs('app', (): AppConfig => {
     acmeEmail: process.env.ACME_EMAIL,
     // Encryption
     encryptionKey: process.env.ENCRYPTION_KEY,
+    // Infrastructure nodes
+    infrastructureIpList: process.env.INFRASTRUCTURE_IP_LIST,
   };
 });
 
@@ -90,4 +94,6 @@ export const validationSchema = Joi.object({
   ACME_EMAIL: Joi.string().email().optional(),
   // Encryption key - optional
   ENCRYPTION_KEY: Joi.string().optional(),
+  // Infrastructure IP list - optional
+  INFRASTRUCTURE_IP_LIST: Joi.string().optional(),
 });

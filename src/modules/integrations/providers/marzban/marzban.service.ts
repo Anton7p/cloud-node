@@ -16,6 +16,14 @@ interface MarzbanUserResponse {
   status: string;
 }
 
+interface MarzbanNode {
+  id?: number;
+  name: string;
+  address: string;
+  port: number;
+  status?: string;
+}
+
 export interface CreateUserResult {
   success: boolean;
   subscriptionUrl?: string;
@@ -55,6 +63,85 @@ export class MarzbanService implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     await this.login();
+    await this.registerInfrastructureNodes();
+  }
+
+  /**
+   * Register infrastructure nodes from INFRASTRUCTURE_IP_LIST
+   */
+  private async registerInfrastructureNodes(): Promise<void> {
+    const ipList = this.configService.get<AppConfig['infrastructureIpList']>('app.infrastructureIpList');
+    if (!ipList) {
+      this.logger.log('INFRASTRUCTURE_IP_LIST not configured, skipping node registration');
+      return;
+    }
+
+    const ips = ipList.split(',').map(ip => ip.trim()).filter(ip => ip);
+    if (ips.length === 0) {
+      this.logger.log('No infrastructure IPs found');
+      return;
+    }
+
+    this.logger.log(`Found ${ips.length} infrastructure node(s) to register`);
+
+    // Get existing nodes to check for duplicates
+    const existingNodes = await this.getExistingNodes();
+    const existingAddresses = new Set(existingNodes.map(n => n.address));
+
+    for (const ip of ips) {
+      if (existingAddresses.has(ip)) {
+        this.logger.log(`Node ${ip} already exists, skipping`);
+        continue;
+      }
+
+      try {
+        await this.createNode(ip);
+        this.logger.log(`Successfully registered node: ${ip}`);
+      } catch (error) {
+        this.logger.error(`Failed to register node ${ip}:`, error instanceof Error ? error.message : 'Unknown error');
+      }
+    }
+  }
+
+  /**
+   * Get existing nodes from Marzban
+   */
+  private async getExistingNodes(): Promise<MarzbanNode[]> {
+    try {
+      if (!this.accessToken) {
+        const loggedIn = await this.login();
+        if (!loggedIn) {
+          this.logger.warn('Cannot get nodes: not authenticated');
+          return [];
+        }
+      }
+
+      const response = await this.httpClient.get<MarzbanNode[]>('/nodes');
+      return response.data || [];
+    } catch (error) {
+      this.logger.error('Failed to get existing nodes:', error instanceof Error ? error.message : 'Unknown error');
+      return [];
+    }
+  }
+
+  /**
+   * Create a new node in Marzban
+   */
+  private async createNode(ip: string): Promise<void> {
+    if (!this.accessToken) {
+      const loggedIn = await this.login();
+      if (!loggedIn) {
+        throw new Error('Not authenticated with Marzban API');
+      }
+    }
+
+    const nodeData: MarzbanNode = {
+      name: `Node-${ip}`,
+      address: ip,
+      port: 443,
+    };
+
+    await this.httpClient.post('/node', nodeData);
   }
 
   private getCredentials(): { username: string; password: string } | null {

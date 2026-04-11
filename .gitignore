@@ -49,3 +49,6 @@ build/
 dist/
 
 /generated/prisma
+
+# Prisma migrations - создаются на сервере
+prisma/migrations/
