@@ -66,11 +66,11 @@ export class XuiApiService {
   }
 
   private getCredentials(): { username: string; password: string } | null {
-    const username = this.configService.get<AppConfig['marzbanUsername']>(
-      'app.marzbanUsername',
+    const username = this.configService.get<AppConfig['marzbanAdminUsername']>(
+      'app.marzbanAdminUsername',
     );
-    const password = this.configService.get<AppConfig['marzbanPassword']>(
-      'app.marzbanPassword',
+    const password = this.configService.get<AppConfig['marzbanAdminPassword']>(
+      'app.marzbanAdminPassword',
     );
 
     if (!username || !password) {
@@ -263,9 +263,7 @@ export class XuiApiService {
 
       const streamSettings = JSON.parse(inbound.streamSettings);
       const baseUrl =
-        this.configService.get<AppConfig['marzbanUrl']>(
-          'app.marzbanUrl',
-        );
+        this.configService.get<AppConfig['marzbanUrl']>('app.marzbanUrl');
       const host = baseUrl ? new URL(baseUrl).hostname : 'localhost';
 
       return this.buildConnectionUrl(

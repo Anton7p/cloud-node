@@ -58,11 +58,11 @@ export class MarzbanService implements OnModuleInit {
   }
 
   private getCredentials(): { username: string; password: string } | null {
-    const username = this.configService.get<AppConfig['marzbanUsername']>(
-      'app.marzbanUsername',
+    const username = this.configService.get<AppConfig['marzbanAdminUsername']>(
+      'app.marzbanAdminUsername',
     );
-    const password = this.configService.get<AppConfig['marzbanPassword']>(
-      'app.marzbanPassword',
+    const password = this.configService.get<AppConfig['marzbanAdminPassword']>(
+      'app.marzbanAdminPassword',
     );
 
     if (!username || !password) {

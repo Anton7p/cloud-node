@@ -15,8 +15,8 @@ export interface AppConfig {
   redisPassword: string | undefined;
   // Marzban API
   marzbanUrl: string | undefined;
-  marzbanUsername: string | undefined;
-  marzbanPassword: string | undefined;
+  marzbanAdminUsername: string | undefined;
+  marzbanAdminPassword: string | undefined;
   subBaseUrl: string | undefined;
   // SSL / Certbot
   acmeEmail: string | undefined;
@@ -45,8 +45,8 @@ export const configuration = registerAs('app', (): AppConfig => {
     redisPassword: process.env.REDIS_PASSWORD,
     // Marzban API
     marzbanUrl: process.env.MARZBAN_URL,
-    marzbanUsername: process.env.MARZBAN_USERNAME,
-    marzbanPassword: process.env.MARZBAN_PASSWORD,
+    marzbanAdminUsername: process.env.MARZBAN_ADMIN_USERNAME,
+    marzbanAdminPassword: process.env.MARZBAN_ADMIN_PASSWORD,
     subBaseUrl: process.env.SUB_BASE_URL,
     // SSL / Certbot
     acmeEmail: process.env.ACME_EMAIL,
@@ -83,8 +83,8 @@ export const validationSchema = Joi.object({
   REDIS_PASSWORD: Joi.string().optional(),
   // Marzban configuration - optional, warns only
   MARZBAN_URL: Joi.string().uri().optional(),
-  MARZBAN_USERNAME: Joi.string().optional(),
-  MARZBAN_PASSWORD: Joi.string().optional(),
+  MARZBAN_ADMIN_USERNAME: Joi.string().optional(),
+  MARZBAN_ADMIN_PASSWORD: Joi.string().optional(),
   SUB_BASE_URL: Joi.string().uri().optional(),
   // SSL / Certbot email for Let's Encrypt - optional
   ACME_EMAIL: Joi.string().email().optional(),

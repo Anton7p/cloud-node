@@ -13,8 +13,8 @@ services:
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       MARZBAN_URL: ${MARZBAN_URL}
-      MARZBAN_USERNAME: ${MARZBAN_USERNAME}
-      MARZBAN_PASSWORD: ${MARZBAN_PASSWORD}
+      MARZBAN_ADMIN_USERNAME: ${MARZBAN_ADMIN_USERNAME}
+      MARZBAN_ADMIN_PASSWORD: ${MARZBAN_ADMIN_PASSWORD}
     env_file:
       - .env
     command: sh -c "npx prisma migrate deploy && node dist/main.js"
