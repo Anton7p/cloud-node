@@ -10,6 +10,7 @@ export {
   IMAGES,
   MENU_COMMANDS,
   CHAT_MENU_BUTTON,
+  PLATFORM_LINKS,
 } from './clean.templates';
 
 // Обратная совместимость (устаревшее)

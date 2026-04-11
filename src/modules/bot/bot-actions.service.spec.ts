@@ -106,6 +106,25 @@ jest.mock('./application/commands/support.command', () => ({
   },
 }));
 
+jest.mock('./application/commands/platform-instructions.command', () => ({
+  PlatformIosCommand: class MockPlatformIosCommand {
+    readonly pattern = 'platform_ios';
+    execute = jest.fn().mockResolvedValue(undefined);
+  },
+  PlatformAndroidCommand: class MockPlatformAndroidCommand {
+    readonly pattern = 'platform_android';
+    execute = jest.fn().mockResolvedValue(undefined);
+  },
+  PlatformWindowsCommand: class MockPlatformWindowsCommand {
+    readonly pattern = 'platform_windows';
+    execute = jest.fn().mockResolvedValue(undefined);
+  },
+  PlatformMacosCommand: class MockPlatformMacosCommand {
+    readonly pattern = 'platform_macos';
+    execute = jest.fn().mockResolvedValue(undefined);
+  },
+}));
+
 describe('BotActionsService', () => {
   let service: BotActionsService;
   let moduleRef: { get: jest.Mock };
@@ -121,6 +140,10 @@ describe('BotActionsService', () => {
       'Month1Command',
       'Month3Command',
       'InstructionsCommand',
+      'PlatformIosCommand',
+      'PlatformAndroidCommand',
+      'PlatformWindowsCommand',
+      'PlatformMacosCommand',
       'SupportCommand',
       'ProfileCommand',
       'RentServerCommand',
@@ -137,6 +160,10 @@ describe('BotActionsService', () => {
       'month_1',
       'month_3',
       ['instructions', 'help'],
+      'platform_ios',
+      'platform_android',
+      'platform_windows',
+      'platform_macos',
       ['support', 'support_cmd'],
       'profile',
       'rent_server',
@@ -191,7 +218,7 @@ describe('BotActionsService', () => {
   describe('onModuleInit', () => {
     it('should build handler map on initialization', async () => {
       await service.onModuleInit();
-      expect(moduleRef.get).toHaveBeenCalledTimes(14);
+      expect(moduleRef.get).toHaveBeenCalledTimes(18);
     });
   });
 

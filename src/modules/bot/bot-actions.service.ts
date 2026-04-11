@@ -12,6 +12,12 @@ import {
   Month3Command,
 } from './application/commands/key.command';
 import { InstructionsCommand } from './application/commands/instructions.command';
+import {
+  PlatformIosCommand,
+  PlatformAndroidCommand,
+  PlatformWindowsCommand,
+  PlatformMacosCommand,
+} from './application/commands/platform-instructions.command';
 import { SupportCommand } from './application/commands/support.command';
 
 // Устаревшие команды
@@ -63,6 +69,10 @@ export class BotActionsService implements OnModuleInit {
       Month1Command,
       Month3Command,
       InstructionsCommand,
+      PlatformIosCommand,
+      PlatformAndroidCommand,
+      PlatformWindowsCommand,
+      PlatformMacosCommand,
       SupportCommand,
       // Устаревшие команды
       ProfileCommand,

@@ -26,8 +26,26 @@ export const MENU_COMMANDS = {
 // ============================================================================
 
 export const MESSAGES = {
-  // Главный экран
-  MAIN_TITLE: 'ВЫБЕРИТЕ ДЕЙСТВИЕ:',
+  // Главный экран (динамический)
+  MAIN_TITLE: (
+    firstName: string,
+    hasSubscription: boolean,
+    expiryDate?: string,
+  ) => {
+    let statusText: string;
+    if (hasSubscription && expiryDate) {
+      statusText = `✅ АКТИВНЫЙ КЛЮЧ (ДО: ${expiryDate})`;
+    } else {
+      statusText = '📋 У ВАС ПОКА НЕТ АКТИВНЫХ КЛЮЧЕЙ';
+    }
+
+    return (
+      `ПРИВЕТ, ${firstName.toUpperCase()}!\n\n` +
+      `ВЫБЕРИТЕ ТАРИФ И ПОДКЛЮЧИТЕСЬ ЗА МИНУТУ.\n\n` +
+      `📱 ОДИН КЛЮЧ РАБОТАЕТ НА 2-Х УСТРОЙСТВАХ ОДНОВРЕМЕННО.\n\n` +
+      `${statusText}`
+    );
+  },
 
   // Экран выбора срока
   SELECT_DURATION: 'ВЫБЕРИТЕ СРОК ДОСТУПА:',
@@ -38,7 +56,18 @@ export const MESSAGES = {
     `\`\`\`\n${key}\n\`\`\`\n\n` +
     `СКОПИРУЙТЕ КЛЮЧ И ВСТАВЬТЕ В ПРИЛОЖЕНИЕ`,
 
-  // Инструкции
+  // Инструкции (выбор платформы)
+  INSTRUCTIONS_TITLE: 'ВЫБЕРИТЕ ПЛАТФОРМУ:',
+
+  // Инструкции для конкретной платформы
+  INSTRUCTIONS_PLATFORM: (platform: string, appName: string, url: string) =>
+    `ИНСТРУКЦИЯ ДЛЯ ${platform}\n\n` +
+    `1. УСТАНОВИТЕ: ${appName}\n` +
+    `   ${url}\n\n` +
+    `2. НАЖМИТЕ ПОЛУЧИТЬ КЛЮЧ В БОТЕ\n\n` +
+    `3. СКОПИРУЙТЕ КЛЮЧ И ВСТАВЬТЕ В ПРИЛОЖЕНИЕ`,
+
+  // Общие инструкции
   INSTRUCTIONS:
     `ИНСТРУКЦИЯ ПО НАСТРОЙКЕ\n\n` +
     `1. УСТАНОВИТЕ ПРИЛОЖЕНИЕ:\n` +
@@ -64,8 +93,15 @@ export const MESSAGES = {
 export const ACTIONS = {
   // Главное меню
   GET_KEY: 'get_key',
+  EXTEND_KEY: 'extend_key',
   INSTRUCTIONS: 'instructions',
   SUPPORT: 'support',
+
+  // Платформы для инструкций
+  PLATFORM_IOS: 'platform_ios',
+  PLATFORM_ANDROID: 'platform_android',
+  PLATFORM_WINDOWS: 'platform_windows',
+  PLATFORM_MACOS: 'platform_macos',
 
   // Выбор срока
   MONTH_1: 'month_1',
@@ -81,5 +117,25 @@ export const ACTIONS = {
 
 export const CHAT_MENU_BUTTON = {
   type: 'commands',
-  text: 'МЕНЮ',
+  text: '[ МЕНЮ ]',
+} as const;
+
+// Ссылки на приложения для платформ
+export const PLATFORM_LINKS = {
+  IOS: {
+    name: 'SHADOWROCKET / STREISAND',
+    url: 'https://apps.apple.com',
+  },
+  ANDROID: {
+    name: 'V2RAYNG / NEKOBOX',
+    url: 'https://play.google.com',
+  },
+  WINDOWS: {
+    name: 'V2RAYN / NEKORAY',
+    url: 'https://github.com/v2rayn',
+  },
+  MACOS: {
+    name: 'V2RAYXS / SHADOWROCKET',
+    url: 'https://apps.apple.com',
+  },
 } as const;

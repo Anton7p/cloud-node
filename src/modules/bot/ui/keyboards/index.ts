@@ -8,6 +8,8 @@ export {
   durationKeyboard,
   backKeyboard,
   removeReplyKeyboard,
+  platformKeyboard,
+  platformDetailKeyboard,
 } from './clean.keyboards';
 
 // Устаревшие экспорты (для обратной совместимости)

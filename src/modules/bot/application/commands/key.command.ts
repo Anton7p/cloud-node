@@ -1,12 +1,21 @@
 import { Injectable } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
+import { RentalsService } from '../../../rentals/rentals.service';
 import { BaseAction, CommandContext } from '../base.action';
-import { MESSAGES, ACTIONS, ACCESS_PRICES, durationKeyboard } from '../../ui';
+import {
+  MESSAGES,
+  ACTIONS,
+  IMAGES,
+  ACCESS_PRICES,
+  durationKeyboard,
+} from '../../ui';
 
 @Injectable()
 export class KeyCommand extends BaseAction {
-  readonly pattern = [ACTIONS.GET_KEY, 'key'];
+  readonly pattern = [ACTIONS.GET_KEY, ACTIONS.EXTEND_KEY, 'key'];
 
-  constructor() {
+  constructor(private readonly rentalsService: RentalsService) {
     super(KeyCommand.name);
   }
 
@@ -14,13 +23,16 @@ export class KeyCommand extends BaseAction {
     const { ctx, userId, data } = context;
     this.logExecution(data, userId);
 
+    // Определяем режим (получение или продление)
+    const isExtend = data === ACTIONS.EXTEND_KEY;
+
     // Если callback_query - редактируем сообщение
     if (ctx.callbackQuery && 'message' in ctx.callbackQuery) {
-      await this.editToDurationSelection(ctx);
+      await this.editToDurationSelection(ctx, isExtend);
     } else {
       // Если команда /key - отправляем новое сообщение
       await ctx.reply(MESSAGES.SELECT_DURATION, {
-        reply_markup: durationKeyboard().reply_markup,
+        reply_markup: durationKeyboard(isExtend).reply_markup,
       });
     }
   }
@@ -30,26 +42,39 @@ export class KeyCommand extends BaseAction {
    */
   private async editToDurationSelection(
     ctx: CommandContext['ctx'],
+    isExtend: boolean = false,
   ): Promise<void> {
     try {
-      const message = ctx.callbackQuery?.message;
-      if (!message) return;
+      const imagePath = path.resolve(IMAGES.START_HUD);
+      const keyboard = durationKeyboard(isExtend);
 
-      // Редактируем caption если есть фото, иначе текст
-      if ('caption' in message) {
-        await ctx.editMessageCaption(MESSAGES.SELECT_DURATION, {
-          reply_markup: durationKeyboard().reply_markup,
-        });
+      // Пробуем использовать editMessageMedia для смены фото + текста
+      if (fs.existsSync(imagePath)) {
+        try {
+          await ctx.editMessageMedia(
+            {
+              type: 'photo',
+              media: { source: imagePath },
+              caption: MESSAGES.SELECT_DURATION,
+            },
+            { reply_markup: keyboard.reply_markup },
+          );
+        } catch {
+          // Fallback на редактирование текста/caption
+          await ctx.editMessageCaption(MESSAGES.SELECT_DURATION, {
+            reply_markup: keyboard.reply_markup,
+          });
+        }
       } else {
         await ctx.editMessageText(MESSAGES.SELECT_DURATION, {
-          reply_markup: durationKeyboard().reply_markup,
+          reply_markup: keyboard.reply_markup,
         });
       }
     } catch (error) {
       this.logger.warn(`Failed to edit message: ${error}`);
       // Fallback на новое сообщение
       await ctx.reply(MESSAGES.SELECT_DURATION, {
-        reply_markup: durationKeyboard().reply_markup,
+        reply_markup: durationKeyboard(isExtend).reply_markup,
       });
     }
   }

@@ -14,6 +14,10 @@ import {
   Month1Command,
   Month3Command,
   InstructionsCommand,
+  PlatformIosCommand,
+  PlatformAndroidCommand,
+  PlatformWindowsCommand,
+  PlatformMacosCommand,
   SupportCommand,
   // Устаревшие команды
   ProfileCommand,
@@ -37,6 +41,10 @@ const commandHandlers = [
   Month1Command,
   Month3Command,
   InstructionsCommand,
+  PlatformIosCommand,
+  PlatformAndroidCommand,
+  PlatformWindowsCommand,
+  PlatformMacosCommand,
   SupportCommand,
   // Устаревшие команды
   ProfileCommand,

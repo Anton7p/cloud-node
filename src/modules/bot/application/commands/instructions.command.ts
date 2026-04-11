@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { BaseAction, CommandContext } from '../base.action';
-import { MESSAGES, ACTIONS, backKeyboard } from '../../ui';
+import { MESSAGES, ACTIONS, platformKeyboard } from '../../ui';
 
 @Injectable()
 export class InstructionsCommand extends BaseAction {
@@ -16,38 +16,29 @@ export class InstructionsCommand extends BaseAction {
 
     // Если callback_query - редактируем сообщение
     if (ctx.callbackQuery && 'message' in ctx.callbackQuery) {
-      await this.editToInstructions(ctx);
+      await this.showPlatformSelection(ctx);
     } else {
       // Если команда /help - отправляем новое сообщение
-      await ctx.reply(MESSAGES.INSTRUCTIONS, {
-        reply_markup: backKeyboard().reply_markup,
+      await ctx.reply(MESSAGES.INSTRUCTIONS_TITLE, {
+        reply_markup: platformKeyboard().reply_markup,
       });
     }
   }
 
   /**
-   * Редактирует текущее сообщение на экран инструкций
+   * Показывает выбор платформы через редактирование сообщения
    */
-  private async editToInstructions(ctx: CommandContext['ctx']): Promise<void> {
+  private async showPlatformSelection(
+    ctx: CommandContext['ctx'],
+  ): Promise<void> {
     try {
-      const message = ctx.callbackQuery?.message;
-      if (!message) return;
-
-      // Редактируем caption если есть фото, иначе текст
-      if ('caption' in message) {
-        await ctx.editMessageCaption(MESSAGES.INSTRUCTIONS, {
-          reply_markup: backKeyboard().reply_markup,
-        });
-      } else {
-        await ctx.editMessageText(MESSAGES.INSTRUCTIONS, {
-          reply_markup: backKeyboard().reply_markup,
-        });
-      }
+      await ctx.editMessageText(MESSAGES.INSTRUCTIONS_TITLE, {
+        reply_markup: platformKeyboard().reply_markup,
+      });
     } catch (error) {
       this.logger.warn(`Failed to edit message: ${error}`);
-      // Fallback на новое сообщение
-      await ctx.reply(MESSAGES.INSTRUCTIONS, {
-        reply_markup: backKeyboard().reply_markup,
+      await ctx.reply(MESSAGES.INSTRUCTIONS_TITLE, {
+        reply_markup: platformKeyboard().reply_markup,
       });
     }
   }
