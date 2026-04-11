@@ -5,7 +5,17 @@ import { RentalPrice } from '../../types/bot.types';
 // ============================================================================
 
 export const EMOJI = {
-  // Cyberpunk Core Icons
+  // Clean UI Icons (used)
+  APPLE: '🍎',
+  ANDROID: '🤖',
+  WINDOWS: '💻',
+  MACOS: '🖥️',
+  COPY: '📋',
+  ACTIVE: '✅',
+  BACK: '🔙',
+  PHONE: '📱',
+
+  // Legacy icons (for backward compatibility with old files)
   CORE: '💠',
   SQUARE: '🟦',
   BOLT: '⚡️',
@@ -14,8 +24,6 @@ export const EMOJI = {
   TERMINAL: '📟',
   LOCK: '🔒',
   UNLOCK: '🔓',
-
-  // Standard Icons
   WAVE: '👋',
   SERVER: '🖥️',
   LOCATION: '🌍',
@@ -24,14 +32,8 @@ export const EMOJI = {
   INSTRUCTIONS: '📖',
   REFERRAL: '👥',
   HELP: '❓',
-  APPLE: '🍎',
-  ANDROID: '🤖',
-  WINDOWS: '🪟',
-  MACOS: '🍏',
-  BACK: '🔙',
   PREMIUM: '💎',
   FREE: '🆓',
-  ACTIVE: '✅',
   INACTIVE: '❌',
   ID: '🆔',
   SUBSCRIPTION: '📅',
@@ -39,7 +41,6 @@ export const EMOJI = {
   TRAFFIC: '📊',
   KEY: '🔑',
   EXTEND: '💎',
-  PHONE: '📱',
   MONEY: '💰',
   LINK: '🔗',
   CHART: '📊',

@@ -10,25 +10,10 @@ export {
   removeReplyKeyboard,
   platformKeyboard,
   platformDetailKeyboard,
+  keyDisplayKeyboard,
 } from './clean.keyboards';
 
-// Устаревшие экспорты (для обратной совместимости)
-export { startKeyboard, MAIN_LAUNCH_BUTTON } from './start.keyboards';
-
-export {
-  profileKeyboard,
-  noServersKeyboard,
-  accessInfoKeyboard,
-  referralKeyboard,
-  helpKeyboard,
-} from './profile.keyboards';
-
-export {
-  rentServerKeyboard,
-  rentTermDetailsKeyboard,
-  rentActivatedKeyboard,
-} from './rent.keyboards';
-
+// Инструкции (нужны для работы бота)
 export {
   instructionsKeyboard,
   platformInfoKeyboard,

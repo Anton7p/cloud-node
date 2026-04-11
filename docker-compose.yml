@@ -90,6 +90,8 @@ services:
     environment:
       - UVICORN_HOST=0.0.0.0
       - UVICORN_PORT=8000
+      - UVICORN_SSL_CERTFILE=/var/lib/marzban/certs/cloudnode-host.ru.crt
+      - UVICORN_SSL_KEYFILE=/var/lib/marzban/certs/cloudnode-host.ru.key
       - DASHBOARD_PATH=/dashboard
       - XRAY_SUBSCRIPTION_URL=https://cloudnode-host.ru
       - XRAY_EXECUTABLE_PATH=/usr/local/bin/xray

@@ -56,9 +56,32 @@ export const backKeyboard = () =>
 // Удаление ReplyKeyboard для показа системной кнопки
 export const removeReplyKeyboard = () => Markup.removeKeyboard();
 
-// Клавиатура для экрана платформы с кнопкой назад
-export const platformDetailKeyboard = () =>
+// Клавиатура для экрана платформы с кнопкой назад и Telegram ссылками
+export const platformDetailKeyboard = (telegramUrl?: string) => {
+  const rows: any[] = [];
+
+  // Кнопка с Telegram-ссылкой (если есть URL)
+  if (telegramUrl) {
+    rows.push([Markup.button.url('📱 СКАЧАТЬ ПРИЛОЖЕНИЕ', telegramUrl)]);
+  }
+
+  // Кнопки навигации
+  rows.push([
+    Markup.button.callback('◀ НАЗАД К ПЛАТФОРМАМ', ACTIONS.INSTRUCTIONS),
+  ]);
+  rows.push([Markup.button.callback('◀◀ ГЛАВНОЕ МЕНЮ', ACTIONS.BACK_TO_MAIN)]);
+
+  return Markup.inlineKeyboard(rows);
+};
+
+// Клавиатура для экрана с ключом: большая кнопка СКОПИРОВАТЬ + НАЗАД
+export const keyDisplayKeyboard = (key: string) =>
   Markup.inlineKeyboard([
-    [Markup.button.callback('◀ НАЗАД К ПЛАТФОРМАМ', ACTIONS.INSTRUCTIONS)],
+    [
+      Markup.button.callback(
+        '📋 СКОПИРОВАТЬ КЛЮЧ',
+        `${ACTIONS.COPY_KEY}:${key}`,
+      ),
+    ],
     [Markup.button.callback('◀◀ ГЛАВНОЕ МЕНЮ', ACTIONS.BACK_TO_MAIN)],
   ]);

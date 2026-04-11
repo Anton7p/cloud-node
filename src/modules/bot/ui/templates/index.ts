@@ -13,39 +13,19 @@ export {
   PLATFORM_LINKS,
 } from './clean.templates';
 
-// Обратная совместимость (устаревшее)
-export {
-  EMOJI,
-  RENTAL_PRICES,
-  PLATFORM_APPS,
-  UI_UTILS,
-  COMMON_MESSAGES,
-} from './common.templates';
+// Минимальный набор иконок для clean UI
+export { EMOJI } from './common.templates';
 
-export { START_MESSAGES, START_ACTIONS } from './start.templates';
-
-export { PROFILE_MESSAGES, PROFILE_ACTIONS } from './profile.templates';
-
-export { RENT_MESSAGES, RENT_ACTIONS, RENT_PATTERNS } from './rent.templates';
-
-export {
-  INSTRUCTIONS_MESSAGES,
-  INSTRUCTIONS_ACTIONS,
-  INSTRUCTIONS_PATTERNS,
-} from './instructions.templates';
-
+// Навигационные константы
 export {
   NAVIGATION_ACTIONS,
   NAVIGATION_LABELS,
   type NavigationAction,
 } from './navigation.templates';
 
-// CYBERPUNK: Устаревшие экспорты
+// Инструкции (нужны для работы бота)
 export {
-  CYBER_EMOJI,
-  SYS_PREFIX,
-  HUD_ICONS,
-  TERMINAL,
-  CYBER_MESSAGES,
-  REPLY_KEYBOARD_CONFIG,
-} from './cyberpunk.templates';
+  INSTRUCTIONS_MESSAGES,
+  INSTRUCTIONS_ACTIONS,
+  INSTRUCTIONS_PATTERNS,
+} from './instructions.templates';

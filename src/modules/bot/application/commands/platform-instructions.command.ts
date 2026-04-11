@@ -29,17 +29,19 @@ export class PlatformIosCommand extends BaseAction {
     if (ctx.callbackQuery && 'message' in ctx.callbackQuery) {
       try {
         await ctx.editMessageText(message, {
-          reply_markup: platformDetailKeyboard().reply_markup,
+          reply_markup: platformDetailKeyboard(platform.telegramUrl)
+            .reply_markup,
         });
       } catch (error) {
         this.logger.warn(`Failed to edit message: ${error}`);
         await ctx.reply(message, {
-          reply_markup: platformDetailKeyboard().reply_markup,
+          reply_markup: platformDetailKeyboard(platform.telegramUrl)
+            .reply_markup,
         });
       }
     } else {
       await ctx.reply(message, {
-        reply_markup: platformDetailKeyboard().reply_markup,
+        reply_markup: platformDetailKeyboard(platform.telegramUrl).reply_markup,
       });
     }
   }
@@ -67,17 +69,19 @@ export class PlatformAndroidCommand extends BaseAction {
     if (ctx.callbackQuery && 'message' in ctx.callbackQuery) {
       try {
         await ctx.editMessageText(message, {
-          reply_markup: platformDetailKeyboard().reply_markup,
+          reply_markup: platformDetailKeyboard(platform.telegramUrl)
+            .reply_markup,
         });
       } catch (error) {
         this.logger.warn(`Failed to edit message: ${error}`);
         await ctx.reply(message, {
-          reply_markup: platformDetailKeyboard().reply_markup,
+          reply_markup: platformDetailKeyboard(platform.telegramUrl)
+            .reply_markup,
         });
       }
     } else {
       await ctx.reply(message, {
-        reply_markup: platformDetailKeyboard().reply_markup,
+        reply_markup: platformDetailKeyboard(platform.telegramUrl).reply_markup,
       });
     }
   }
@@ -105,17 +109,19 @@ export class PlatformWindowsCommand extends BaseAction {
     if (ctx.callbackQuery && 'message' in ctx.callbackQuery) {
       try {
         await ctx.editMessageText(message, {
-          reply_markup: platformDetailKeyboard().reply_markup,
+          reply_markup: platformDetailKeyboard(platform.telegramUrl)
+            .reply_markup,
         });
       } catch (error) {
         this.logger.warn(`Failed to edit message: ${error}`);
         await ctx.reply(message, {
-          reply_markup: platformDetailKeyboard().reply_markup,
+          reply_markup: platformDetailKeyboard(platform.telegramUrl)
+            .reply_markup,
         });
       }
     } else {
       await ctx.reply(message, {
-        reply_markup: platformDetailKeyboard().reply_markup,
+        reply_markup: platformDetailKeyboard(platform.telegramUrl).reply_markup,
       });
     }
   }
@@ -143,17 +149,19 @@ export class PlatformMacosCommand extends BaseAction {
     if (ctx.callbackQuery && 'message' in ctx.callbackQuery) {
       try {
         await ctx.editMessageText(message, {
-          reply_markup: platformDetailKeyboard().reply_markup,
+          reply_markup: platformDetailKeyboard(platform.telegramUrl)
+            .reply_markup,
         });
       } catch (error) {
         this.logger.warn(`Failed to edit message: ${error}`);
         await ctx.reply(message, {
-          reply_markup: platformDetailKeyboard().reply_markup,
+          reply_markup: platformDetailKeyboard(platform.telegramUrl)
+            .reply_markup,
         });
       }
     } else {
       await ctx.reply(message, {
-        reply_markup: platformDetailKeyboard().reply_markup,
+        reply_markup: platformDetailKeyboard(platform.telegramUrl).reply_markup,
       });
     }
   }

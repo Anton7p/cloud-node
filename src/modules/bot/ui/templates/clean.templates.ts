@@ -17,7 +17,6 @@ export const IMAGES = {
 export const MENU_COMMANDS = {
   START: { command: 'start', description: 'ГЛАВНОЕ МЕНЮ' },
   KEY: { command: 'key', description: 'ПОЛУЧИТЬ КЛЮЧ' },
-  HELP: { command: 'help', description: 'ИНСТРУКЦИИ' },
   SUPPORT: { command: 'support', description: 'ПОДДЕРЖКА' },
 } as const;
 
@@ -112,6 +111,9 @@ export const ACTIONS = {
 
   // Навигация
   BACK_TO_MAIN: 'back_to_main',
+
+  // Копирование ключа
+  COPY_KEY: 'copy_key',
 } as const;
 
 // ============================================================================
@@ -123,22 +125,26 @@ export const CHAT_MENU_BUTTON = {
   text: '[ МЕНЮ ]',
 } as const;
 
-// Ссылки на приложения для платформ
+// Ссылки на приложения для платформ (Telegram заглушки пока нет ключа)
 export const PLATFORM_LINKS = {
   IOS: {
     name: 'SHADOWROCKET / STREISAND',
     url: 'https://apps.apple.com',
+    telegramUrl: 'https://t.me/cloudnode_apps', // Заглушка: канал с инструкциями
   },
   ANDROID: {
     name: 'V2RAYNG / NEKOBOX',
     url: 'https://play.google.com',
+    telegramUrl: 'https://t.me/cloudnode_apps',
   },
   WINDOWS: {
     name: 'V2RAYN / NEKORAY',
     url: 'https://github.com/v2rayn',
+    telegramUrl: 'https://t.me/cloudnode_apps',
   },
   MACOS: {
     name: 'V2RAYXS / SHADOWROCKET',
     url: 'https://apps.apple.com',
+    telegramUrl: 'https://t.me/cloudnode_apps',
   },
 } as const;

@@ -139,40 +139,26 @@ describe('BotActionsService', () => {
       'KeyCommand',
       'Month1Command',
       'Month3Command',
+      'CopyKeyCommand',
       'InstructionsCommand',
       'PlatformIosCommand',
       'PlatformAndroidCommand',
       'PlatformWindowsCommand',
       'PlatformMacosCommand',
       'SupportCommand',
-      'ProfileCommand',
-      'RentServerCommand',
-      'RentTermCommand',
-      'PayRentalCommand',
-      'GetAccessCommand',
-      'PlatformInstructionCommand',
-      'ReferralCommand',
-      'HelpCommand',
     ];
     const patterns: (string | string[] | RegExp)[] = [
       ['back_to_main', 'start'],
       ['get_key', 'key'],
       'month_1',
       'month_3',
+      /^copy_key:/,
       ['instructions', 'help'],
       'platform_ios',
       'platform_android',
       'platform_windows',
       'platform_macos',
       ['support', 'support_cmd'],
-      'profile',
-      'rent_server',
-      /^rent_(\d+)m$/,
-      'pay_rental',
-      'get_access',
-      /^instruction_(.+)$/,
-      'referral',
-      'help',
     ];
 
     moduleRef = {
@@ -218,7 +204,7 @@ describe('BotActionsService', () => {
   describe('onModuleInit', () => {
     it('should build handler map on initialization', async () => {
       await service.onModuleInit();
-      expect(moduleRef.get).toHaveBeenCalledTimes(18);
+      expect(moduleRef.get).toHaveBeenCalledTimes(11);
     });
   });
 
@@ -263,18 +249,6 @@ describe('BotActionsService', () => {
       await service.onModuleInit();
     });
 
-    it('should route "profile" callback to ProfileCommand via Map lookup', async () => {
-      const mockCtx = {
-        reply: jest.fn().mockResolvedValue(undefined),
-      } as unknown as BotContext;
-
-      const profileHandler = capturedHandlers['ProfileCommand'];
-
-      await service.handleCallbackQuery(mockCtx, 'profile', 123456789);
-
-      expect(profileHandler.execute).toHaveBeenCalled();
-    });
-
     it('should route "back_to_main" callback to StartCommand via Map lookup', async () => {
       const mockCtx = {
         reply: jest.fn().mockResolvedValue(undefined),
@@ -287,16 +261,40 @@ describe('BotActionsService', () => {
       expect(startHandler.execute).toHaveBeenCalled();
     });
 
-    it('should route rent_Xm pattern via RegExp handler', async () => {
+    it('should route "get_key" callback to KeyCommand via Map lookup', async () => {
       const mockCtx = {
         reply: jest.fn().mockResolvedValue(undefined),
       } as unknown as BotContext;
 
-      const rentTermHandler = capturedHandlers['RentTermCommand'];
+      const keyHandler = capturedHandlers['KeyCommand'];
 
-      await service.handleCallbackQuery(mockCtx, 'rent_3m', 123456789);
+      await service.handleCallbackQuery(mockCtx, 'get_key', 123456789);
 
-      expect(rentTermHandler.execute).toHaveBeenCalled();
+      expect(keyHandler.execute).toHaveBeenCalled();
+    });
+
+    it('should route "instructions" callback to InstructionsCommand via Map lookup', async () => {
+      const mockCtx = {
+        reply: jest.fn().mockResolvedValue(undefined),
+      } as unknown as BotContext;
+
+      const instructionsHandler = capturedHandlers['InstructionsCommand'];
+
+      await service.handleCallbackQuery(mockCtx, 'instructions', 123456789);
+
+      expect(instructionsHandler.execute).toHaveBeenCalled();
+    });
+
+    it('should route copy_key pattern via RegExp handler', async () => {
+      const mockCtx = {
+        reply: jest.fn().mockResolvedValue(undefined),
+      } as unknown as BotContext;
+
+      const copyKeyHandler = capturedHandlers['CopyKeyCommand'];
+
+      await service.handleCallbackQuery(mockCtx, 'copy_key:test123', 123456789);
+
+      expect(copyKeyHandler.execute).toHaveBeenCalled();
     });
 
     it('should reply unknown command for unrecognized callback', async () => {
