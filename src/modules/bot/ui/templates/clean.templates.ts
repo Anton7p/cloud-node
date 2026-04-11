@@ -51,10 +51,14 @@ export const MESSAGES = {
   SELECT_DURATION: 'ВЫБЕРИТЕ СРОК ДОСТУПА:',
 
   // Экран с ключом
-  KEY_READY: (duration: string, key: string) =>
+  KEY_READY: (duration: string, key: string, nodes?: string) =>
     `КЛЮЧ ДОСТУПА (${duration})\n\n` +
     `\`\`\`\n${key}\n\`\`\`\n\n` +
+    `${nodes ? nodes + '\n\n' : ''}` +
     `СКОПИРУЙТЕ КЛЮЧ И ВСТАВЬТЕ В ПРИЛОЖЕНИЕ`,
+
+  // Информация о доступных нодах
+  NODES_INFO: 'Доступ активен. Вам доступны узлы: Финляндия, Германия, Турция.',
 
   // Инструкции (выбор платформы)
   INSTRUCTIONS_TITLE: 'ВЫБЕРИТЕ ПЛАТФОРМУ:',

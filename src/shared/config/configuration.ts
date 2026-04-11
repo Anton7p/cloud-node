@@ -8,9 +8,14 @@ export interface AppConfig {
   socksProxy: string | undefined;
   healthCheckEnabled: boolean;
   databaseUrl: string;
-  xuiBaseUrl: string | undefined;
-  xuiUsername: string | undefined;
-  xuiPassword: string | undefined;
+  // Redis
+  redisHost: string;
+  redisPort: number;
+  // Marzban API
+  marzbanBaseUrl: string | undefined;
+  marzbanUsername: string | undefined;
+  marzbanPassword: string | undefined;
+  subBaseUrl: string | undefined;
 }
 
 export const configuration = registerAs(
@@ -22,9 +27,14 @@ export const configuration = registerAs(
     socksProxy: process.env.SOCKS_PROXY,
     healthCheckEnabled: process.env.HEALTH_CHECK_ENABLED === 'true',
     databaseUrl: process.env.DATABASE_URL,
-    xuiBaseUrl: process.env.XUI_BASE_URL,
-    xuiUsername: process.env.XUI_USERNAME,
-    xuiPassword: process.env.XUI_PASSWORD,
+    // Redis
+    redisHost: process.env.REDIS_HOST || 'localhost',
+    redisPort: parseInt(process.env.REDIS_PORT, 10) || 6379,
+    // Marzban API
+    marzbanBaseUrl: process.env.MARZBAN_BASE_URL,
+    marzbanUsername: process.env.MARZBAN_USERNAME,
+    marzbanPassword: process.env.MARZBAN_PASSWORD,
+    subBaseUrl: process.env.SUB_BASE_URL,
   }),
 );
 
@@ -50,31 +60,44 @@ export const validationSchema = Joi.object({
   }),
   HEALTH_CHECK_ENABLED: Joi.boolean().default(true),
   SOCKS_PROXY: Joi.string().allow('', null).optional(),
-  // XUI configuration - required in production
-  XUI_BASE_URL: Joi.string()
+  // Redis configuration
+  REDIS_HOST: Joi.string().default('localhost'),
+  REDIS_PORT: Joi.number().port().default(6379),
+  // Marzban configuration - required in production
+  MARZBAN_BASE_URL: Joi.string()
     .uri()
     .when('NODE_ENV', {
       is: 'production',
       then: Joi.required().messages({
         'any.required':
-          'XUI_BASE_URL is required in production. Please set your 3X-UI panel URL.',
+          'MARZBAN_BASE_URL is required in production. Please set your Marzban panel URL.',
       }),
       otherwise: Joi.optional(),
     }),
-  XUI_USERNAME: Joi.string().when('NODE_ENV', {
+  MARZBAN_USERNAME: Joi.string().when('NODE_ENV', {
     is: 'production',
     then: Joi.required().messages({
       'any.required':
-        'XUI_USERNAME is required in production. Please set your 3X-UI username.',
+        'MARZBAN_USERNAME is required in production. Please set your Marzban admin username.',
     }),
     otherwise: Joi.optional(),
   }),
-  XUI_PASSWORD: Joi.string().when('NODE_ENV', {
+  MARZBAN_PASSWORD: Joi.string().when('NODE_ENV', {
     is: 'production',
     then: Joi.required().messages({
       'any.required':
-        'XUI_PASSWORD is required in production. Please set your 3X-UI password.',
+        'MARZBAN_PASSWORD is required in production. Please set your Marzban admin password.',
     }),
     otherwise: Joi.optional(),
   }),
+  SUB_BASE_URL: Joi.string()
+    .uri()
+    .when('NODE_ENV', {
+      is: 'production',
+      then: Joi.required().messages({
+        'any.required':
+          'SUB_BASE_URL is required in production. Please set your subscription base URL.',
+      }),
+      otherwise: Joi.optional(),
+    }),
 });

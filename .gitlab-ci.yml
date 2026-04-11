@@ -53,9 +53,11 @@ deploy:
       export REMOTE_DB_PASSWORD="$DB_PASSWORD"
       export REMOTE_TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN"
       export REMOTE_ENCRYPTION_KEY="$ENCRYPTION_KEY"
-      export REMOTE_XUI_BASE_URL="$XUI_BASE_URL"
-      export REMOTE_XUI_USERNAME="$XUI_USERNAME"
-      export REMOTE_XUI_PASSWORD="$XUI_PASSWORD"
+      export REMOTE_REDIS_HOST="$REDIS_HOST"
+      export REMOTE_MARZBAN_BASE_URL="$MARZBAN_BASE_URL"
+      export REMOTE_MARZBAN_USERNAME="$MARZBAN_USERNAME"
+      export REMOTE_MARZBAN_PASSWORD="$MARZBAN_PASSWORD"
+      export REMOTE_SUB_BASE_URL="$SUB_BASE_URL"
       ssh -o StrictHostKeyChecking=no ${SERVER_USER:-root}@${SERVER_IP} << EOF
         set -e
 
@@ -69,9 +71,11 @@ deploy:
         echo "TELEGRAM_BOT_TOKEN=${REMOTE_TELEGRAM_BOT_TOKEN}" >> .env
         echo "ENCRYPTION_KEY=${REMOTE_ENCRYPTION_KEY}" >> .env
         echo "DOCKER_IMAGE_NAME=${REMOTE_DOCKER_IMAGE_NAME}" >> .env
-        echo "XUI_BASE_URL=${REMOTE_XUI_BASE_URL}" >> .env
-        echo "XUI_USERNAME=${REMOTE_XUI_USERNAME}" >> .env
-        echo "XUI_PASSWORD=${REMOTE_XUI_PASSWORD}" >> .env
+        echo "REDIS_HOST=${REMOTE_REDIS_HOST}" >> .env
+        echo "MARZBAN_BASE_URL=${REMOTE_MARZBAN_BASE_URL}" >> .env
+        echo "MARZBAN_USERNAME=${REMOTE_MARZBAN_USERNAME}" >> .env
+        echo "MARZBAN_PASSWORD=${REMOTE_MARZBAN_PASSWORD}" >> .env
+        echo "SUB_BASE_URL=${REMOTE_SUB_BASE_URL}" >> .env
 
         echo "[DEPLOY] Logging into Docker Registry..."
         echo "${REMOTE_CI_REGISTRY_PASSWORD}" | docker login -u "${REMOTE_CI_REGISTRY_USER}" --password-stdin ${REMOTE_CI_REGISTRY}
@@ -87,9 +91,11 @@ deploy:
         export TELEGRAM_BOT_TOKEN=${REMOTE_TELEGRAM_BOT_TOKEN}
         export ENCRYPTION_KEY=${REMOTE_ENCRYPTION_KEY}
         export DOCKER_IMAGE_NAME=${REMOTE_DOCKER_IMAGE_NAME}
-        export XUI_BASE_URL=${REMOTE_XUI_BASE_URL}
-        export XUI_USERNAME=${REMOTE_XUI_USERNAME}
-        export XUI_PASSWORD=${REMOTE_XUI_PASSWORD}
+        export REDIS_HOST=${REMOTE_REDIS_HOST}
+        export MARZBAN_BASE_URL=${REMOTE_MARZBAN_BASE_URL}
+        export MARZBAN_USERNAME=${REMOTE_MARZBAN_USERNAME}
+        export MARZBAN_PASSWORD=${REMOTE_MARZBAN_PASSWORD}
+        export SUB_BASE_URL=${REMOTE_SUB_BASE_URL}
 
         docker compose up -d
 

@@ -42,7 +42,8 @@ export class XuiApiService {
   private sessionCookie: string | null = null;
 
   constructor(private readonly configService: ConfigService) {
-    const baseUrl = this.configService.get<AppConfig['xuiBaseUrl']>('app.xuiBaseUrl');
+    const baseUrl =
+      this.configService.get<AppConfig['marzbanBaseUrl']>('app.marzbanBaseUrl');
 
     this.httpClient = axios.create({
       baseURL: baseUrl,
@@ -65,8 +66,10 @@ export class XuiApiService {
   }
 
   private getCredentials(): { username: string; password: string } | null {
-    const username = this.configService.get<AppConfig['xuiUsername']>('app.xuiUsername');
-    const password = this.configService.get<AppConfig['xuiPassword']>('app.xuiPassword');
+    const username =
+      this.configService.get<AppConfig['marzbanUsername']>('app.marzbanUsername');
+    const password =
+      this.configService.get<AppConfig['marzbanPassword']>('app.marzbanPassword');
 
     if (!username || !password) {
       this.logger.warn('XUI credentials not configured');
@@ -92,10 +95,8 @@ export class XuiApiService {
       formData.append('username', credentials.username);
       formData.append('password', credentials.password);
 
-      const response: AxiosResponse<XuiLoginResponse> = await this.httpClient.post(
-        '/login',
-        formData.toString(),
-      );
+      const response: AxiosResponse<XuiLoginResponse> =
+        await this.httpClient.post('/login', formData.toString());
 
       if (response.data.success) {
         const setCookieHeader = response.headers['set-cookie'];
@@ -106,10 +107,15 @@ export class XuiApiService {
         }
       }
 
-      this.logger.error('Login failed: Invalid credentials or no session cookie');
+      this.logger.error(
+        'Login failed: Invalid credentials or no session cookie',
+      );
       return false;
     } catch (error) {
-      this.logger.error('Login failed:', error instanceof Error ? error.message : 'Unknown error');
+      this.logger.error(
+        'Login failed:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
       return false;
     }
   }
@@ -170,7 +176,9 @@ export class XuiApiService {
         }
       }
 
-      this.logger.log(`Adding client ${clientData.email} to inbound ${inboundId}...`);
+      this.logger.log(
+        `Adding client ${clientData.email} to inbound ${inboundId}...`,
+      );
 
       const settings = {
         clients: [
@@ -190,17 +198,20 @@ export class XuiApiService {
       formData.append('id', inboundId.toString());
       formData.append('settings', JSON.stringify(settings));
 
-      const response: AxiosResponse<XuiAddClientResponse> = await this.httpClient.post(
-        `/xui/inbound/addClient/${inboundId}`,
-        formData.toString(),
-      );
+      const response: AxiosResponse<XuiAddClientResponse> =
+        await this.httpClient.post(
+          `/xui/inbound/addClient/${inboundId}`,
+          formData.toString(),
+        );
 
       if (response.data.success) {
         this.logger.log(`Client ${clientData.email} added successfully`);
         return true;
       }
 
-      this.logger.error(`Failed to add client: ${response.data.msg || 'Unknown error'}`);
+      this.logger.error(
+        `Failed to add client: ${response.data.msg || 'Unknown error'}`,
+      );
       return false;
     } catch (error) {
       this.logger.error(
@@ -225,7 +236,10 @@ export class XuiApiService {
   /**
    * Get connection link for a client
    */
-  async getClientLink(inboundId: number, email: string): Promise<string | null> {
+  async getClientLink(
+    inboundId: number,
+    email: string,
+  ): Promise<string | null> {
     try {
       const inbounds = await this.getInbounds();
       const inbound = inbounds.find((i) => i.id === inboundId);
@@ -236,7 +250,9 @@ export class XuiApiService {
       }
 
       const settings = JSON.parse(inbound.settings);
-      const client = settings.clients?.find((c: { email: string }) => c.email === email);
+      const client = settings.clients?.find(
+        (c: { email: string }) => c.email === email,
+      );
 
       if (!client) {
         this.logger.warn(`Client ${email} not found in inbound ${inboundId}`);
@@ -244,10 +260,17 @@ export class XuiApiService {
       }
 
       const streamSettings = JSON.parse(inbound.streamSettings);
-      const baseUrl = this.configService.get<AppConfig['xuiBaseUrl']>('app.xuiBaseUrl');
+      const baseUrl =
+        this.configService.get<AppConfig['marzbanBaseUrl']>('app.marzbanBaseUrl');
       const host = baseUrl ? new URL(baseUrl).hostname : 'localhost';
 
-      return this.buildConnectionUrl(inbound.protocol, client, host, inbound.port, streamSettings);
+      return this.buildConnectionUrl(
+        inbound.protocol,
+        client,
+        host,
+        inbound.port,
+        streamSettings,
+      );
     } catch (error) {
       this.logger.error(
         'Failed to get client link:',
@@ -262,7 +285,11 @@ export class XuiApiService {
     client: { id?: string; email: string },
     host: string,
     port: number,
-    streamSettings: { network?: string; security?: string; wsSettings?: { path?: string } },
+    streamSettings: {
+      network?: string;
+      security?: string;
+      wsSettings?: { path?: string };
+    },
   ): string {
     switch (protocol.toLowerCase()) {
       case 'vless':
