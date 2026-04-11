@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { registerAs } from '@nestjs/config';
 import * as Joi from 'joi';
 
@@ -23,17 +24,25 @@ export interface AppConfig {
   encryptionKey: string | undefined;
 }
 
+const logger = new Logger('Config');
+
 export const configuration = registerAs(
   'app',
-  (): AppConfig => ({
+  (): AppConfig => {
+    const redisHostValue = process.env.REDIS_HOST?.trim();
+    if (!redisHostValue) {
+      logger.warn('REDIS_HOST is not set or empty. Using default: redis');
+    }
+
+    return ({
     nodeEnv: process.env.NODE_ENV || 'development',
     port: parseInt(process.env.PORT, 10) || 3000,
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
     socksProxy: process.env.SOCKS_PROXY,
     healthCheckEnabled: process.env.HEALTH_CHECK_ENABLED === 'true',
     databaseUrl: process.env.DATABASE_URL,
-    // Redis
-    redisHost: process.env.REDIS_HOST || 'localhost',
+    // Redis - use default 'redis' for Docker, fallback to 'localhost' for local dev
+    redisHost: process.env.REDIS_HOST?.trim() || 'redis',
     redisPort: parseInt(process.env.REDIS_PORT, 10) || 6379,
     redisPassword: process.env.REDIS_PASSWORD,
     // Marzban API
@@ -45,7 +54,8 @@ export const configuration = registerAs(
     acmeEmail: process.env.ACME_EMAIL,
     // Encryption
     encryptionKey: process.env.ENCRYPTION_KEY,
-  }),
+  });
+  },
 );
 
 export const validationSchema = Joi.object({
@@ -70,8 +80,8 @@ export const validationSchema = Joi.object({
   }),
   HEALTH_CHECK_ENABLED: Joi.boolean().default(true),
   SOCKS_PROXY: Joi.string().allow('', null).optional(),
-  // Redis configuration
-  REDIS_HOST: Joi.string().default('localhost'),
+  // Redis configuration - allow empty string to trigger warning instead of crash
+  REDIS_HOST: Joi.string().allow('').default('redis'),
   REDIS_PORT: Joi.number().port().default(6379),
   REDIS_PASSWORD: Joi.string().when('NODE_ENV', {
     is: 'production',

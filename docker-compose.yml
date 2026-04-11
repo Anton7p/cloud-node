@@ -9,6 +9,9 @@ services:
       DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@db:5432/cloudnode?schema=public
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
     env_file:
       - .env
     command: sh -c "npx prisma migrate deploy && node dist/main.js"
