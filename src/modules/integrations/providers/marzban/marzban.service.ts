@@ -259,20 +259,19 @@ export class MarzbanService implements OnModuleInit {
       );
 
       if (response.data.subscription_url || response.data.username) {
-        // Build subscription URL in format: https://cloudnode-host.ru/{username}
-        const subBaseUrl =
-          this.configService.get<AppConfig['subBaseUrl']>('app.subBaseUrl') ||
-          'https://cloudnode-host.ru';
-        const username = response.data.username;
-        // Format: https://cloudnode-host.ru/{username}
-        const subscriptionUrl = `${subBaseUrl.replace(/\/$/, '')}/${username}`;
+        // Use subscription_url from Marzban API, or build manually if not provided
+        const subscriptionUrl =
+          response.data.subscription_url ||
+          this.buildSubscriptionUrl(response.data.username);
 
-        this.logger.log(`User ${username} created successfully`);
+        this.logger.log(
+          `User ${response.data.username} created successfully with subscription URL`,
+        );
 
         return {
           success: true,
           subscriptionUrl,
-          username: username,
+          username: response.data.username,
         };
       }
 
@@ -317,5 +316,15 @@ export class MarzbanService implements OnModuleInit {
   async getNodesMessage(): Promise<string> {
     const nodes = await this.getNodes();
     return `Доступ активен. Вам доступны узлы: ${nodes.join(', ')}.`;
+  }
+
+  /**
+   * Build subscription URL manually if Marzban API doesn't return it
+   */
+  private buildSubscriptionUrl(username: string): string {
+    const subBaseUrl =
+      this.configService.get<AppConfig['subBaseUrl']>('app.subBaseUrl') ||
+      'https://cloudnode-host.ru';
+    return `${subBaseUrl.replace(/\/$/, '')}/${username}`;
   }
 }
