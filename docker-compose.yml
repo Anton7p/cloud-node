@@ -9,7 +9,7 @@ services:
     environment:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://postgres:${DB_PASSWORD}@db:5432/cloudnode?schema=public
-      - BOT_TOKEN=${BOT_TOKEN}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
     env_file:
       - .env

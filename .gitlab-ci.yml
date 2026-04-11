@@ -51,7 +51,7 @@ deploy:
       export REMOTE_CI_REGISTRY="$CI_REGISTRY"
       export REMOTE_DOCKER_IMAGE_NAME="$DOCKER_IMAGE_NAME"
       export REMOTE_DB_PASSWORD="$DB_PASSWORD"
-      export REMOTE_BOT_TOKEN="$BOT_TOKEN"
+      export REMOTE_TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN"
       export REMOTE_ENCRYPTION_KEY="$ENCRYPTION_KEY"
       ssh -o StrictHostKeyChecking=no ${SERVER_USER:-root}@${SERVER_IP} << EOF
         set -e
@@ -63,7 +63,7 @@ deploy:
         echo "NODE_ENV=production" > .env
         echo "DATABASE_URL=postgresql://postgres:${REMOTE_DB_PASSWORD}@db:5432/cloudnode?schema=public" >> .env
         echo "DB_PASSWORD=${REMOTE_DB_PASSWORD}" >> .env
-        echo "BOT_TOKEN=${REMOTE_BOT_TOKEN}" >> .env
+        echo "TELEGRAM_BOT_TOKEN=${REMOTE_TELEGRAM_BOT_TOKEN}" >> .env
         echo "ENCRYPTION_KEY=${REMOTE_ENCRYPTION_KEY}" >> .env
         echo "DOCKER_IMAGE_NAME=${REMOTE_DOCKER_IMAGE_NAME}" >> .env
 
@@ -78,7 +78,7 @@ deploy:
 
         echo "[DEPLOY] Starting new containers..."
         export DB_PASSWORD=${REMOTE_DB_PASSWORD}
-        export BOT_TOKEN=${REMOTE_BOT_TOKEN}
+        export TELEGRAM_BOT_TOKEN=${REMOTE_TELEGRAM_BOT_TOKEN}
         export ENCRYPTION_KEY=${REMOTE_ENCRYPTION_KEY}
         export DOCKER_IMAGE_NAME=${REMOTE_DOCKER_IMAGE_NAME}
 
