@@ -2,6 +2,5 @@
 export * from './server-provider.interface';
 export * from './abstract-server.provider';
 
-// Protocol implementations
-export * from './vless/vless.provider';
-export * from './shadowsocks/shadowsocks.provider';
+// 3X-UI API provider
+export * from './xui';
