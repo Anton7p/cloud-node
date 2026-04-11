@@ -12,7 +12,8 @@ jest.mock('../../ui', () => ({
     BACK_TO_START: 'back_to_start',
     START: 'start',
   },
-  startKeyboard: jest.fn(() => ({ reply_markup: 'keyboard' })),
+  startKeyboard: jest.fn(() => ({ reply_markup: { inline_keyboard: [] } })),
+  launchReplyKeyboard: jest.fn(() => ({ reply_markup: { keyboard: [] } })),
 }));
 
 // Import after mock
@@ -23,7 +24,7 @@ const { START_MESSAGES, startKeyboard } = jest.requireMock('../../ui') as {
 
 describe('StartCommand (Integration)', () => {
   let command: StartCommand;
-  let usersService: { findByTelegramId: jest.Mock; create: jest.Mock };
+  let usersService: { findOrCreate: jest.Mock };
 
   const mockUserId = 123456789;
   const mockUsername = 'testuser';
@@ -37,6 +38,7 @@ describe('StartCommand (Integration)', () => {
         first_name: mockFirstName,
       },
       reply: jest.fn().mockResolvedValue(undefined),
+      sendChatAction: jest.fn().mockResolvedValue(undefined),
     } as unknown as CommandContext['ctx'],
     userId: mockUserId,
     data,
@@ -45,8 +47,7 @@ describe('StartCommand (Integration)', () => {
 
   beforeEach(async () => {
     usersService = {
-      findByTelegramId: jest.fn(),
-      create: jest.fn(),
+      findOrCreate: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -64,23 +65,22 @@ describe('StartCommand (Integration)', () => {
   });
 
   it('should have correct pattern', () => {
-    expect(command.pattern).toEqual(['back_to_start', 'start']);
+    expect(command.pattern).toEqual(['back_to_start', 'start', 'launch_system']);
   });
 
   describe('execute', () => {
     it('should create new user when not exists and send welcome message', async () => {
-      usersService.findByTelegramId.mockResolvedValue(null);
-      usersService.create.mockResolvedValue({ id: 1 });
+      usersService.findOrCreate.mockResolvedValue({ id: 1 });
 
       const context = createMockContext('start');
       await command.execute(context);
 
       // Verify repository calls
-      expect(usersService.findByTelegramId).toHaveBeenCalledWith(mockUserId);
-      expect(usersService.create).toHaveBeenCalledWith({
+      expect(usersService.findOrCreate).toHaveBeenCalledWith(mockUserId, {
         telegramId: mockUserId,
         username: mockUsername,
         firstName: mockFirstName,
+        languageCode: undefined,
         status: 'active',
         subscriptionType: 'free',
       });
@@ -91,12 +91,16 @@ describe('StartCommand (Integration)', () => {
 
       // Verify reply was sent
       expect(context.ctx.reply).toHaveBeenCalledWith('Welcome Test', {
-        reply_markup: 'keyboard',
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [],
+          keyboard: [],
+        },
       });
     });
 
     it('should not create user when already exists', async () => {
-      usersService.findByTelegramId.mockResolvedValue({
+      usersService.findOrCreate.mockResolvedValue({
         id: 1,
         telegramId: mockUserId,
       });
@@ -104,8 +108,7 @@ describe('StartCommand (Integration)', () => {
       const context = createMockContext('start');
       await command.execute(context);
 
-      expect(usersService.findByTelegramId).toHaveBeenCalledWith(mockUserId);
-      expect(usersService.create).not.toHaveBeenCalled();
+      expect(usersService.findOrCreate).toHaveBeenCalledWith(mockUserId, expect.any(Object));
       expect(context.ctx.reply).toHaveBeenCalled();
     });
 
@@ -114,6 +117,7 @@ describe('StartCommand (Integration)', () => {
         ctx: {
           from: undefined,
           reply: jest.fn(),
+        sendChatAction: jest.fn(),
         } as unknown as CommandContext['ctx'],
         userId: mockUserId,
         data: 'start',
@@ -122,7 +126,7 @@ describe('StartCommand (Integration)', () => {
 
       await command.execute(context);
 
-      expect(usersService.findByTelegramId).not.toHaveBeenCalled();
+      expect(usersService.findOrCreate).not.toHaveBeenCalled();
       expect(context.ctx.reply).not.toHaveBeenCalled();
     });
   });

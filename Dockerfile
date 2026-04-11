@@ -10,6 +10,7 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 COPY prisma ./prisma/
+COPY prisma.config.ts ./
 
 # Install dependencies (ignore-scripts to skip Husky in container)
 RUN npm ci --only=production --ignore-scripts && npm cache clean --force
@@ -28,6 +29,7 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 COPY prisma ./prisma/
+COPY prisma.config.ts ./
 COPY tsconfig.json ./
 COPY tsconfig.build.json ./
 
@@ -64,6 +66,7 @@ COPY --from=dependencies /app/package*.json ./
 
 # Copy Prisma files
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./
 
 # Copy assets (HUD icons, images)
 COPY --from=builder /app/assets ./assets

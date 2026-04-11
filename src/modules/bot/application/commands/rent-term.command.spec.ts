@@ -39,6 +39,7 @@ describe('RentTermCommand (Integration)', () => {
   const createMockContext = (data: string, args: string[]): CommandContext => ({
     ctx: {
       reply: jest.fn().mockResolvedValue(undefined),
+      sendChatAction: jest.fn().mockResolvedValue(undefined),
     } as unknown as CommandContext['ctx'],
     userId: mockUserId,
     data,
