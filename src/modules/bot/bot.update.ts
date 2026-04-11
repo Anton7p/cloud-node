@@ -5,7 +5,7 @@ import { BotActionsService } from './bot-actions.service';
 import { BotContext } from './types/bot.types';
 import { UsersService } from '../users/users.service';
 import { BotExceptionFilter } from './filters';
-import { MAIN_LAUNCH_BUTTON, CHAT_MENU_BUTTON } from './ui';
+import { CHAT_MENU_BUTTON } from './ui';
 
 /**
  * BotUpdate - тонкий контроллер Telegram бота (Infrastructure Layer)
@@ -67,27 +67,6 @@ export class BotUpdate implements OnModuleInit {
       });
     }
     await this.botActionsService.handleStart(ctx);
-  }
-
-  /**
-   * Обработка текстовых сообщений (для reply keyboard)
-   */
-  @On('text')
-  async onText(@Ctx() ctx: BotContext): Promise<void> {
-    const message = ctx.message;
-    if (!message || !('text' in message)) return;
-
-    const text = message.text;
-    const userId = ctx.from?.id;
-
-    // Проверяем, является ли сообщение нажатием главной кнопки
-    if (text === MAIN_LAUNCH_BUTTON || text.includes('ЗАПУСТИТЬ СИСТЕМУ')) {
-      this.logger.log(`Launch button pressed by user ${userId}`);
-      if (userId) {
-        await this.usersService.touch(userId).catch(() => {});
-      }
-      await this.botActionsService.handleStart(ctx);
-    }
   }
 
   @On('callback_query')

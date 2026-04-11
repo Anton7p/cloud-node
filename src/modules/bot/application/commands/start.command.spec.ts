@@ -7,19 +7,23 @@ import { CommandContext } from '../base.action';
 jest.mock('../../ui', () => ({
   START_MESSAGES: {
     WELCOME: jest.fn((name: string) => `Welcome ${name}`),
+    INIT: 'Init message',
   },
   START_ACTIONS: {
     BACK_TO_START: 'back_to_start',
     START: 'start',
   },
   startKeyboard: jest.fn(() => ({ reply_markup: { inline_keyboard: [] } })),
-  launchReplyKeyboard: jest.fn(() => ({ reply_markup: { keyboard: [] } })),
+  removeReplyKeyboard: jest.fn(() => ({
+    reply_markup: { remove_keyboard: true },
+  })),
 }));
 
 // Import after mock
 const { START_MESSAGES, startKeyboard } = jest.requireMock('../../ui') as {
-  START_MESSAGES: { WELCOME: jest.Mock };
+  START_MESSAGES: { WELCOME: jest.Mock; INIT: string };
   startKeyboard: jest.Mock;
+  removeReplyKeyboard: jest.Mock;
 };
 
 describe('StartCommand (Integration)', () => {
@@ -65,7 +69,11 @@ describe('StartCommand (Integration)', () => {
   });
 
   it('should have correct pattern', () => {
-    expect(command.pattern).toEqual(['back_to_start', 'start', 'launch_system']);
+    expect(command.pattern).toEqual([
+      'back_to_start',
+      'start',
+      'launch_system',
+    ]);
   });
 
   describe('execute', () => {
@@ -89,12 +97,17 @@ describe('StartCommand (Integration)', () => {
       expect(START_MESSAGES.WELCOME).toHaveBeenCalledWith(mockFirstName);
       expect(startKeyboard).toHaveBeenCalled();
 
-      // Verify reply was sent
-      expect(context.ctx.reply).toHaveBeenCalledWith('Welcome Test', {
+      // Verify INIT message with removeKeyboard
+      expect(context.ctx.reply).toHaveBeenNthCalledWith(1, 'Init message', {
+        parse_mode: 'Markdown',
+        reply_markup: { remove_keyboard: true },
+      });
+
+      // Verify WELCOME message with inline keyboard
+      expect(context.ctx.reply).toHaveBeenNthCalledWith(2, 'Welcome Test', {
         parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [],
-          keyboard: [],
         },
       });
     });
@@ -108,7 +121,10 @@ describe('StartCommand (Integration)', () => {
       const context = createMockContext('start');
       await command.execute(context);
 
-      expect(usersService.findOrCreate).toHaveBeenCalledWith(mockUserId, expect.any(Object));
+      expect(usersService.findOrCreate).toHaveBeenCalledWith(
+        mockUserId,
+        expect.any(Object),
+      );
       expect(context.ctx.reply).toHaveBeenCalled();
     });
 
@@ -117,7 +133,7 @@ describe('StartCommand (Integration)', () => {
         ctx: {
           from: undefined,
           reply: jest.fn(),
-        sendChatAction: jest.fn(),
+          sendChatAction: jest.fn(),
         } as unknown as CommandContext['ctx'],
         userId: mockUserId,
         data: 'start',

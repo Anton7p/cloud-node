@@ -4,7 +4,6 @@
 
 export {
   startKeyboard,
-  launchReplyKeyboard,
   removeReplyKeyboard,
   MAIN_LAUNCH_BUTTON,
 } from './start.keyboards';

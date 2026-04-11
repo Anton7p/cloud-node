@@ -7,7 +7,7 @@ import {
   START_MESSAGES,
   START_ACTIONS,
   startKeyboard,
-  launchReplyKeyboard,
+  removeReplyKeyboard,
   HUD_ICONS,
 } from '../../ui';
 
@@ -54,15 +54,18 @@ export class StartCommand extends BaseAction {
       // TODO: Обработка реферального кода
     }
 
+    // Удаляем reply keyboard для показа системной кнопки Старт
+    await ctx.reply(START_MESSAGES.INIT, {
+      reply_markup: removeReplyKeyboard().reply_markup,
+      parse_mode: 'Markdown',
+    });
+
     // Отправка HUD баннера
     await this.sendBanner(ctx);
 
-    // Отправка сообщения с reply keyboard
+    // Отправка сообщения с inline keyboard (без reply keyboard)
     await ctx.reply(START_MESSAGES.WELCOME(user.first_name), {
-      reply_markup: {
-        ...launchReplyKeyboard().reply_markup,
-        inline_keyboard: startKeyboard().reply_markup.inline_keyboard,
-      },
+      reply_markup: startKeyboard().reply_markup,
       parse_mode: 'Markdown',
     });
   }
