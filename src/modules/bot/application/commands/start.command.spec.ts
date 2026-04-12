@@ -83,7 +83,23 @@ describe('StartCommand (Clean UI)', () => {
   });
 
   it('should have correct pattern', () => {
-    expect(command.pattern).toEqual(['start_menu', 'show_main_menu', 'start']);
+    expect(command.pattern).toEqual(/^(start|start_menu|show_main_menu)(\s+.*)?$/);
+  });
+
+  it('should match "start" command', () => {
+    expect(command.canHandle('start')).toBe(true);
+  });
+
+  it('should match "start" command with payload', () => {
+    expect(command.canHandle('start ref123')).toBe(true);
+  });
+
+  it('should match "start_menu" callback', () => {
+    expect(command.canHandle('start_menu')).toBe(true);
+  });
+
+  it('should match "show_main_menu" callback', () => {
+    expect(command.canHandle('show_main_menu')).toBe(true);
   });
 
   describe('execute', () => {
@@ -106,6 +122,18 @@ describe('StartCommand (Clean UI)', () => {
       });
 
       // Verify welcome screen with photo was sent
+      expect(context.ctx.replyWithPhoto).toHaveBeenCalled();
+    });
+
+    it('should send welcome screen with photo for start with payload (referral)', async () => {
+      usersService.findOrCreate.mockResolvedValue({ id: 1 });
+
+      const context = createMockContext('start ref123');
+      context.ctx.replyWithPhoto = jest.fn().mockResolvedValue(undefined);
+
+      await command.execute(context);
+
+      // Verify welcome screen with photo was sent for referral links too
       expect(context.ctx.replyWithPhoto).toHaveBeenCalled();
     });
 

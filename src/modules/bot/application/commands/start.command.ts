@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import * as path from 'path';
 import { BaseAction, CommandContext, safeDeleteMessage } from '../base.action';
-import { MESSAGES, ACTIONS, mainKeyboard, startButtonKeyboard } from '../../ui';
+import { MESSAGES, mainKeyboard, startButtonKeyboard } from '../../ui';
 import { UsersService } from '../../../users/users.service';
 
 @Injectable()
 export class StartCommand extends BaseAction {
-  readonly pattern = [ACTIONS.START_MENU, ACTIONS.SHOW_MAIN_MENU, 'start'];
+  // Регулярное выражение для: 'start', 'start_menu', 'show_main_menu', и 'start <payload>'
+  readonly pattern = /^(start|start_menu|show_main_menu)(\s+.*)?$/;
 
   constructor(private readonly usersService: UsersService) {
     super(StartCommand.name);
@@ -36,9 +37,9 @@ export class StartCommand extends BaseAction {
     // Режим одного окна: всегда удаляем старое сообщение и отправляем новое
     await safeDeleteMessage(ctx);
 
-    // Если это первый запуск (data === 'start'), показываем приветственный экран
-    // Если нажата кнопка "Старт" (data === 'show_main_menu'), показываем главное меню
-    if (context.data === 'start') {
+    // Если это первый запуск (команда /start с или без параметра), показываем приветственный экран
+    // Если нажата кнопка "Старт" (callback), показываем главное меню
+    if (context.data === 'start' || context.data.startsWith('start ')) {
       await this.sendWelcomeScreen(ctx);
     } else {
       await this.sendMainMenu(ctx);
