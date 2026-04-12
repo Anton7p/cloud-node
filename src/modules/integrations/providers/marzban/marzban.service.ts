@@ -46,14 +46,24 @@ export class MarzbanService implements OnModuleInit {
   private readonly logger = new Logger(MarzbanService.name);
   private readonly httpClient: AxiosInstance;
   private readonly certPath: string;
+  private readonly domainName: string | undefined;
+  private readonly internalBaseUrl: string | undefined;
   private accessToken: string | null = null;
 
   constructor(private readonly configService: ConfigService) {
-    const baseUrl =
-      this.configService.get<AppConfig['marzbanUrl']>('app.marzbanUrl');
+    // Internal URL for Docker service communication
+    this.internalBaseUrl =
+      this.configService.get<AppConfig['marzbanUrl']>('app.marzbanUrl') ||
+      'http://cloudnode-marzban:8000';
 
+    // External domain for public links
+    this.domainName = this.configService.get<AppConfig['domainName']>(
+      'app.domainName',
+    );
+
+    // Use internal URL for API calls
     this.httpClient = axios.create({
-      baseURL: baseUrl ? `${baseUrl}/api` : undefined,
+      baseURL: `${this.internalBaseUrl}/api`,
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
@@ -239,48 +249,74 @@ export class MarzbanService implements OnModuleInit {
   }
 
   /**
-   * Login to Marzban API and get JWT token
+   * Login to Marzban API and get JWT token with retry logic
    */
   async login(): Promise<boolean> {
-    try {
-      const credentials = this.getCredentials();
-      if (!credentials) {
-        this.logger.warn('Cannot login: credentials not configured');
+    const maxRetries = 10;
+    const retryDelayMs = 5000;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const credentials = this.getCredentials();
+        if (!credentials) {
+          this.logger.warn('Cannot login: credentials not configured');
+          return false;
+        }
+
+        if (attempt > 1) {
+          this.logger.log(`Retry attempt ${attempt}/${maxRetries}...`);
+        } else {
+          this.logger.log('Authenticating with Marzban API...');
+        }
+
+        const params = new URLSearchParams();
+        params.append('username', credentials.username);
+        params.append('password', credentials.password);
+
+        const response = await axios.post<MarzbanTokenResponse>(
+          `${this.internalBaseUrl}/api/admin/token`,
+          params,
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            timeout: 30000,
+          },
+        );
+
+        if (response.data.access_token) {
+          this.accessToken = response.data.access_token;
+          this.logger.log('Successfully authenticated with Marzban API');
+          return true;
+        }
+
+        this.logger.error('Authentication failed: no access token received');
+        return false;
+      } catch (error) {
+        const isLastAttempt = attempt === maxRetries;
+        const isConnectionError =
+          axios.isAxiosError(error) &&
+          (error.code === 'ECONNREFUSED' ||
+            error.code === 'ECONNRESET' ||
+            error.code === 'ENOTFOUND');
+
+        if (isConnectionError && !isLastAttempt) {
+          this.logger.warn(
+            `Connection refused, waiting ${retryDelayMs / 1000}s before retry...`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+          continue;
+        }
+
+        this.logger.error(
+          'Failed to authenticate with Marzban:',
+          error instanceof Error ? error.message : 'Unknown error',
+        );
         return false;
       }
-
-      this.logger.log('Authenticating with Marzban API...');
-
-      const params = new URLSearchParams();
-      params.append('username', credentials.username);
-      params.append('password', credentials.password);
-
-      const response = await axios.post<MarzbanTokenResponse>(
-        `${this.configService.get<AppConfig['marzbanUrl']>('app.marzbanUrl')}/api/admin/token`,
-        params,
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          timeout: 30000,
-        },
-      );
-
-      if (response.data.access_token) {
-        this.accessToken = response.data.access_token;
-        this.logger.log('Successfully authenticated with Marzban API');
-        return true;
-      }
-
-      this.logger.error('Authentication failed: no access token received');
-      return false;
-    } catch (error) {
-      this.logger.error(
-        'Failed to authenticate with Marzban:',
-        error instanceof Error ? error.message : 'Unknown error',
-      );
-      return false;
     }
+
+    return false;
   }
 
   /**
@@ -385,11 +421,28 @@ export class MarzbanService implements OnModuleInit {
 
   /**
    * Build subscription URL manually if Marzban API doesn't return it
+   * Uses DOMAIN_NAME for external links
    */
   private buildSubscriptionUrl(username: string): string {
     const subBaseUrl =
       this.configService.get<AppConfig['subBaseUrl']>('app.subBaseUrl') ||
-      'https://cloudnode-host.ru';
+      (this.domainName ? `https://${this.domainName}` : 'https://cloudnode-host.ru');
     return `${subBaseUrl.replace(/\/$/, '')}/${username}`;
+  }
+
+  /**
+   * Get external URL for Marzban panel (for user-facing links)
+   */
+  getExternalUrl(): string {
+    return this.domainName
+      ? `https://${this.domainName}`
+      : this.internalBaseUrl || 'http://cloudnode-marzban:8000';
+  }
+
+  /**
+   * Get internal URL for API calls (Docker service name)
+   */
+  getInternalUrl(): string {
+    return this.internalBaseUrl || 'http://cloudnode-marzban:8000';
   }
 }

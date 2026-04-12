@@ -18,6 +18,8 @@ export interface AppConfig {
   marzbanAdminUsername: string | undefined;
   marzbanAdminPassword: string | undefined;
   subBaseUrl: string | undefined;
+  // Domain name for external links
+  domainName: string | undefined;
   // SSL / Certbot
   acmeEmail: string | undefined;
   // Encryption
@@ -52,6 +54,8 @@ export const configuration = registerAs('app', (): AppConfig => {
     marzbanAdminUsername: process.env.MARZBAN_ADMIN_USERNAME,
     marzbanAdminPassword: process.env.MARZBAN_ADMIN_PASSWORD,
     subBaseUrl: process.env.SUB_BASE_URL,
+    // Domain name for external links
+    domainName: process.env.DOMAIN_NAME,
     // SSL / Certbot
     acmeEmail: process.env.ACME_EMAIL,
     // Encryption
@@ -94,6 +98,8 @@ export const validationSchema = Joi.object({
   MARZBAN_ADMIN_USERNAME: Joi.string().optional(),
   MARZBAN_ADMIN_PASSWORD: Joi.string().optional(),
   SUB_BASE_URL: Joi.string().uri().optional(),
+  // Domain name for external links - optional
+  DOMAIN_NAME: Joi.string().optional(),
   // SSL / Certbot email for Let's Encrypt - optional
   ACME_EMAIL: Joi.string().email().optional(),
   // Encryption key - optional

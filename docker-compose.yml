@@ -24,6 +24,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      marzban:
+        condition: service_healthy
     networks:
       - cloudnode-network
     volumes:
@@ -89,6 +91,7 @@ services:
     image: gozargah/marzban:latest
     container_name: cloudnode-marzban
     restart: always
+    command: bash -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000"
     environment:
       - UVICORN_HOST=0.0.0.0
       - UVICORN_PORT=8000
@@ -101,6 +104,12 @@ services:
       - cloudnode-network
     ports:
       - "8000:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/dashboard/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     logging:
       driver: "json-file"
       options:

@@ -9,6 +9,7 @@ variables:
   DOCKER_IMAGE_LATEST: $CI_REGISTRY_IMAGE:latest
   SERVER_IP: ${SERVER_IP:-62.60.229.227}
   ANSIBLE_HOST_KEY_CHECKING: "False"
+  DOMAIN_NAME: ${DOMAIN_NAME:-cloudnode-host.ru}
 
 # Infrastructure stage - Deploy and configure remote nodes via Ansible
 infrastructure:
@@ -34,8 +35,9 @@ infrastructure:
         echo "" >> inventory.ini
         echo "[nodes:vars]" >> inventory.ini
         echo "ansible_python_interpreter=/usr/bin/python3" >> inventory.ini
+        echo "domain_name=${DOMAIN_NAME}" >> inventory.ini
       fi
-    - ansible-playbook -i inventory.ini deploy_node.yml -f 10
+    - ansible-playbook -i inventory.ini deploy_node.yml -f 10 --extra-vars "domain_name=${DOMAIN_NAME}"
     - echo "Infrastructure configuration completed!"
   only:
     - main
@@ -95,6 +97,7 @@ deploy:
       export REMOTE_MARZBAN_ADMIN_PASSWORD="$MARZBAN_ADMIN_PASSWORD"
       export REMOTE_SUB_BASE_URL="$SUB_BASE_URL"
       export REMOTE_INFRASTRUCTURE_IP_LIST="$INFRASTRUCTURE_IP_LIST"
+      export REMOTE_DOMAIN_NAME="$DOMAIN_NAME"
       ssh -o StrictHostKeyChecking=no ${SERVER_USER:-root}@${SERVER_IP} << EOF
         set -e
 
@@ -116,6 +119,7 @@ deploy:
         echo "MARZBAN_ADMIN_PASSWORD=${REMOTE_MARZBAN_ADMIN_PASSWORD}" >> .env
         echo "SUB_BASE_URL=${REMOTE_SUB_BASE_URL}" >> .env
         echo "INFRASTRUCTURE_IP_LIST=${REMOTE_INFRASTRUCTURE_IP_LIST}" >> .env
+        echo "DOMAIN_NAME=${REMOTE_DOMAIN_NAME}" >> .env
 
         echo "[DEPLOY] Logging into Docker Registry..."
         echo "${REMOTE_CI_REGISTRY_PASSWORD}" | docker login -u "${REMOTE_CI_REGISTRY_USER}" --password-stdin ${REMOTE_CI_REGISTRY}
@@ -139,6 +143,7 @@ deploy:
         export MARZBAN_ADMIN_PASSWORD=${REMOTE_MARZBAN_ADMIN_PASSWORD}
         export SUB_BASE_URL=${REMOTE_SUB_BASE_URL}
         export INFRASTRUCTURE_IP_LIST=${REMOTE_INFRASTRUCTURE_IP_LIST}
+        export DOMAIN_NAME=${REMOTE_DOMAIN_NAME}
 
         docker compose up -d
 

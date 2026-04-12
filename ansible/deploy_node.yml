@@ -193,6 +193,27 @@
       changed_when: true
       ignore_errors: yes
 
+    - name: Fetch SSL certificate from Master (if domain_name provided)
+      uri:
+        url: "https://{{ domain_name | default(inventory_hostname) }}/api/nodes/settings"
+        method: GET
+        return_content: yes
+        validate_certs: no
+        timeout: 30
+      register: cert_response
+      ignore_errors: yes
+      when: domain_name is defined or is_fresh_install
+
+    - name: Save SSL certificate to node
+      copy:
+        content: "{{ cert_response.json.certificate }}"
+        dest: "{{ node_var_dir }}/ssl_client_cert.pem"
+        mode: '0644'
+      when:
+        - cert_response is defined
+        - cert_response.json is defined
+        - cert_response.json.certificate is defined
+
     - name: Display deployment status
       debug:
         msg: |
@@ -202,3 +223,4 @@
           - Xray API port: {{ xray_api_port }}
           - Health check: {{ 'PASSED' if health_check.status == 200 else 'PENDING (node may be waiting for SSL cert)' }}
           - Deployment type: {{ 'Fresh install' if is_fresh_install else 'Rolling update' }}
+          - SSL Cert: {{ 'Fetched from master' if cert_response is defined and cert_response.json is defined and cert_response.json.certificate is defined else 'Not fetched' }}
