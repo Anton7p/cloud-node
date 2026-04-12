@@ -5,17 +5,22 @@ import { SocksProxyAgent } from 'socks-proxy-agent';
 import { PrismaModule } from '../../shared/prisma/prisma.module';
 import { RentalsModule } from '../rentals/rentals.module';
 import { UsersModule } from '../users/users.module';
+import { IntegrationsModule } from '../integrations/integrations.module';
 import { BotUpdate } from './bot.update';
 import { BotActionsService } from './bot-actions.service';
 import {
   // CLEAN UI: Новые команды
   StartCommand,
+  BuyMenuCommand,
   RentCommand,
   CopyKeyCommand,
   MyKeyCommand,
+  MyKeysCommand,
   InstructionsCommand,
   PlatformInstructionsCommand,
   SupportCommand,
+  PartnersCommand,
+  LegalCommand,
 } from './application/commands';
 
 /**
@@ -25,12 +30,16 @@ import {
 const commandHandlers = [
   // CLEAN UI: Новые команды
   StartCommand,
+  BuyMenuCommand,
   RentCommand,
   CopyKeyCommand,
   MyKeyCommand,
+  MyKeysCommand,
   InstructionsCommand,
   PlatformInstructionsCommand,
   SupportCommand,
+  PartnersCommand,
+  LegalCommand,
 ];
 
 @Module({
@@ -70,6 +79,7 @@ const commandHandlers = [
     PrismaModule,
     UsersModule,
     RentalsModule,
+    IntegrationsModule,
   ],
   providers: [
     // Controller (Infrastructure layer)

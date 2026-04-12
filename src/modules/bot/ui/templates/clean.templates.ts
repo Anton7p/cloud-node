@@ -26,8 +26,6 @@ export const ACCESS_PRICES = [
 // Команды меню для BotFather
 export const MENU_COMMANDS = {
   START: { command: 'start', description: 'Главное меню' },
-  KEY: { command: 'key', description: 'Быстрый старт' },
-  MYKEY: { command: 'mykey', description: 'Мои ключи' },
   SUPPORT: { command: 'support', description: 'Поддержка' },
 } as const;
 
@@ -36,28 +34,17 @@ export const MENU_COMMANDS = {
 // ============================================================================
 
 export const MESSAGES = {
-  // Главный экран (динамический)
-  MAIN_TITLE: (
-    firstName: string,
-    hasSubscription: boolean,
-    expiryDate?: string,
-  ) => {
-    let statusText: string;
-    if (hasSubscription && expiryDate) {
-      statusText = `✅ Активный ключ (до: ${expiryDate})`;
-    } else {
-      statusText = '📋 У вас пока нет активных ключей';
-    }
-
-    return (
-      `Привет, ${firstName}! 👋\n\n` +
-      `Быстрый доступ к интернету без ограничений:\n` +
-      `▬ Подключение за минуту\n` +
-      `▬ Высокая скорость на всех устройствах\n` +
-      `▬ Поддержка 24/7\n\n` +
-      `${statusText}`
-    );
-  },
+  // Главный экран
+  MAIN_TITLE:
+    '⚡️ Добро пожаловать в самый быстрый и стабильный VPN!\n\n' +
+    '➖ Нам более года\n' +
+    '➖ Высокая скорость\n' +
+    '➖ Приватность\n' +
+    '➖ Реферальная система 50%\n' +
+    '➖ Быстрая поддержка\n' +
+    '➖ Поддержка ПК, Телефонов, Телевизоров!\n\n' +
+    'VPN прямо в Telegram!\n\n' +
+    '🎁 3 Дня бесплатной подписки ⬇️',
 
   // Экран выбора срока
   SELECT_DURATION: 'Выберите срок подписки:',
@@ -172,6 +159,10 @@ export const LEGAL_LINKS = {
   PRIVACY: {
     name: '📄 Политика конфиденциальности',
     url: 'https://telegra.ph/Politika-konfidencialnosti-04-01-26',
+  },
+  VK: {
+    name: '📨 Написать в поддержку',
+    url: 'https://vk.com/im?sel=-XXXXXX',
   },
 } as const;
 

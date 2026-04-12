@@ -1,17 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { StartCommand } from './start.command';
 import { UsersService } from '../../../users/users.service';
-import { RentalsService } from '../../../rentals/rentals.service';
 import { CommandContext } from '../base.action';
 
 // Mock the UI module before imports
 jest.mock('../../ui', () => ({
   MESSAGES: {
-    MAIN_TITLE: jest.fn(
-      (firstName: string, hasSubscription: boolean) =>
-        `ПРИВЕТ, ${firstName.toUpperCase()}!\n\n` +
-        `СТАТУС: ${hasSubscription ? '✅ АКТИВЕН' : '📋 НЕТ КЛЮЧА'}`,
-    ),
+    MAIN_TITLE: '⚡️ Добро пожаловать в самый быстрый и стабильный VPN!',
   },
   ACTIONS: {
     START_MENU: 'start_menu',
@@ -25,7 +20,6 @@ jest.mock('../../ui', () => ({
 describe('StartCommand (Clean UI)', () => {
   let command: StartCommand;
   let usersService: { findOrCreate: jest.Mock };
-  let rentalsService: { getActiveRental: jest.Mock };
 
   const mockUserId = 123456789;
   const mockUsername = 'testuser';
@@ -64,15 +58,11 @@ describe('StartCommand (Clean UI)', () => {
     usersService = {
       findOrCreate: jest.fn(),
     };
-    rentalsService = {
-      getActiveRental: jest.fn(),
-    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         StartCommand,
         { provide: UsersService, useValue: usersService },
-        { provide: RentalsService, useValue: rentalsService },
       ],
     }).compile();
 
@@ -88,9 +78,8 @@ describe('StartCommand (Clean UI)', () => {
   });
 
   describe('execute', () => {
-    it('should create new user and send main menu with photo (no subscription)', async () => {
+    it('should create new user and send main menu', async () => {
       usersService.findOrCreate.mockResolvedValue({ id: 1 });
-      rentalsService.getActiveRental.mockResolvedValue(null);
 
       const context = createMockContext('start');
       await command.execute(context);
@@ -105,36 +94,15 @@ describe('StartCommand (Clean UI)', () => {
         subscriptionType: 'free',
       });
 
-      // Verify active rental was checked
-      expect(rentalsService.getActiveRental).toHaveBeenCalledWith(mockUserId);
-
       // Verify main menu was sent
       expect(context.ctx.reply).toHaveBeenCalledWith(
-        expect.stringContaining('ПРИВЕТ'),
+        '⚡️ Добро пожаловать в самый быстрый и стабильный VPN!',
         {
           reply_markup: { inline_keyboard: [] },
         },
       );
     });
 
-    it('should show extend button when user has active subscription', async () => {
-      usersService.findOrCreate.mockResolvedValue({ id: 1 });
-      rentalsService.getActiveRental.mockResolvedValue({
-        id: 1,
-        endDate: new Date('2025-12-31'),
-      });
-
-      const context = createMockContext('start');
-      await command.execute(context);
-
-      expect(rentalsService.getActiveRental).toHaveBeenCalledWith(mockUserId);
-      expect(context.ctx.reply).toHaveBeenCalledWith(
-        expect.stringContaining('✅ АКТИВЕН'),
-        {
-          reply_markup: { inline_keyboard: [] },
-        },
-      );
-    });
 
     it('should handle missing user data gracefully', async () => {
       const context: CommandContext = {
@@ -150,7 +118,6 @@ describe('StartCommand (Clean UI)', () => {
       await command.execute(context);
 
       expect(usersService.findOrCreate).not.toHaveBeenCalled();
-      expect(rentalsService.getActiveRental).not.toHaveBeenCalled();
       expect(context.ctx.reply).not.toHaveBeenCalled();
     });
   });

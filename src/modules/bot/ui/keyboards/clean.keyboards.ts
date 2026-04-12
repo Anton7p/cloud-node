@@ -20,12 +20,12 @@ import {
 export const mainKeyboard = () => {
   const rows: any[] = [
     // Row 1: 🚀 Быстрый старт
-    [Markup.button.callback('� Быстрый старт', ACTIONS.BUY_MENU)],
+    [Markup.button.callback('🚀 Быстрый старт', ACTIONS.BUY_MENU)],
   ];
 
   // Row 2: 📁 Мои ключи | 🧭 Как подключить
   rows.push([
-    Markup.button.callback('� Мои ключи', ACTIONS.MY_KEYS),
+    Markup.button.callback('🔑 Мои ключи', ACTIONS.MY_KEYS),
     Markup.button.callback('🧭 Как подключить', ACTIONS.INSTRUCTIONS),
   ]);
 
@@ -116,28 +116,25 @@ export const emptyKeysKeyboard = () => mainKeyboard();
  * Инструкции (Сетка 2x2 + навигация):
  * 🤖 Android ↗️ | 🖥 Windows ↗️
  * 📱 iPhone ↗️ | 💻 macOS ↗️
- * 🧾 Мои ключи | ⤴️ В меню
+ * ⤴️ В меню (на всю ширину)
  */
 export const platformKeyboard = () => {
   const rows: any[] = [];
 
   // Row 1: 🤖 Android ↗️ | 🖥 Windows ↗️
   rows.push([
-    Markup.button.url('🤖 Android ↗️', PLATFORM_GUIDES.ANDROID),
-    Markup.button.url('🖥 Windows ↗️', PLATFORM_GUIDES.WINDOWS),
+    Markup.button.url('🤖 Android', PLATFORM_GUIDES.ANDROID),
+    Markup.button.url('🖥 Windows', PLATFORM_GUIDES.WINDOWS),
   ]);
 
   // Row 2: 📱 iPhone ↗️ | 💻 macOS ↗️
   rows.push([
-    Markup.button.url('📱 iPhone ↗️', PLATFORM_GUIDES.IOS),
-    Markup.button.url('💻 macOS ↗️', PLATFORM_GUIDES.MACOS),
+    Markup.button.url('📱 iPhone', PLATFORM_GUIDES.IOS),
+    Markup.button.url('💻 macOS', PLATFORM_GUIDES.MACOS),
   ]);
 
-  // Row 3: 🧾 Мои ключи | ⤴️ В меню
-  rows.push([
-    Markup.button.callback('🧾 Мои ключи', ACTIONS.MY_KEYS),
-    Markup.button.callback('⤴️ В меню', ACTIONS.START_MENU),
-  ]);
+  // Row 3: ⤴️ В меню (на всю ширину)
+  rows.push([Markup.button.callback('⤴️ В меню', ACTIONS.START_MENU)]);
 
   return Markup.inlineKeyboard(rows);
 };
@@ -166,9 +163,10 @@ export const partnersKeyboard = (referralLink: string) => {
 
 /**
  * Условия и Поддержка:
- * 🧠 FAQ и ответы ↗️
- * 📄 Условия сервиса ↗️
- * 📄 Политика конфиденциальности ↗️
+ * 🧠 FAQ и ответы
+ * � Написать в поддержку
+ * �📄 Условия сервиса
+ * 📄 Политика конфиденциальности
  * ⤴️ В меню
  */
 export const legalKeyboard = () => {
@@ -176,20 +174,20 @@ export const legalKeyboard = () => {
 
   // FAQ
   rows.push([
-    Markup.button.url(`${LEGAL_LINKS.FAQ.name} ↗️`, LEGAL_LINKS.FAQ.url),
+    Markup.button.url(`${LEGAL_LINKS.FAQ.name} `, LEGAL_LINKS.FAQ.url),
   ]);
+
+  // Написать в поддержку (ВК)
+  rows.push([Markup.button.url(`${LEGAL_LINKS.VK.name} `, LEGAL_LINKS.VK.url)]);
 
   // Условия сервиса
   rows.push([
-    Markup.button.url(`${LEGAL_LINKS.TERMS.name} ↗️`, LEGAL_LINKS.TERMS.url),
+    Markup.button.url(`${LEGAL_LINKS.TERMS.name} `, LEGAL_LINKS.TERMS.url),
   ]);
 
   // Политика конфиденциальности
   rows.push([
-    Markup.button.url(
-      `${LEGAL_LINKS.PRIVACY.name} ↗️`,
-      LEGAL_LINKS.PRIVACY.url,
-    ),
+    Markup.button.url(`${LEGAL_LINKS.PRIVACY.name} `, LEGAL_LINKS.PRIVACY.url),
   ]);
 
   // ⤴️ В меню

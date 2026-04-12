@@ -10,6 +10,7 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-postgres}@db:5432/cloudnode?schema=public
+      REDIS_URL: redis://redis:6379
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
     env_file:
@@ -18,10 +19,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - cloudnode-network
     ports:
-      - "3000:3000"
+      - "3001:3000"
     logging:
       driver: "json-file"
       options:
@@ -48,6 +51,24 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Redis service - для BullMQ очередей
+  redis:
+    image: redis:7-alpine
+    container_name: cloudnode-redis
+    restart: always
+    networks:
+      - cloudnode-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     logging:
       driver: "json-file"
       options:

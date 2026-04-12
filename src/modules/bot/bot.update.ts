@@ -43,12 +43,7 @@ export class BotUpdate implements OnModuleInit {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            commands: [
-              MENU_COMMANDS.START,
-              MENU_COMMANDS.KEY,
-              MENU_COMMANDS.MYKEY,
-              MENU_COMMANDS.SUPPORT,
-            ],
+            commands: [MENU_COMMANDS.START, MENU_COMMANDS.SUPPORT],
           }),
         },
       );

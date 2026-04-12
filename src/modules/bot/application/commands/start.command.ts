@@ -2,17 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { BaseAction, CommandContext, safeDeleteMessage } from '../base.action';
 import { MESSAGES, ACTIONS, mainKeyboard } from '../../ui';
 import { UsersService } from '../../../users/users.service';
-import { RentalsService } from '../../../rentals/rentals.service';
-import dayjs from 'dayjs';
 
 @Injectable()
 export class StartCommand extends BaseAction {
   readonly pattern = [ACTIONS.START_MENU, 'start'];
 
-  constructor(
-    private readonly usersService: UsersService,
-    private readonly rentalsService: RentalsService,
-  ) {
+  constructor(private readonly usersService: UsersService) {
     super(StartCommand.name);
   }
 
@@ -37,29 +32,16 @@ export class StartCommand extends BaseAction {
       subscriptionType: 'free',
     });
 
-    // Проверяем активную подписку
-    const activeRental = await this.rentalsService.getActiveRental(userId);
-    const hasSubscription = !!activeRental;
-    const expiryDate = activeRental?.endDate
-      ? dayjs(activeRental.endDate).format('DD.MM.YYYY')
-      : undefined;
-
     // Режим одного окна: всегда удаляем старое сообщение и отправляем новое
     await safeDeleteMessage(ctx);
-    await this.sendMainMenu(ctx, user.first_name, hasSubscription, expiryDate);
+    await this.sendMainMenu(ctx);
   }
 
   /**
    * Отправляет главное меню с inline-клавиатурой
    */
-  private async sendMainMenu(
-    ctx: CommandContext['ctx'],
-    firstName: string,
-    hasSubscription: boolean,
-    expiryDate?: string,
-  ): Promise<void> {
-    const caption = MESSAGES.MAIN_TITLE(firstName, hasSubscription, expiryDate);
-    await ctx.reply(caption, {
+  private async sendMainMenu(ctx: CommandContext['ctx']): Promise<void> {
+    await ctx.reply(MESSAGES.MAIN_TITLE, {
       reply_markup: mainKeyboard().reply_markup,
     });
   }
