@@ -2,7 +2,6 @@
 // CLEAN UI KEYBOARD EXPORTS
 // ============================================================================
 
-// Новый чистый интерфейс (основной)
 export {
   mainKeyboard,
   durationKeyboard,
@@ -11,10 +10,8 @@ export {
   platformKeyboard,
   platformDetailKeyboard,
   keyDisplayKeyboard,
+  extendSuccessKeyboard,
+  emptyKeysKeyboard,
+  partnersKeyboard,
+  legalKeyboard,
 } from './clean.keyboards';
-
-// Инструкции (нужны для работы бота)
-export {
-  instructionsKeyboard,
-  platformInfoKeyboard,
-} from './instructions.keyboards';

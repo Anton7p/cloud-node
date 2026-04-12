@@ -4,7 +4,11 @@ export {
   KeyCommand,
   Month1Command,
   Month3Command,
+  Month6Command,
   CopyKeyCommand,
+  MyKeyCommand,
+  FreeTestCommand,
+  WeekCommand,
 } from './key.command';
 export { InstructionsCommand } from './instructions.command';
 export {
@@ -14,3 +18,9 @@ export {
   PlatformMacosCommand,
 } from './platform-instructions.command';
 export { SupportCommand } from './support.command';
+export {
+  BuyMenuCommand,
+  MyKeysCommand,
+  PartnersCommand,
+  LegalCommand,
+} from './menu.commands';

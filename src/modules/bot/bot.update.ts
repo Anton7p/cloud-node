@@ -46,7 +46,7 @@ export class BotUpdate implements OnModuleInit {
             commands: [
               MENU_COMMANDS.START,
               MENU_COMMANDS.KEY,
-              MENU_COMMANDS.HELP,
+              MENU_COMMANDS.MYKEY,
               MENU_COMMANDS.SUPPORT,
             ],
           }),

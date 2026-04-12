@@ -7,9 +7,22 @@ import { RentalsService } from '../../../rentals/rentals.service';
 import { BaseAction, CommandContext } from '../base.action';
 import { MESSAGES, ACTIONS, IMAGES, mainKeyboard } from '../../ui';
 
+/**
+ * Утилита для безопасного удаления сообщения
+ */
+async function safeDeleteMessage(ctx: CommandContext['ctx']): Promise<void> {
+  try {
+    if (ctx.callbackQuery && 'message' in ctx.callbackQuery) {
+      await ctx.deleteMessage();
+    }
+  } catch (error) {
+    // Игнорируем ошибку удаления
+  }
+}
+
 @Injectable()
 export class StartCommand extends BaseAction {
-  readonly pattern = [ACTIONS.BACK_TO_MAIN, 'start'];
+  readonly pattern = [ACTIONS.START_MENU, 'start'];
 
   constructor(
     private readonly usersService: UsersService,
@@ -46,23 +59,9 @@ export class StartCommand extends BaseAction {
       ? dayjs(activeRental.endDate).format('DD.MM.YYYY')
       : undefined;
 
-    // Если это callback (нажатие НАЗАД) - редактируем сообщение
-    if (ctx.callbackQuery && 'message' in ctx.callbackQuery) {
-      await this.editToMainMenu(
-        ctx,
-        user.first_name,
-        hasSubscription,
-        expiryDate,
-      );
-    } else {
-      // Новое сообщение
-      await this.sendMainMenu(
-        ctx,
-        user.first_name,
-        hasSubscription,
-        expiryDate,
-      );
-    }
+    // Режим одного окна: всегда удаляем старое сообщение и отправляем новое
+    await safeDeleteMessage(ctx);
+    await this.sendMainMenu(ctx, user.first_name, hasSubscription, expiryDate);
   }
 
   /**
@@ -81,7 +80,7 @@ export class StartCommand extends BaseAction {
         hasSubscription,
         expiryDate,
       );
-      const keyboard = mainKeyboard(hasSubscription);
+      const keyboard = mainKeyboard();
 
       if (fs.existsSync(imagePath)) {
         await ctx.replyWithPhoto(
@@ -104,55 +103,8 @@ export class StartCommand extends BaseAction {
         expiryDate,
       );
       await ctx.reply(caption, {
-        reply_markup: mainKeyboard(hasSubscription).reply_markup,
+        reply_markup: mainKeyboard().reply_markup,
       });
-    }
-  }
-
-  /**
-   * Редактирует текущее сообщение на главное меню (для навигации НАЗАД)
-   */
-  private async editToMainMenu(
-    ctx: CommandContext['ctx'],
-    firstName: string,
-    hasSubscription: boolean,
-    expiryDate?: string,
-  ): Promise<void> {
-    try {
-      const imagePath = path.resolve(IMAGES.START_HUD);
-      const caption = MESSAGES.MAIN_TITLE(
-        firstName,
-        hasSubscription,
-        expiryDate,
-      );
-      const keyboard = mainKeyboard(hasSubscription);
-
-      // Пробуем редактировать media
-      if (fs.existsSync(imagePath)) {
-        try {
-          await ctx.editMessageMedia(
-            {
-              type: 'photo',
-              media: { source: imagePath },
-              caption,
-            },
-            { reply_markup: keyboard.reply_markup },
-          );
-        } catch {
-          // Fallback на редактирование текста/caption
-          await ctx.editMessageCaption(caption, {
-            reply_markup: keyboard.reply_markup,
-          });
-        }
-      } else {
-        await ctx.editMessageText(caption, {
-          reply_markup: keyboard.reply_markup,
-        });
-      }
-    } catch (error) {
-      this.logger.warn(`Failed to edit main menu: ${error}`);
-      // Fallback на новое сообщение
-      await this.sendMainMenu(ctx, firstName, hasSubscription, expiryDate);
     }
   }
 }

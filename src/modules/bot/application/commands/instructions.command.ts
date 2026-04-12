@@ -1,6 +1,21 @@
 import { Injectable } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
 import { BaseAction, CommandContext } from '../base.action';
-import { MESSAGES, ACTIONS, platformKeyboard } from '../../ui';
+import { MESSAGES, ACTIONS, IMAGES, platformKeyboard } from '../../ui';
+
+/**
+ * Утилита для безопасного удаления сообщения
+ */
+async function safeDeleteMessage(ctx: CommandContext['ctx']): Promise<void> {
+  try {
+    if (ctx.callbackQuery && 'message' in ctx.callbackQuery) {
+      await ctx.deleteMessage();
+    }
+  } catch (error) {
+    // Игнорируем ошибку удаления
+  }
+}
 
 @Injectable()
 export class InstructionsCommand extends BaseAction {
@@ -14,29 +29,33 @@ export class InstructionsCommand extends BaseAction {
     const { ctx, userId, data } = context;
     this.logExecution(data, userId);
 
-    // Если callback_query - редактируем сообщение
-    if (ctx.callbackQuery && 'message' in ctx.callbackQuery) {
-      await this.showPlatformSelection(ctx);
-    } else {
-      // Если команда /help - отправляем новое сообщение
-      await ctx.reply(MESSAGES.INSTRUCTIONS_TITLE, {
-        reply_markup: platformKeyboard().reply_markup,
-      });
-    }
+    // Режим одного окна: удаляем старое сообщение и отправляем новое
+    await safeDeleteMessage(ctx);
+    await this.sendWithImage(ctx);
   }
 
   /**
-   * Показывает выбор платформы через редактирование сообщения
+   * Отправляет новое сообщение с картинкой инструкций
    */
-  private async showPlatformSelection(
-    ctx: CommandContext['ctx'],
-  ): Promise<void> {
+  private async sendWithImage(ctx: CommandContext['ctx']): Promise<void> {
     try {
-      await ctx.editMessageText(MESSAGES.INSTRUCTIONS_TITLE, {
-        reply_markup: platformKeyboard().reply_markup,
-      });
+      const imagePath = path.resolve(IMAGES.INSTRUCTIONS_HUD);
+
+      if (fs.existsSync(imagePath)) {
+        await ctx.replyWithPhoto(
+          { source: imagePath },
+          {
+            caption: MESSAGES.INSTRUCTIONS_TITLE,
+            reply_markup: platformKeyboard().reply_markup,
+          },
+        );
+      } else {
+        await ctx.reply(MESSAGES.INSTRUCTIONS_TITLE, {
+          reply_markup: platformKeyboard().reply_markup,
+        });
+      }
     } catch (error) {
-      this.logger.warn(`Failed to edit message: ${error}`);
+      this.logger.warn(`Failed to send photo: ${error}`);
       await ctx.reply(MESSAGES.INSTRUCTIONS_TITLE, {
         reply_markup: platformKeyboard().reply_markup,
       });

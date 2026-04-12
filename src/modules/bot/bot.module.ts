@@ -13,21 +13,14 @@ import {
   KeyCommand,
   Month1Command,
   Month3Command,
+  CopyKeyCommand,
+  MyKeyCommand,
   InstructionsCommand,
   PlatformIosCommand,
   PlatformAndroidCommand,
   PlatformWindowsCommand,
   PlatformMacosCommand,
   SupportCommand,
-  // Устаревшие команды
-  ProfileCommand,
-  RentServerCommand,
-  RentTermCommand,
-  PayRentalCommand,
-  GetAccessCommand,
-  PlatformInstructionCommand,
-  ReferralCommand,
-  HelpCommand,
 } from './application/commands';
 
 /**
@@ -40,21 +33,14 @@ const commandHandlers = [
   KeyCommand,
   Month1Command,
   Month3Command,
+  CopyKeyCommand,
+  MyKeyCommand,
   InstructionsCommand,
   PlatformIosCommand,
   PlatformAndroidCommand,
   PlatformWindowsCommand,
   PlatformMacosCommand,
   SupportCommand,
-  // Устаревшие команды
-  ProfileCommand,
-  RentServerCommand,
-  RentTermCommand,
-  PayRentalCommand,
-  GetAccessCommand,
-  PlatformInstructionCommand,
-  ReferralCommand,
-  HelpCommand,
 ];
 
 @Module({

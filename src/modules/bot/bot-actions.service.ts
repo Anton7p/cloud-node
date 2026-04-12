@@ -10,7 +10,11 @@ import {
   KeyCommand,
   Month1Command,
   Month3Command,
+  Month6Command,
   CopyKeyCommand,
+  MyKeyCommand,
+  FreeTestCommand,
+  WeekCommand,
 } from './application/commands/key.command';
 import { InstructionsCommand } from './application/commands/instructions.command';
 import {
@@ -20,6 +24,12 @@ import {
   PlatformMacosCommand,
 } from './application/commands/platform-instructions.command';
 import { SupportCommand } from './application/commands/support.command';
+import {
+  BuyMenuCommand,
+  MyKeysCommand,
+  PartnersCommand,
+  LegalCommand,
+} from './application/commands/menu.commands';
 
 /**
  * BotActionsService - роутер команд на основе Map (O(1) lookup)
@@ -59,13 +69,22 @@ export class BotActionsService implements OnModuleInit {
       KeyCommand,
       Month1Command,
       Month3Command,
+      Month6Command,
       CopyKeyCommand,
+      MyKeyCommand,
+      FreeTestCommand,
+      WeekCommand,
       InstructionsCommand,
       PlatformIosCommand,
       PlatformAndroidCommand,
       PlatformWindowsCommand,
       PlatformMacosCommand,
       SupportCommand,
+      // Новые команды меню
+      BuyMenuCommand,
+      MyKeysCommand,
+      PartnersCommand,
+      LegalCommand,
     ];
 
     const handlers = await Promise.all(

@@ -14,7 +14,8 @@ jest.mock('../../ui', () => ({
     ),
   },
   ACTIONS: {
-    BACK_TO_MAIN: 'back_to_main',
+    START_MENU: 'start_menu',
+    BACK_TO_MAIN: 'start_menu',
   },
   IMAGES: {
     START_HUD: 'assets/images/start_hud.jpg.jpg',
@@ -95,7 +96,7 @@ describe('StartCommand (Clean UI)', () => {
   });
 
   it('should have correct pattern', () => {
-    expect(command.pattern).toEqual(['back_to_main', 'start']);
+    expect(command.pattern).toEqual(['start_menu', 'start']);
   });
 
   describe('execute', () => {

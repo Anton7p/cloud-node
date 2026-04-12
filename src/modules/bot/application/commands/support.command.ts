@@ -1,6 +1,21 @@
 import { Injectable } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
 import { BaseAction, CommandContext } from '../base.action';
-import { MESSAGES, ACTIONS, backKeyboard } from '../../ui';
+import { MESSAGES, ACTIONS, IMAGES, backKeyboard } from '../../ui';
+
+/**
+ * Утилита для безопасного удаления сообщения
+ */
+async function safeDeleteMessage(ctx: CommandContext['ctx']): Promise<void> {
+  try {
+    if (ctx.callbackQuery && 'message' in ctx.callbackQuery) {
+      await ctx.deleteMessage();
+    }
+  } catch (error) {
+    // Игнорируем ошибку удаления
+  }
+}
 
 @Injectable()
 export class SupportCommand extends BaseAction {
@@ -14,38 +29,33 @@ export class SupportCommand extends BaseAction {
     const { ctx, userId, data } = context;
     this.logExecution(data, userId);
 
-    // Если callback_query - редактируем сообщение
-    if (ctx.callbackQuery && 'message' in ctx.callbackQuery) {
-      await this.editToSupport(ctx);
-    } else {
-      // Если команда /support - отправляем новое сообщение
-      await ctx.reply(MESSAGES.SUPPORT, {
-        reply_markup: backKeyboard().reply_markup,
-      });
-    }
+    // Режим одного окна: удаляем старое сообщение и отправляем новое
+    await safeDeleteMessage(ctx);
+    await this.sendWithImage(ctx);
   }
 
   /**
-   * Редактирует текущее сообщение на экран поддержки
+   * Отправляет новое сообщение с картинкой поддержки
    */
-  private async editToSupport(ctx: CommandContext['ctx']): Promise<void> {
+  private async sendWithImage(ctx: CommandContext['ctx']): Promise<void> {
     try {
-      const message = ctx.callbackQuery?.message;
-      if (!message) return;
+      const imagePath = path.resolve(IMAGES.SUPPORT_HUD);
 
-      // Редактируем caption если есть фото, иначе текст
-      if ('caption' in message) {
-        await ctx.editMessageCaption(MESSAGES.SUPPORT, {
-          reply_markup: backKeyboard().reply_markup,
-        });
+      if (fs.existsSync(imagePath)) {
+        await ctx.replyWithPhoto(
+          { source: imagePath },
+          {
+            caption: MESSAGES.SUPPORT,
+            reply_markup: backKeyboard().reply_markup,
+          },
+        );
       } else {
-        await ctx.editMessageText(MESSAGES.SUPPORT, {
+        await ctx.reply(MESSAGES.SUPPORT, {
           reply_markup: backKeyboard().reply_markup,
         });
       }
     } catch (error) {
-      this.logger.warn(`Failed to edit message: ${error}`);
-      // Fallback на новое сообщение
+      this.logger.warn(`Failed to send photo: ${error}`);
       await ctx.reply(MESSAGES.SUPPORT, {
         reply_markup: backKeyboard().reply_markup,
       });
