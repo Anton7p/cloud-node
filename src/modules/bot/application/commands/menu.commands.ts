@@ -1,11 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import * as fs from 'fs';
-import * as path from 'path';
-import { BaseAction, CommandContext } from '../base.action';
+import { BaseAction, CommandContext, safeDeleteMessage } from '../base.action';
 import {
   MESSAGES,
   ACTIONS,
-  IMAGES,
   durationKeyboard,
   partnersKeyboard,
   legalKeyboard,
@@ -14,24 +11,6 @@ import {
 import { RentalsService } from '../../../rentals/rentals.service';
 import { UsersService } from '../../../users/users.service';
 import dayjs from 'dayjs';
-
-// ============================================================================
-// Navigation Engine: Режим одного окна
-// ============================================================================
-
-/**
- * Утилита для безопасного удаления сообщения (с try/catch)
- */
-async function safeDeleteMessage(ctx: CommandContext['ctx']): Promise<void> {
-  try {
-    if (ctx.callbackQuery && 'message' in ctx.callbackQuery) {
-      await ctx.deleteMessage();
-    }
-  } catch (error) {
-    // Игнорируем ошибку, если сообщение уже удалено или недоступно
-    // Ошибки типа "message not found" или "message can't be deleted" игнорируем
-  }
-}
 
 /**
  * Быстрый старт - Экран выбора тарифа
@@ -52,30 +31,9 @@ export class BuyMenuCommand extends BaseAction {
     await safeDeleteMessage(ctx);
 
     // Отправляем новое сообщение
-    try {
-      const imagePath = path.resolve(IMAGES.KEY_HUD);
-      const caption = MESSAGES.SELECT_DURATION;
-      const keyboard = durationKeyboard();
-
-      if (fs.existsSync(imagePath)) {
-        await ctx.replyWithPhoto(
-          { source: imagePath },
-          {
-            caption,
-            reply_markup: keyboard.reply_markup,
-          },
-        );
-      } else {
-        await ctx.reply(caption, {
-          reply_markup: keyboard.reply_markup,
-        });
-      }
-    } catch (error) {
-      this.logger.warn(`Failed to send buy menu: ${error}`);
-      await ctx.reply(MESSAGES.SELECT_DURATION, {
-        reply_markup: durationKeyboard().reply_markup,
-      });
-    }
+    await ctx.reply(MESSAGES.SELECT_DURATION, {
+      reply_markup: durationKeyboard().reply_markup,
+    });
   }
 }
 
@@ -170,30 +128,9 @@ export class PartnersCommand extends BaseAction {
     await safeDeleteMessage(ctx);
 
     // Отправляем новое сообщение
-    try {
-      const imagePath = path.resolve(IMAGES.PARTNERS_HUD);
-      const caption = MESSAGES.PARTNERS_TITLE(referralLink, referralCount);
-      const keyboard = partnersKeyboard(referralLink);
-
-      if (fs.existsSync(imagePath)) {
-        await ctx.replyWithPhoto(
-          { source: imagePath },
-          {
-            caption,
-            reply_markup: keyboard.reply_markup,
-          },
-        );
-      } else {
-        await ctx.reply(caption, {
-          reply_markup: keyboard.reply_markup,
-        });
-      }
-    } catch (error) {
-      this.logger.warn(`Failed to send partners screen: ${error}`);
-      await ctx.reply(MESSAGES.PARTNERS_TITLE(referralLink, referralCount), {
-        reply_markup: partnersKeyboard(referralLink).reply_markup,
-      });
-    }
+    await ctx.reply(MESSAGES.PARTNERS_TITLE(referralLink, referralCount), {
+      reply_markup: partnersKeyboard(referralLink).reply_markup,
+    });
   }
 }
 
@@ -216,29 +153,8 @@ export class LegalCommand extends BaseAction {
     await safeDeleteMessage(ctx);
 
     // Отправляем новое сообщение
-    try {
-      const imagePath = path.resolve(IMAGES.LEGAL_HUD);
-      const caption = MESSAGES.SUPPORT;
-      const keyboard = legalKeyboard();
-
-      if (fs.existsSync(imagePath)) {
-        await ctx.replyWithPhoto(
-          { source: imagePath },
-          {
-            caption,
-            reply_markup: keyboard.reply_markup,
-          },
-        );
-      } else {
-        await ctx.reply(caption, {
-          reply_markup: keyboard.reply_markup,
-        });
-      }
-    } catch (error) {
-      this.logger.warn(`Failed to send legal screen: ${error}`);
-      await ctx.reply(MESSAGES.SUPPORT, {
-        reply_markup: legalKeyboard().reply_markup,
-      });
-    }
+    await ctx.reply(MESSAGES.SUPPORT, {
+      reply_markup: legalKeyboard().reply_markup,
+    });
   }
 }

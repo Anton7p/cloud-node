@@ -1,24 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import * as fs from 'fs';
-import * as path from 'path';
-import dayjs from 'dayjs';
+import { BaseAction, CommandContext, safeDeleteMessage } from '../base.action';
+import { MESSAGES, ACTIONS, mainKeyboard } from '../../ui';
 import { UsersService } from '../../../users/users.service';
 import { RentalsService } from '../../../rentals/rentals.service';
-import { BaseAction, CommandContext } from '../base.action';
-import { MESSAGES, ACTIONS, IMAGES, mainKeyboard } from '../../ui';
-
-/**
- * Утилита для безопасного удаления сообщения
- */
-async function safeDeleteMessage(ctx: CommandContext['ctx']): Promise<void> {
-  try {
-    if (ctx.callbackQuery && 'message' in ctx.callbackQuery) {
-      await ctx.deleteMessage();
-    }
-  } catch (error) {
-    // Игнорируем ошибку удаления
-  }
-}
+import dayjs from 'dayjs';
 
 @Injectable()
 export class StartCommand extends BaseAction {
@@ -65,7 +50,7 @@ export class StartCommand extends BaseAction {
   }
 
   /**
-   * Отправляет главное меню с фото и inline-клавиатурой
+   * Отправляет главное меню с inline-клавиатурой
    */
   private async sendMainMenu(
     ctx: CommandContext['ctx'],
@@ -73,38 +58,9 @@ export class StartCommand extends BaseAction {
     hasSubscription: boolean,
     expiryDate?: string,
   ): Promise<void> {
-    try {
-      const imagePath = path.resolve(IMAGES.START_HUD);
-      const caption = MESSAGES.MAIN_TITLE(
-        firstName,
-        hasSubscription,
-        expiryDate,
-      );
-      const keyboard = mainKeyboard();
-
-      if (fs.existsSync(imagePath)) {
-        await ctx.replyWithPhoto(
-          { source: imagePath },
-          {
-            caption,
-            reply_markup: keyboard.reply_markup,
-          },
-        );
-      } else {
-        await ctx.reply(caption, {
-          reply_markup: keyboard.reply_markup,
-        });
-      }
-    } catch (error) {
-      this.logger.warn(`Failed to send main menu: ${error}`);
-      const caption = MESSAGES.MAIN_TITLE(
-        firstName,
-        hasSubscription,
-        expiryDate,
-      );
-      await ctx.reply(caption, {
-        reply_markup: mainKeyboard().reply_markup,
-      });
-    }
+    const caption = MESSAGES.MAIN_TITLE(firstName, hasSubscription, expiryDate);
+    await ctx.reply(caption, {
+      reply_markup: mainKeyboard().reply_markup,
+    });
   }
 }

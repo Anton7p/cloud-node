@@ -16,6 +16,32 @@ export interface CommandContext {
 }
 
 /**
+ * Утилита для безопасного удаления сообщения
+ * Обрабатывает TelegramBadRequest если сообщение уже удалено
+ */
+export async function safeDeleteMessage(ctx: BotContext): Promise<void> {
+  try {
+    if (ctx.callbackQuery && 'message' in ctx.callbackQuery) {
+      await ctx.deleteMessage();
+    }
+  } catch (error) {
+    // Игнорируем если сообщение уже удалено или недоступно
+    if (
+      error?.response?.error_code === 400 ||
+      error?.message?.includes('message to delete not found') ||
+      error?.message?.includes('MESSAGE_ID_INVALID')
+    ) {
+      return;
+    }
+    // Логируем другие ошибки для диагностики
+    console.warn(
+      '[safeDeleteMessage] Non-critical error:',
+      error?.message || error,
+    );
+  }
+}
+
+/**
  * Абстрактный базовый класс для всех Action команд
  *
  * Паттерн Command/Handler:

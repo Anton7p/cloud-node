@@ -1,21 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import * as fs from 'fs';
-import * as path from 'path';
-import { BaseAction, CommandContext } from '../base.action';
-import { MESSAGES, ACTIONS, IMAGES, platformKeyboard } from '../../ui';
-
-/**
- * Утилита для безопасного удаления сообщения
- */
-async function safeDeleteMessage(ctx: CommandContext['ctx']): Promise<void> {
-  try {
-    if (ctx.callbackQuery && 'message' in ctx.callbackQuery) {
-      await ctx.deleteMessage();
-    }
-  } catch (error) {
-    // Игнорируем ошибку удаления
-  }
-}
+import { BaseAction, CommandContext, safeDeleteMessage } from '../base.action';
+import {
+  MESSAGES,
+  ACTIONS,
+  platformKeyboard,
+  platformDetailKeyboard,
+} from '../../ui';
+import { PLATFORM_GUIDES } from '../../ui/templates/clean.templates';
 
 @Injectable()
 export class InstructionsCommand extends BaseAction {
@@ -31,34 +22,52 @@ export class InstructionsCommand extends BaseAction {
 
     // Режим одного окна: удаляем старое сообщение и отправляем новое
     await safeDeleteMessage(ctx);
-    await this.sendWithImage(ctx);
+    await ctx.reply(MESSAGES.INSTRUCTIONS_TITLE, {
+      reply_markup: platformKeyboard().reply_markup,
+    });
+  }
+}
+
+// Маппинг платформ для универсальной команды
+const PLATFORM_CONFIG = {
+  [ACTIONS.PLATFORM_IOS]: { name: 'iOS', guide: PLATFORM_GUIDES.IOS },
+  [ACTIONS.PLATFORM_ANDROID]: {
+    name: 'Android',
+    guide: PLATFORM_GUIDES.ANDROID,
+  },
+  [ACTIONS.PLATFORM_WINDOWS]: {
+    name: 'Windows',
+    guide: PLATFORM_GUIDES.WINDOWS,
+  },
+  [ACTIONS.PLATFORM_MACOS]: { name: 'macOS', guide: PLATFORM_GUIDES.MACOS },
+} as const;
+
+@Injectable()
+export class PlatformInstructionsCommand extends BaseAction {
+  readonly pattern = [
+    ACTIONS.PLATFORM_IOS,
+    ACTIONS.PLATFORM_ANDROID,
+    ACTIONS.PLATFORM_WINDOWS,
+    ACTIONS.PLATFORM_MACOS,
+  ];
+
+  constructor() {
+    super(PlatformInstructionsCommand.name);
   }
 
-  /**
-   * Отправляет новое сообщение с картинкой инструкций
-   */
-  private async sendWithImage(ctx: CommandContext['ctx']): Promise<void> {
-    try {
-      const imagePath = path.resolve(IMAGES.INSTRUCTIONS_HUD);
+  async execute(context: CommandContext): Promise<void> {
+    const { ctx, userId, data } = context;
+    this.logExecution(data, userId);
 
-      if (fs.existsSync(imagePath)) {
-        await ctx.replyWithPhoto(
-          { source: imagePath },
-          {
-            caption: MESSAGES.INSTRUCTIONS_TITLE,
-            reply_markup: platformKeyboard().reply_markup,
-          },
-        );
-      } else {
-        await ctx.reply(MESSAGES.INSTRUCTIONS_TITLE, {
-          reply_markup: platformKeyboard().reply_markup,
-        });
-      }
-    } catch (error) {
-      this.logger.warn(`Failed to send photo: ${error}`);
-      await ctx.reply(MESSAGES.INSTRUCTIONS_TITLE, {
-        reply_markup: platformKeyboard().reply_markup,
-      });
+    const platform = PLATFORM_CONFIG[data];
+    if (!platform) {
+      return;
     }
+
+    // Режим одного окна: удаляем старое сообщение и отправляем новое
+    await safeDeleteMessage(ctx);
+    await ctx.reply(MESSAGES.PLATFORM_TITLE(platform.name), {
+      reply_markup: platformDetailKeyboard(platform.guide).reply_markup,
+    });
   }
 }

@@ -17,20 +17,9 @@ jest.mock('../../ui', () => ({
     START_MENU: 'start_menu',
     BACK_TO_MAIN: 'start_menu',
   },
-  IMAGES: {
-    START_HUD: 'assets/images/start_hud.jpg.jpg',
-  },
   mainKeyboard: jest.fn(() => ({
     reply_markup: { inline_keyboard: [] },
   })),
-  removeReplyKeyboard: jest.fn(() => ({
-    reply_markup: { remove_keyboard: true },
-  })),
-}));
-
-// Mock fs
-jest.mock('fs', () => ({
-  existsSync: jest.fn(() => true),
 }));
 
 describe('StartCommand (Clean UI)', () => {
@@ -52,7 +41,6 @@ describe('StartCommand (Clean UI)', () => {
         username: mockUsername,
         first_name: mockFirstName,
       },
-      replyWithPhoto: jest.fn().mockResolvedValue(undefined),
       reply: jest.fn().mockResolvedValue(undefined),
     } as unknown as CommandContext['ctx'];
 
@@ -120,11 +108,10 @@ describe('StartCommand (Clean UI)', () => {
       // Verify active rental was checked
       expect(rentalsService.getActiveRental).toHaveBeenCalledWith(mockUserId);
 
-      // Verify photo was sent
-      expect(context.ctx.replyWithPhoto).toHaveBeenCalledWith(
-        { source: expect.any(String) },
+      // Verify main menu was sent
+      expect(context.ctx.reply).toHaveBeenCalledWith(
+        expect.stringContaining('ПРИВЕТ'),
         {
-          caption: expect.stringContaining('ПРИВЕТ'),
           reply_markup: { inline_keyboard: [] },
         },
       );
@@ -141,10 +128,9 @@ describe('StartCommand (Clean UI)', () => {
       await command.execute(context);
 
       expect(rentalsService.getActiveRental).toHaveBeenCalledWith(mockUserId);
-      expect(context.ctx.replyWithPhoto).toHaveBeenCalledWith(
-        { source: expect.any(String) },
+      expect(context.ctx.reply).toHaveBeenCalledWith(
+        expect.stringContaining('✅ АКТИВЕН'),
         {
-          caption: expect.stringContaining('✅ АКТИВЕН'),
           reply_markup: { inline_keyboard: [] },
         },
       );
@@ -154,7 +140,6 @@ describe('StartCommand (Clean UI)', () => {
       const context: CommandContext = {
         ctx: {
           from: undefined,
-          replyWithPhoto: jest.fn(),
           reply: jest.fn(),
         } as unknown as CommandContext['ctx'],
         userId: mockUserId,
@@ -166,7 +151,7 @@ describe('StartCommand (Clean UI)', () => {
 
       expect(usersService.findOrCreate).not.toHaveBeenCalled();
       expect(rentalsService.getActiveRental).not.toHaveBeenCalled();
-      expect(context.ctx.replyWithPhoto).not.toHaveBeenCalled();
+      expect(context.ctx.reply).not.toHaveBeenCalled();
     });
   });
 });

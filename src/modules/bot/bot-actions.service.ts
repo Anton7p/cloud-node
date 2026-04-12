@@ -7,29 +7,21 @@ import { MESSAGES } from './ui';
 // CLEAN UI: Новые команды
 import { StartCommand } from './application/commands/start.command';
 import {
-  KeyCommand,
-  Month1Command,
-  Month3Command,
-  Month6Command,
-  CopyKeyCommand,
-  MyKeyCommand,
-  FreeTestCommand,
-  WeekCommand,
-} from './application/commands/key.command';
-import { InstructionsCommand } from './application/commands/instructions.command';
-import {
-  PlatformIosCommand,
-  PlatformAndroidCommand,
-  PlatformWindowsCommand,
-  PlatformMacosCommand,
-} from './application/commands/platform-instructions.command';
-import { SupportCommand } from './application/commands/support.command';
-import {
   BuyMenuCommand,
   MyKeysCommand,
   PartnersCommand,
   LegalCommand,
 } from './application/commands/menu.commands';
+import { RentCommand } from './application/commands/rental.commands';
+import {
+  CopyKeyCommand,
+  MyKeyCommand,
+} from './application/commands/key-management.commands';
+import {
+  InstructionsCommand,
+  PlatformInstructionsCommand,
+} from './application/commands/instructions.command';
+import { SupportCommand } from './application/commands/support.command';
 
 /**
  * BotActionsService - роутер команд на основе Map (O(1) lookup)
@@ -66,22 +58,14 @@ export class BotActionsService implements OnModuleInit {
     const handlerClasses = [
       // CLEAN UI: Новые команды
       StartCommand,
-      KeyCommand,
-      Month1Command,
-      Month3Command,
-      Month6Command,
+      BuyMenuCommand,
+      RentCommand,
       CopyKeyCommand,
       MyKeyCommand,
-      FreeTestCommand,
-      WeekCommand,
       InstructionsCommand,
-      PlatformIosCommand,
-      PlatformAndroidCommand,
-      PlatformWindowsCommand,
-      PlatformMacosCommand,
+      PlatformInstructionsCommand,
       SupportCommand,
       // Новые команды меню
-      BuyMenuCommand,
       MyKeysCommand,
       PartnersCommand,
       LegalCommand,

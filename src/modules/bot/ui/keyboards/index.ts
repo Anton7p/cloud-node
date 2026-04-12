@@ -6,7 +6,6 @@ export {
   mainKeyboard,
   durationKeyboard,
   backKeyboard,
-  removeReplyKeyboard,
   platformKeyboard,
   platformDetailKeyboard,
   keyDisplayKeyboard,

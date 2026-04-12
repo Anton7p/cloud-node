@@ -1,5 +1,6 @@
 import { Catch, ExceptionFilter, ArgumentsHost, Logger } from '@nestjs/common';
 import { Context } from 'telegraf';
+import { ERROR_MESSAGES } from '../ui/templates/clean.templates';
 
 /**
  * BotExceptionFilter - перехватчик ошибок в обработчиках бота
@@ -9,17 +10,6 @@ import { Context } from 'telegraf';
 @Catch()
 export class BotExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(BotExceptionFilter.name);
-
-  private readonly ERROR_MESSAGES = {
-    DEFAULT:
-      '⚠️ *Произошла небольшая ошибка*\n\nМы уже работаем над её устранением. Попробуйте позже или обратитесь в поддержку.',
-    DATABASE:
-      '⚠️ *Проблема с базой данных*\n\nНе удалось сохранить данные. Пожалуйста, попробуйте через минуту.',
-    NETWORK:
-      '⚠️ *Проблема со связью*\n\nНе удалось связаться с сервером. Попробуйте позже.',
-    VALIDATION:
-      '⚠️ *Некорректные данные*\n\nПроверьте ввод и попробуйте снова.',
-  };
 
   async catch(exception: Error, host: ArgumentsHost): Promise<void> {
     const ctx = host.getArgByIndex<Context>(0);
@@ -60,7 +50,7 @@ export class BotExceptionFilter implements ExceptionFilter {
       message.includes('database') ||
       message.includes('sql')
     ) {
-      return this.ERROR_MESSAGES.DATABASE;
+      return ERROR_MESSAGES.DATABASE;
     }
 
     // Сетевые ошибки
@@ -69,7 +59,7 @@ export class BotExceptionFilter implements ExceptionFilter {
       message.includes('timeout') ||
       message.includes('etimedout')
     ) {
-      return this.ERROR_MESSAGES.NETWORK;
+      return ERROR_MESSAGES.NETWORK;
     }
 
     // Ошибки валидации
@@ -78,9 +68,9 @@ export class BotExceptionFilter implements ExceptionFilter {
       message.includes('invalid') ||
       message.includes('required')
     ) {
-      return this.ERROR_MESSAGES.VALIDATION;
+      return ERROR_MESSAGES.VALIDATION;
     }
 
-    return this.ERROR_MESSAGES.DEFAULT;
+    return ERROR_MESSAGES.DEFAULT;
   }
 }

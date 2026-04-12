@@ -23,27 +23,6 @@ export const ACCESS_PRICES = [
   },
 ] as const;
 
-// Пути к изображениям
-export const IMAGES = {
-  // Главный экран (VPN/безопасность)
-  START_HUD: 'assets/images/start_hud.svg',
-
-  // Инструкции (подключение/настройка)
-  INSTRUCTIONS_HUD: 'assets/images/instructions_hud.svg',
-
-  // Поддержка (помощь/контакт)
-  SUPPORT_HUD: 'assets/images/support_hud.svg',
-
-  // Ключ/продление (доступ/ключ)
-  KEY_HUD: 'assets/images/key_hud.svg',
-
-  // Партнёрская программа
-  PARTNERS_HUD: 'assets/images/partners_hud.svg',
-
-  // Условия и поддержка
-  LEGAL_HUD: 'assets/images/legal_hud.svg',
-} as const;
-
 // Команды меню для BotFather
 export const MENU_COMMANDS = {
   START: { command: 'start', description: 'Главное меню' },
@@ -104,24 +83,8 @@ export const MESSAGES = {
   // Инструкции (выбор платформы)
   INSTRUCTIONS_TITLE: '🧭 Выберите платформу для настройки:',
 
-  // Инструкции для конкретной платформы
-  INSTRUCTIONS_PLATFORM: (platform: string, appName: string, url: string) =>
-    `📱 Инструкция для ${platform}\n\n` +
-    `1. Установите: ${appName}\n` +
-    `   ${url}\n\n` +
-    `2. Нажмите «🚀 Быстрый старт» в боте\n\n` +
-    `3. Скопируйте ключ и вставьте в приложение`,
-
-  // Общие инструкции
-  INSTRUCTIONS:
-    `🧭 Как подключить\n\n` +
-    `1. Установите приложение:\n` +
-    `   • iOS: Shadowrocket или Streisand\n` +
-    `   • Android: V2RayNG или NekoBox\n` +
-    `   • Windows: V2RayN или NekoRay\n` +
-    `   • macOS: Shadowrocket или V2RayXS\n\n` +
-    `2. Нажмите «🚀 Быстрый старт» в боте\n\n` +
-    `3. Скопируйте ключ и вставьте в приложение`,
+  // Заголовок экрана платформы
+  PLATFORM_TITLE: (platform: string) => `📱 ${platform}`,
 
   // Поддержка / Условия
   SUPPORT:
@@ -143,6 +106,11 @@ export const MESSAGES = {
   // Ошибки
   UNKNOWN_COMMAND: 'Неизвестная команда',
   ERROR: 'Ошибка. Попробуйте позже.',
+  COPY_KEY_ERROR: '❌ Ошибка: ключ не найден',
+
+  // Копирование ключа
+  COPY_KEY_READY: (key: string) =>
+    `📋 Ваш ключ:\n\n\`\`\`\n${key}\n\`\`\`\n\n✅ Нажмите на ключ выше, чтобы скопировать его`,
 } as const;
 
 // ============================================================================
@@ -158,9 +126,7 @@ export const ACTIONS = {
   PARTNERS: 'partners',
   LEGAL: 'legal',
 
-  // Legacy поддержка
-  GET_KEY: 'buy_menu', // переадресация на новый экран
-  EXTEND_KEY: 'extend_key',
+  // Альтернативные названия для совместимости
   MY_KEY: 'my_keys',
   SUPPORT: 'legal',
 
@@ -193,34 +159,6 @@ export const CHAT_MENU_BUTTON = {
   text: '[ МЕНЮ ]',
 } as const;
 
-// Ссылки на инструкции для платформ
-export const PLATFORM_LINKS = {
-  ANDROID: {
-    name: 'Hiddify',
-    url: 'https://play.google.com/store/apps/details?id=app.hiddify.com',
-    guideUrl: 'https://telegra.ph/Podklyuchenie-VPN-na-Android-01-12',
-    emoji: '🤖',
-  },
-  WINDOWS: {
-    name: 'Hiddify',
-    url: 'https://github.com/hiddify/hiddify-next/releases',
-    guideUrl: 'https://telegra.ph/Podklyuchenie-VPN-na-Windows-01-12',
-    emoji: '🖥',
-  },
-  IOS: {
-    name: 'Shadowrocket / Streisand',
-    url: 'https://apps.apple.com',
-    guideUrl: 'https://telegra.ph/IPhone-03-02-5',
-    emoji: '📱',
-  },
-  MACOS: {
-    name: 'Shadowrocket',
-    url: 'https://apps.apple.com',
-    guideUrl: 'https://telegra.ph/IPhone-03-02-5',
-    emoji: '💻',
-  },
-} as const;
-
 // Ссылки для раздела Условия и поддержка
 export const LEGAL_LINKS = {
   FAQ: {
@@ -235,4 +173,23 @@ export const LEGAL_LINKS = {
     name: '📄 Политика конфиденциальности',
     url: 'https://telegra.ph/Politika-konfidencialnosti-04-01-26',
   },
+} as const;
+
+// Ссылки на инструкции для платформ
+export const PLATFORM_GUIDES = {
+  IOS: 'https://telegra.ph/IPhone-03-02-5',
+  ANDROID: 'https://telegra.ph/Podklyuchenie-VPN-na-Android-01-12',
+  WINDOWS: 'https://telegra.ph/Podklyuchenie-VPN-na-Windows-01-12',
+  MACOS: 'https://telegra.ph/IPhone-03-02-5',
+} as const;
+
+// Сообщения об ошибках
+export const ERROR_MESSAGES = {
+  DEFAULT:
+    '⚠️ *Произошла небольшая ошибка*\n\nМы уже работаем над её устранением. Попробуйте позже или обратитесь в поддержку.',
+  DATABASE:
+    '⚠️ *Проблема с базой данных*\n\nНе удалось сохранить данные. Пожалуйста, попробуйте через минуту.',
+  NETWORK:
+    '⚠️ *Проблема со связью*\n\nНе удалось связаться с сервером. Попробуйте позже.',
+  VALIDATION: '⚠️ *Некорректные данные*\n\nПроверьте ввод и попробуйте снова.',
 } as const;

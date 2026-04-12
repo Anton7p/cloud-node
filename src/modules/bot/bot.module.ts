@@ -10,16 +10,11 @@ import { BotActionsService } from './bot-actions.service';
 import {
   // CLEAN UI: Новые команды
   StartCommand,
-  KeyCommand,
-  Month1Command,
-  Month3Command,
+  RentCommand,
   CopyKeyCommand,
   MyKeyCommand,
   InstructionsCommand,
-  PlatformIosCommand,
-  PlatformAndroidCommand,
-  PlatformWindowsCommand,
-  PlatformMacosCommand,
+  PlatformInstructionsCommand,
   SupportCommand,
 } from './application/commands';
 
@@ -30,16 +25,11 @@ import {
 const commandHandlers = [
   // CLEAN UI: Новые команды
   StartCommand,
-  KeyCommand,
-  Month1Command,
-  Month3Command,
+  RentCommand,
   CopyKeyCommand,
   MyKeyCommand,
   InstructionsCommand,
-  PlatformIosCommand,
-  PlatformAndroidCommand,
-  PlatformWindowsCommand,
-  PlatformMacosCommand,
+  PlatformInstructionsCommand,
   SupportCommand,
 ];
 

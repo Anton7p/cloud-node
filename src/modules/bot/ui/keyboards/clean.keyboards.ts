@@ -1,5 +1,10 @@
 import { Markup } from 'telegraf';
-import { ACTIONS } from '../templates/clean.templates';
+import {
+  ACTIONS,
+  LEGAL_LINKS,
+  ACCESS_PRICES,
+  PLATFORM_GUIDES,
+} from '../templates/clean.templates';
 
 // ============================================================================
 // CLEAN UI KEYBOARDS - Новая структура 1:1 с референсом
@@ -43,25 +48,57 @@ export const mainKeyboard = () => {
 export const durationKeyboard = () => {
   const rows: any[] = [];
 
-  // Бесплатный тест
-  rows.push([
-    Markup.button.callback(
-      '[🎁] Бесплатный тест на 3дн. ✦ 2 📱 ✦ 0₽',
-      ACTIONS.FREE_TEST,
-    ),
-  ]);
+  // Бесплатный тест (0 месяцев = 0 дней, для обратной совместимости)
+  const freeTest = ACCESS_PRICES.find((p) => p.months === 0);
+  if (freeTest) {
+    rows.push([
+      Markup.button.callback(
+        `[🎁] ${freeTest.label} ✦ ${freeTest.devices} 📱 ✦ ${freeTest.price}₽`,
+        ACTIONS.FREE_TEST,
+      ),
+    ]);
+  }
 
-  // Неделя
-  rows.push([Markup.button.callback('Неделя ✦ 49₽', ACTIONS.WEEK)]);
+  // Неделя (0.25 месяца)
+  const week = ACCESS_PRICES.find((p) => p.months === 0.25);
+  if (week) {
+    rows.push([
+      Markup.button.callback(`${week.label} ✦ ${week.price}₽`, ACTIONS.WEEK),
+    ]);
+  }
 
-  // Месяц
-  rows.push([Markup.button.callback('Месяц ✦ 99₽', ACTIONS.MONTH_1)]);
+  // Месяц (1 месяц)
+  const month1 = ACCESS_PRICES.find((p) => p.months === 1);
+  if (month1) {
+    rows.push([
+      Markup.button.callback(
+        `${month1.label} ✦ ${month1.price}₽`,
+        ACTIONS.MONTH_1,
+      ),
+    ]);
+  }
 
   // 3 Месяца
-  rows.push([Markup.button.callback('3 Месяца ✦ 279₽', ACTIONS.MONTH_3)]);
+  const month3 = ACCESS_PRICES.find((p) => p.months === 3);
+  if (month3) {
+    rows.push([
+      Markup.button.callback(
+        `${month3.label} ✦ ${month3.price}₽`,
+        ACTIONS.MONTH_3,
+      ),
+    ]);
+  }
 
   // 6 Месяцев
-  rows.push([Markup.button.callback('6 Месяцев ✦ 449₽', ACTIONS.MONTH_6)]);
+  const month6 = ACCESS_PRICES.find((p) => p.months === 6);
+  if (month6) {
+    rows.push([
+      Markup.button.callback(
+        `${month6.label} ✦ ${month6.price}₽`,
+        ACTIONS.MONTH_6,
+      ),
+    ]);
+  }
 
   // ⤴️ В меню
   rows.push([Markup.button.callback('⤴️ В меню', ACTIONS.START_MENU)]);
@@ -86,20 +123,14 @@ export const platformKeyboard = () => {
 
   // Row 1: 🤖 Android ↗️ | 🖥 Windows ↗️
   rows.push([
-    Markup.button.url(
-      '🤖 Android ↗️',
-      'https://telegra.ph/Podklyuchenie-VPN-na-Android-01-12',
-    ),
-    Markup.button.url(
-      '🖥 Windows ↗️',
-      'https://telegra.ph/Podklyuchenie-VPN-na-Windows-01-12',
-    ),
+    Markup.button.url('🤖 Android ↗️', PLATFORM_GUIDES.ANDROID),
+    Markup.button.url('🖥 Windows ↗️', PLATFORM_GUIDES.WINDOWS),
   ]);
 
   // Row 2: 📱 iPhone ↗️ | 💻 macOS ↗️
   rows.push([
-    Markup.button.url('📱 iPhone ↗️', 'https://telegra.ph/IPhone-03-02-5'),
-    Markup.button.url('💻 macOS ↗️', 'https://telegra.ph/IPhone-03-02-5'),
+    Markup.button.url('📱 iPhone ↗️', PLATFORM_GUIDES.IOS),
+    Markup.button.url('💻 macOS ↗️', PLATFORM_GUIDES.MACOS),
   ]);
 
   // Row 3: 🧾 Мои ключи | ⤴️ В меню
@@ -145,22 +176,19 @@ export const legalKeyboard = () => {
 
   // FAQ
   rows.push([
-    Markup.button.url('🧠 FAQ и ответы ↗️', 'https://telegra.ph/VPN-01-10-14'),
+    Markup.button.url(`${LEGAL_LINKS.FAQ.name} ↗️`, LEGAL_LINKS.FAQ.url),
   ]);
 
   // Условия сервиса
   rows.push([
-    Markup.button.url(
-      '� Условия сервиса ↗️',
-      'https://telegra.ph/Polzovatelskoe-soglashenie-04-01-19',
-    ),
+    Markup.button.url(`${LEGAL_LINKS.TERMS.name} ↗️`, LEGAL_LINKS.TERMS.url),
   ]);
 
   // Политика конфиденциальности
   rows.push([
     Markup.button.url(
-      '📄 Политика конфиденциальности ↗️',
-      'https://telegra.ph/Politika-konfidencialnosti-04-01-26',
+      `${LEGAL_LINKS.PRIVACY.name} ↗️`,
+      LEGAL_LINKS.PRIVACY.url,
     ),
   ]);
 
@@ -193,19 +221,17 @@ export const extendSuccessKeyboard = () =>
   ]);
 
 /**
- * Legacy: Клавиатура с кнопкой НАЗАД (для старых экранов)
+ * Клавиатура с кнопкой ⤴️ В меню
  */
 export const backKeyboard = () =>
   Markup.inlineKeyboard([
     [Markup.button.callback('⤴️ В меню', ACTIONS.START_MENU)],
   ]);
 
-// Удаление ReplyKeyboard для показа системной кнопки
-export const removeReplyKeyboard = () => Markup.removeKeyboard();
-
 /**
- * Клавиатура для экрана платформы с кнопкой назад
- * Legacy: используется в старых platform командах
+ * Клавиатура для экрана платформы:
+ * - 📖 Открыть инструкцию (guideUrl)
+ * - ⤴️ В меню
  */
 export const platformDetailKeyboard = (guideUrl?: string) => {
   const rows: any[] = [];

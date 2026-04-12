@@ -20,25 +20,18 @@ jest.mock('./application/commands/instructions.command', () => ({
     readonly pattern = ['instructions', 'help'];
     execute = jest.fn().mockResolvedValue(undefined);
   },
+  PlatformInstructionsCommand: class MockPlatformInstructionsCommand {
+    readonly pattern = [
+      'platform_ios',
+      'platform_android',
+      'platform_windows',
+      'platform_macos',
+    ];
+    execute = jest.fn().mockResolvedValue(undefined);
+  },
 }));
 
-jest.mock('./application/commands/key.command', () => ({
-  KeyCommand: class MockKeyCommand {
-    readonly pattern = ['key'];
-    execute = jest.fn().mockResolvedValue(undefined);
-  },
-  Month1Command: class MockMonth1Command {
-    readonly pattern = 'month_1';
-    execute = jest.fn().mockResolvedValue(undefined);
-  },
-  Month3Command: class MockMonth3Command {
-    readonly pattern = 'month_3';
-    execute = jest.fn().mockResolvedValue(undefined);
-  },
-  Month6Command: class MockMonth6Command {
-    readonly pattern = 'month_6';
-    execute = jest.fn().mockResolvedValue(undefined);
-  },
+jest.mock('./application/commands/key-management.commands', () => ({
   CopyKeyCommand: class MockCopyKeyCommand {
     readonly pattern = /^copy_key:/;
     execute = jest.fn().mockResolvedValue(undefined);
@@ -47,38 +40,11 @@ jest.mock('./application/commands/key.command', () => ({
     readonly pattern = ['my_key', 'mykey'];
     execute = jest.fn().mockResolvedValue(undefined);
   },
-  FreeTestCommand: class MockFreeTestCommand {
-    readonly pattern = 'free_test';
-    execute = jest.fn().mockResolvedValue(undefined);
-  },
-  WeekCommand: class MockWeekCommand {
-    readonly pattern = 'week';
-    execute = jest.fn().mockResolvedValue(undefined);
-  },
 }));
 
 jest.mock('./application/commands/support.command', () => ({
   SupportCommand: class MockSupportCommand {
     readonly pattern = ['support', 'support_cmd'];
-    execute = jest.fn().mockResolvedValue(undefined);
-  },
-}));
-
-jest.mock('./application/commands/platform-instructions.command', () => ({
-  PlatformIosCommand: class MockPlatformIosCommand {
-    readonly pattern = 'platform_ios';
-    execute = jest.fn().mockResolvedValue(undefined);
-  },
-  PlatformAndroidCommand: class MockPlatformAndroidCommand {
-    readonly pattern = 'platform_android';
-    execute = jest.fn().mockResolvedValue(undefined);
-  },
-  PlatformWindowsCommand: class MockPlatformWindowsCommand {
-    readonly pattern = 'platform_windows';
-    execute = jest.fn().mockResolvedValue(undefined);
-  },
-  PlatformMacosCommand: class MockPlatformMacosCommand {
-    readonly pattern = 'platform_macos';
     execute = jest.fn().mockResolvedValue(undefined);
   },
 }));
@@ -113,42 +79,31 @@ describe('BotActionsService', () => {
     let callCount = 0;
     const handlerNames = [
       'StartCommand',
-      'KeyCommand',
-      'Month1Command',
-      'Month3Command',
-      'Month6Command',
+      'BuyMenuCommand',
+      'RentCommand',
       'CopyKeyCommand',
       'MyKeyCommand',
-      'FreeTestCommand',
-      'WeekCommand',
       'InstructionsCommand',
-      'PlatformIosCommand',
-      'PlatformAndroidCommand',
-      'PlatformWindowsCommand',
-      'PlatformMacosCommand',
+      'PlatformInstructionsCommand',
       'SupportCommand',
-      'BuyMenuCommand',
       'MyKeysCommand',
       'PartnersCommand',
       'LegalCommand',
     ];
     const patterns: (string | string[] | RegExp)[] = [
       ['start_menu', 'start'],
-      'key',
-      'month_1',
-      'month_3',
-      'month_6',
+      'buy_menu',
+      'rent',
       /^copy_key:/,
       ['my_key', 'mykey'],
-      'free_test',
-      'week',
       ['instructions', 'help'],
-      'platform_ios',
-      'platform_android',
-      'platform_windows',
-      'platform_macos',
+      [
+        'platform_ios',
+        'platform_android',
+        'platform_windows',
+        'platform_macos',
+      ],
       'support',
-      'buy_menu',
       'my_keys',
       'partners',
       'legal',
@@ -197,7 +152,7 @@ describe('BotActionsService', () => {
   describe('onModuleInit', () => {
     it('should build handler map on initialization', async () => {
       await service.onModuleInit();
-      expect(moduleRef.get).toHaveBeenCalledTimes(19);
+      expect(moduleRef.get).toHaveBeenCalledTimes(11);
     });
   });
 
@@ -254,16 +209,16 @@ describe('BotActionsService', () => {
       expect(startHandler.execute).toHaveBeenCalled();
     });
 
-    it('should route "key" callback to KeyCommand via Map lookup', async () => {
+    it('should route "rent" callback to RentCommand via Map lookup', async () => {
       const mockCtx = {
         reply: jest.fn().mockResolvedValue(undefined),
       } as unknown as BotContext;
 
-      const keyHandler = capturedHandlers['KeyCommand'];
+      const rentHandler = capturedHandlers['RentCommand'];
 
-      await service.handleCallbackQuery(mockCtx, 'key', 123456789);
+      await service.handleCallbackQuery(mockCtx, 'rent', 123456789);
 
-      expect(keyHandler.execute).toHaveBeenCalled();
+      expect(rentHandler.execute).toHaveBeenCalled();
     });
 
     it('should route "instructions" callback to InstructionsCommand via Map lookup', async () => {
