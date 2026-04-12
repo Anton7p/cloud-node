@@ -57,9 +57,8 @@ export class MarzbanService implements OnModuleInit {
       'http://cloudnode-marzban:8000';
 
     // External domain for public links
-    this.domainName = this.configService.get<AppConfig['domainName']>(
-      'app.domainName',
-    );
+    this.domainName =
+      this.configService.get<AppConfig['domainName']>('app.domainName');
 
     // Use internal URL for API calls
     this.httpClient = axios.create({
@@ -426,7 +425,9 @@ export class MarzbanService implements OnModuleInit {
   private buildSubscriptionUrl(username: string): string {
     const subBaseUrl =
       this.configService.get<AppConfig['subBaseUrl']>('app.subBaseUrl') ||
-      (this.domainName ? `https://${this.domainName}` : 'https://cloudnode-host.ru');
+      (this.domainName
+        ? `https://${this.domainName}`
+        : 'https://cloudnode-host.ru');
     return `${subBaseUrl.replace(/\/$/, '')}/${username}`;
   }
 

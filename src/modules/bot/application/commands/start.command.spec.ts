@@ -7,13 +7,18 @@ import { CommandContext } from '../base.action';
 jest.mock('../../ui', () => ({
   MESSAGES: {
     MAIN_TITLE: '⚡️ Добро пожаловать в самый быстрый и стабильный VPN!',
+    WELCOME_FIRST: '❤️ Лучший сервис по лучшей стоимости',
   },
   ACTIONS: {
     START_MENU: 'start_menu',
+    SHOW_MAIN_MENU: 'show_main_menu',
     BACK_TO_MAIN: 'start_menu',
   },
   mainKeyboard: jest.fn(() => ({
     reply_markup: { inline_keyboard: [] },
+  })),
+  startButtonKeyboard: jest.fn(() => ({
+    reply_markup: { inline_keyboard: [[{ text: '▶️ Старт', callback_data: 'show_main_menu' }]] },
   })),
 }));
 
@@ -74,14 +79,16 @@ describe('StartCommand (Clean UI)', () => {
   });
 
   it('should have correct pattern', () => {
-    expect(command.pattern).toEqual(['start_menu', 'start']);
+    expect(command.pattern).toEqual(['start_menu', 'show_main_menu', 'start']);
   });
 
   describe('execute', () => {
-    it('should create new user and send main menu', async () => {
+    it('should create new user and send welcome screen with photo', async () => {
       usersService.findOrCreate.mockResolvedValue({ id: 1 });
 
       const context = createMockContext('start');
+      context.ctx.replyWithPhoto = jest.fn().mockResolvedValue(undefined);
+
       await command.execute(context);
 
       // Verify user registration
@@ -93,6 +100,16 @@ describe('StartCommand (Clean UI)', () => {
         status: 'active',
         subscriptionType: 'free',
       });
+
+      // Verify welcome screen with photo was sent
+      expect(context.ctx.replyWithPhoto).toHaveBeenCalled();
+    });
+
+    it('should send main menu when show_main_menu is triggered', async () => {
+      usersService.findOrCreate.mockResolvedValue({ id: 1 });
+
+      const context = createMockContext('show_main_menu');
+      await command.execute(context);
 
       // Verify main menu was sent
       expect(context.ctx.reply).toHaveBeenCalledWith(
