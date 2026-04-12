@@ -84,7 +84,7 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Marzban Core - VPN Panel with SSL
+  # Marzban Core - VPN Panel (HTTP mode)
   marzban:
     image: gozargah/marzban:latest
     container_name: cloudnode-marzban
@@ -92,21 +92,14 @@ services:
     environment:
       - UVICORN_HOST=0.0.0.0
       - UVICORN_PORT=8000
-      - UVICORN_SSL_CERTFILE=/var/lib/marzban/certs/cloudnode-host.ru.crt
-      - UVICORN_SSL_KEYFILE=/var/lib/marzban/certs/cloudnode-host.ru.key
       - DASHBOARD_PATH=/dashboard
-      - XRAY_SUBSCRIPTION_URL=https://cloudnode-host.ru
+      - XRAY_SUBSCRIPTION_URL=${SUB_BASE_URL:-https://cloudnode-host.ru}
       - XRAY_EXECUTABLE_PATH=/usr/local/bin/xray
-      - SSL_CERT_FILE=/var/lib/marzban/certs/cloudnode-host.ru.crt
-      - SSL_KEY_FILE=/var/lib/marzban/certs/cloudnode-host.ru.key
-      - SSL_CLIENT_CERT_FILE=/var/lib/marzban/certs/cloudnode-host.ru.crt
     volumes:
       - marzban-data:/var/lib/marzban
-      - marzban-certs:/var/lib/marzban/certs
     networks:
       - cloudnode-network
     ports:
-      - "443:443"
       - "8000:8000"
     logging:
       driver: "json-file"
@@ -120,8 +113,6 @@ volumes:
   redis-data:
     driver: local
   marzban-data:
-    driver: local
-  marzban-certs:
     driver: local
   marzban-node-certs:
     driver: local
