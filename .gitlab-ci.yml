@@ -1,4 +1,5 @@
 stages:
+  - infrastructure
   - build
   - deploy
 
@@ -7,6 +8,39 @@ variables:
   DOCKER_IMAGE_TAG: $CI_COMMIT_SHORT_SHA
   DOCKER_IMAGE_LATEST: $CI_REGISTRY_IMAGE:latest
   SERVER_IP: ${SERVER_IP:-62.60.229.227}
+  ANSIBLE_HOST_KEY_CHECKING: "False"
+
+# Infrastructure stage - Deploy and configure remote nodes via Ansible
+infrastructure:
+  stage: infrastructure
+  image: alpine/ansible:latest
+  before_script:
+    - apk add --no-cache openssh-client
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - ssh-keyscan -H $SERVER_IP >> ~/.ssh/known_hosts
+  script:
+    - echo "Configuring infrastructure nodes via Ansible..."
+    - cd ansible
+    - |
+      # Generate inventory from INFRASTRUCTURE_IP_LIST
+      if [ -n "$INFRASTRUCTURE_IP_LIST" ]; then
+        echo "[nodes]" > inventory.ini
+        IFS=',' read -ra IPS <<< "$INFRASTRUCTURE_IP_LIST"
+        for ip in "${IPS[@]}"; do
+          echo "${ip} ansible_user=${SERVER_USER:-root} ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory.ini
+        done
+        echo "" >> inventory.ini
+        echo "[nodes:vars]" >> inventory.ini
+        echo "ansible_python_interpreter=/usr/bin/python3" >> inventory.ini
+      fi
+    - ansible-playbook -i inventory.ini deploy_node.yml
+    - echo "Infrastructure configuration completed!"
+  only:
+    - main
+    - master
+    - develop
 
 # Build stage - Build Docker image
 build:
@@ -60,7 +94,6 @@ deploy:
       export REMOTE_MARZBAN_ADMIN_USERNAME="$MARZBAN_ADMIN_USERNAME"
       export REMOTE_MARZBAN_ADMIN_PASSWORD="$MARZBAN_ADMIN_PASSWORD"
       export REMOTE_SUB_BASE_URL="$SUB_BASE_URL"
-      export REMOTE_ACME_EMAIL="$ACME_EMAIL"
       export REMOTE_INFRASTRUCTURE_IP_LIST="$INFRASTRUCTURE_IP_LIST"
       ssh -o StrictHostKeyChecking=no ${SERVER_USER:-root}@${SERVER_IP} << EOF
         set -e
@@ -82,7 +115,6 @@ deploy:
         echo "MARZBAN_ADMIN_USERNAME=${REMOTE_MARZBAN_ADMIN_USERNAME}" >> .env
         echo "MARZBAN_ADMIN_PASSWORD=${REMOTE_MARZBAN_ADMIN_PASSWORD}" >> .env
         echo "SUB_BASE_URL=${REMOTE_SUB_BASE_URL}" >> .env
-        echo "ACME_EMAIL=${REMOTE_ACME_EMAIL}" >> .env
         echo "INFRASTRUCTURE_IP_LIST=${REMOTE_INFRASTRUCTURE_IP_LIST}" >> .env
 
         echo "[DEPLOY] Logging into Docker Registry..."
@@ -106,7 +138,6 @@ deploy:
         export MARZBAN_ADMIN_USERNAME=${REMOTE_MARZBAN_ADMIN_USERNAME}
         export MARZBAN_ADMIN_PASSWORD=${REMOTE_MARZBAN_ADMIN_PASSWORD}
         export SUB_BASE_URL=${REMOTE_SUB_BASE_URL}
-        export ACME_EMAIL=${REMOTE_ACME_EMAIL}
         export INFRASTRUCTURE_IP_LIST=${REMOTE_INFRASTRUCTURE_IP_LIST}
 
         docker compose up -d

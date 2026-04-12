@@ -24,6 +24,8 @@ export interface AppConfig {
   encryptionKey: string | undefined;
   // Infrastructure nodes
   infrastructureIpList: string | undefined;
+  // Marzban Node SSL certificate directory
+  marzbanNodeCertDir: string | undefined;
 }
 
 const logger = new Logger('Config');
@@ -56,6 +58,8 @@ export const configuration = registerAs('app', (): AppConfig => {
     encryptionKey: process.env.ENCRYPTION_KEY,
     // Infrastructure nodes
     infrastructureIpList: process.env.INFRASTRUCTURE_IP_LIST,
+    // Marzban Node SSL certificate directory
+    marzbanNodeCertDir: process.env.MARZBAN_NODE_CERT_DIR,
   };
 });
 
@@ -96,4 +100,6 @@ export const validationSchema = Joi.object({
   ENCRYPTION_KEY: Joi.string().optional(),
   // Infrastructure IP list - optional
   INFRASTRUCTURE_IP_LIST: Joi.string().optional(),
+  // Marzban Node SSL certificate directory - optional
+  MARZBAN_NODE_CERT_DIR: Joi.string().optional(),
 });

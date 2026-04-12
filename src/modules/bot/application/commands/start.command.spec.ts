@@ -103,7 +103,6 @@ describe('StartCommand (Clean UI)', () => {
       );
     });
 
-
     it('should handle missing user data gracefully', async () => {
       const context: CommandContext = {
         ctx: {

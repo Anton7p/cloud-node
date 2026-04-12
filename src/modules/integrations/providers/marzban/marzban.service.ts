@@ -1,6 +1,8 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
+import * as fs from 'fs';
+import * as path from 'path';
 import { AppConfig } from '../../../../shared/config/configuration';
 
 interface MarzbanTokenResponse {
@@ -24,6 +26,14 @@ interface MarzbanNode {
   status?: string;
 }
 
+interface MarzbanNodeSettings {
+  certificate: string;
+}
+
+const NODE_SERVICE_PORT = 62050;
+const DEFAULT_CERT_DIR = '/var/www/marzban_node/var';
+const CERT_FILENAME = 'ssl_client_cert.pem';
+
 export interface CreateUserResult {
   success: boolean;
   subscriptionUrl?: string;
@@ -35,6 +45,7 @@ export interface CreateUserResult {
 export class MarzbanService implements OnModuleInit {
   private readonly logger = new Logger(MarzbanService.name);
   private readonly httpClient: AxiosInstance;
+  private readonly certPath: string;
   private accessToken: string | null = null;
 
   constructor(private readonly configService: ConfigService) {
@@ -59,11 +70,65 @@ export class MarzbanService implements OnModuleInit {
       },
       (error) => Promise.reject(error),
     );
+
+    const certDir =
+      this.configService.get<AppConfig['marzbanNodeCertDir']>(
+        'app.marzbanNodeCertDir',
+      ) || DEFAULT_CERT_DIR;
+    this.certPath = path.join(certDir, CERT_FILENAME);
   }
 
   async onModuleInit(): Promise<void> {
-    await this.login();
-    await this.registerInfrastructureNodes();
+    try {
+      await this.login();
+      await this.fetchAndSaveCert();
+      await this.registerInfrastructureNodes();
+    } catch (error) {
+      this.logger.error(
+        'Failed to initialize Marzban service:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
+    }
+  }
+
+  /**
+   * Fetch SSL certificate from Marzban Master and save it locally
+   */
+  private async fetchAndSaveCert(): Promise<void> {
+    try {
+      if (!this.accessToken) {
+        this.logger.warn('Cannot fetch certificate: not authenticated');
+        return;
+      }
+
+      this.logger.log('Fetching SSL certificate from Marzban Master...');
+
+      const response =
+        await this.httpClient.get<MarzbanNodeSettings>('/nodes/settings');
+
+      if (!response.data?.certificate) {
+        this.logger.warn('No certificate returned from Marzban API');
+        return;
+      }
+
+      const certDir = path.dirname(this.certPath);
+
+      if (!fs.existsSync(certDir)) {
+        fs.mkdirSync(certDir, { recursive: true });
+        this.logger.log(`Created certificate directory: ${certDir}`);
+      }
+
+      fs.writeFileSync(this.certPath, response.data.certificate, {
+        mode: 0o644,
+      });
+
+      this.logger.log(`SSL certificate saved to: ${this.certPath}`);
+    } catch (error) {
+      this.logger.error(
+        'Failed to fetch and save certificate:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
+    }
   }
 
   /**
@@ -151,7 +216,7 @@ export class MarzbanService implements OnModuleInit {
     const nodeData: MarzbanNode = {
       name: `Node-${ip}`,
       address: ip,
-      port: 443,
+      port: NODE_SERVICE_PORT,
     };
 
     await this.httpClient.post('/node', nodeData);

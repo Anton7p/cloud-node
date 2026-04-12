@@ -1,0 +1,132 @@
+---
+- name: Deploy Marzban Node on Infrastructure Servers
+  hosts: nodes
+  become: yes
+  vars:
+    node_dir: /var/www/marzban_node
+    node_var_dir: "{{ node_dir }}/var"
+    service_port: 62050
+    xray_api_port: 62051
+    marzban_node_image: gozargah/marzban-node:latest
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: Install required packages
+      apt:
+        name:
+          - docker.io
+          - docker-compose
+          - curl
+          - iptables
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Enable and start Docker service
+      systemd:
+        name: docker
+        enabled: yes
+        state: started
+
+    - name: Add user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+    - name: Enable TCP BBR congestion control
+      sysctl:
+        name: net.ipv4.tcp_congestion_control
+        value: bbr
+        state: present
+        reload: yes
+      ignore_errors: yes
+
+    - name: Ensure BBR is available
+      shell: sysctl net.ipv4.tcp_available_congestion_control | grep -q bbr
+      register: bbr_available
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Load tcp_bbr module if available
+      modprobe:
+        name: tcp_bbr
+        state: present
+      when: bbr_available.rc == 0
+      ignore_errors: yes
+
+    - name: Create node directory structure
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+      loop:
+        - "{{ node_dir }}"
+        - "{{ node_var_dir }}"
+
+    - name: Create Docker Compose file for Marzban Node
+      copy:
+        dest: "{{ node_dir }}/docker-compose.yml"
+        content: |
+          services:
+            marzban-node:
+              image: {{ marzban_node_image }}
+              container_name: marzban-node
+              restart: always
+              network_mode: host
+              environment:
+                - SERVICE_PORT={{ service_port }}
+                - XRAY_API_PORT={{ xray_api_port }}
+                - SSL_CLIENT_CERT_FILE=/var/lib/marzban-node/ssl_client_cert.pem
+              volumes:
+                - ./var:/var/lib/marzban-node
+              logging:
+                driver: "json-file"
+                options:
+                  max-size: "10m"
+                  max-file: "3"
+        mode: '0644'
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+
+    - name: Pull latest Marzban Node image
+      docker_image:
+        name: "{{ marzban_node_image }}"
+        source: pull
+
+    - name: Stop existing Marzban Node containers
+      command: docker compose down
+      args:
+        chdir: "{{ node_dir }}"
+      ignore_errors: yes
+
+    - name: Start Marzban Node
+      command: docker compose up -d
+      args:
+        chdir: "{{ node_dir }}"
+
+    - name: Wait for Marzban Node to be ready
+      uri:
+        url: "http://localhost:{{ service_port }}/health"
+        method: GET
+        status_code: 200
+      register: health_check
+      retries: 10
+      delay: 3
+      until: health_check.status == 200
+      ignore_errors: yes
+
+    - name: Display deployment status
+      debug:
+        msg: |
+          Marzban Node deployed successfully!
+          - Node directory: {{ node_dir }}
+          - Service port: {{ service_port }}
+          - Xray API port: {{ xray_api_port }}
+          - Health check: {{ 'PASSED' if health_check.status == 200 else 'FAILED' }}

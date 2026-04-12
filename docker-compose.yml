@@ -26,6 +26,8 @@ services:
         condition: service_started
     networks:
       - cloudnode-network
+    volumes:
+      - marzban-node-certs:/var/www/marzban_node/var:rw
     # Ports only if bot exposes HTTP endpoints
     # ports:
     #   - "3000:3000"
@@ -120,6 +122,8 @@ volumes:
   marzban-data:
     driver: local
   marzban-certs:
+    driver: local
+  marzban-node-certs:
     driver: local
 
 networks:
