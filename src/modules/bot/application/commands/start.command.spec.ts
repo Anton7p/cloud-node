@@ -18,7 +18,11 @@ jest.mock('../../ui', () => ({
     reply_markup: { inline_keyboard: [] },
   })),
   startButtonKeyboard: jest.fn(() => ({
-    reply_markup: { inline_keyboard: [[{ text: '▶️ Старт', callback_data: 'show_main_menu' }]] },
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '▶️ Старт', callback_data: 'show_main_menu' }],
+      ],
+    },
   })),
 }));
 
