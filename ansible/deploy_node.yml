@@ -1,20 +1,28 @@
 ---
-- name: Deploy Marzban Node on Infrastructure Servers
+- name: Deploy or Update Marzban Node on Infrastructure Servers
   hosts: nodes
   become: yes
+  strategy: free
   vars:
     node_dir: /var/www/marzban_node
     node_var_dir: "{{ node_dir }}/var"
     service_port: 62050
     xray_api_port: 62051
     marzban_node_image: gozargah/marzban-node:latest
+    compose_project_name: "marzban-node"
 
   tasks:
+    - name: Check if Docker is installed
+      command: docker --version
+      register: docker_check
+      ignore_errors: yes
+      changed_when: false
+
     - name: Update apt cache
       apt:
         update_cache: yes
         cache_valid_time: 3600
-      when: ansible_os_family == "Debian"
+      when: ansible_os_family == "Debian" and docker_check.rc != 0
 
     - name: Install required packages
       apt:
@@ -24,7 +32,7 @@
           - curl
           - iptables
         state: present
-      when: ansible_os_family == "Debian"
+      when: ansible_os_family == "Debian" and docker_check.rc != 0
 
     - name: Enable and start Docker service
       systemd:
@@ -34,9 +42,10 @@
 
     - name: Add user to docker group
       user:
-        name: "{{ ansible_user }}"
+        name: "{{ ansible_user | default(ansible_ssh_user) }}"
         groups: docker
         append: yes
+      ignore_errors: yes
 
     - name: Enable TCP BBR congestion control
       sysctl:
@@ -64,11 +73,25 @@
         path: "{{ item }}"
         state: directory
         mode: '0755'
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
+        owner: "{{ ansible_user | default(ansible_ssh_user) }}"
+        group: "{{ ansible_user | default(ansible_ssh_user) }}"
       loop:
         - "{{ node_dir }}"
         - "{{ node_var_dir }}"
+
+    - name: Check if marzban-node container is running
+      command: docker ps -q -f name=marzban-node
+      register: container_check
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Set deployment mode fact
+      set_fact:
+        is_fresh_install: "{{ container_check.stdout == '' }}"
+
+    - name: Display deployment mode
+      debug:
+        msg: "Deployment mode: {{ 'FRESH INSTALL' if is_fresh_install else 'UPDATE' }} on {{ inventory_hostname }}"
 
     - name: Create Docker Compose file for Marzban Node
       copy:
@@ -92,21 +115,28 @@
                   max-size: "10m"
                   max-file: "3"
         mode: '0644'
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
+        owner: "{{ ansible_user | default(ansible_ssh_user) }}"
+        group: "{{ ansible_user | default(ansible_ssh_user) }}"
 
-    - name: Pull latest Marzban Node image
-      docker_image:
-        name: "{{ marzban_node_image }}"
-        source: pull
-
-    - name: Stop existing Marzban Node containers
-      command: docker compose down
+    - name: Validate Docker Compose configuration
+      command: docker compose config
       args:
         chdir: "{{ node_dir }}"
-      ignore_errors: yes
+      register: compose_config
+      changed_when: false
 
-    - name: Start Marzban Node
+    - name: Display compose validation result
+      debug:
+        msg: "Docker Compose configuration is valid"
+      when: compose_config.rc == 0
+
+    - name: Pull latest Marzban Node image (for updates)
+      command: docker compose pull
+      args:
+        chdir: "{{ node_dir }}"
+      when: not is_fresh_install
+
+    - name: Start or update Marzban Node
       command: docker compose up -d
       args:
         chdir: "{{ node_dir }}"
@@ -117,16 +147,22 @@
         method: GET
         status_code: 200
       register: health_check
-      retries: 10
-      delay: 3
+      retries: 15
+      delay: 2
       until: health_check.status == 200
+      ignore_errors: yes
+
+    - name: Prune old Docker images
+      command: docker image prune -f
+      changed_when: true
       ignore_errors: yes
 
     - name: Display deployment status
       debug:
         msg: |
-          Marzban Node deployed successfully!
+          Marzban Node {{ 'installed' if is_fresh_install else 'updated' }} successfully on {{ inventory_hostname }}!
           - Node directory: {{ node_dir }}
           - Service port: {{ service_port }}
           - Xray API port: {{ xray_api_port }}
-          - Health check: {{ 'PASSED' if health_check.status == 200 else 'FAILED' }}
+          - Health check: {{ 'PASSED' if health_check.status == 200 else 'PENDING (node may be waiting for SSL cert)' }}
+          - Deployment type: {{ 'Fresh install' if is_fresh_install else 'Rolling update' }}

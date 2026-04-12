@@ -35,7 +35,7 @@ infrastructure:
         echo "[nodes:vars]" >> inventory.ini
         echo "ansible_python_interpreter=/usr/bin/python3" >> inventory.ini
       fi
-    - ansible-playbook -i inventory.ini deploy_node.yml
+    - ansible-playbook -i inventory.ini deploy_node.yml -f 10
     - echo "Infrastructure configuration completed!"
   only:
     - main
