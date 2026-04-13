@@ -37,7 +37,12 @@ infrastructure:
         echo "ansible_python_interpreter=/usr/bin/python3" >> inventory.ini
         echo "domain_name=${DOMAIN_NAME}" >> inventory.ini
       fi
-    - ansible-playbook -i inventory.ini deploy_node.yml -f 10 --extra-vars "domain_name=${DOMAIN_NAME}"
+    - |
+      ansible-playbook -i inventory.ini deploy_node.yml -f 10 \
+        --extra-vars "domain_name=${DOMAIN_NAME}" \
+        -e "MARZBAN_URL=${MARZBAN_URL}" \
+        -e "MARZBAN_ADMIN_USERNAME=${MARZBAN_ADMIN_USERNAME}" \
+        -e "MARZBAN_ADMIN_PASSWORD=${MARZBAN_ADMIN_PASSWORD}"
     - echo "Infrastructure configuration completed!"
   only:
     - main

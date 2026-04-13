@@ -6,10 +6,27 @@
   vars:
     node_dir: /var/www/marzban_node
     node_var_dir: "{{ node_dir }}/var"
+    cert_file: "{{ node_var_dir }}/ssl_client_cert.pem"
     service_port: 62050
     xray_api_port: 62051
     marzban_node_image: gozargah/marzban-node:latest
     compose_project_name: "marzban-node"
+    # Marzban Master URL - supports both extra-vars (-e) and env variables
+    marzban_url: "{{ MARZBAN_URL | default(lookup('env', 'MARZBAN_URL'), true) }}"
+    # Credentials - supports both extra-vars (-e) and env variables
+    marzban_username: "{{ MARZBAN_ADMIN_USERNAME | default(lookup('env', 'MARZBAN_ADMIN_USERNAME'), true) }}"
+    marzban_password: "{{ MARZBAN_ADMIN_PASSWORD | default(lookup('env', 'MARZBAN_ADMIN_PASSWORD'), true) }}"
+
+  pre_tasks:
+    - name: Validate required GitLab variables
+      fail:
+        msg: "Missing required GitLab CI/CD variable: {{ item.var }}. Please set it in GitLab Settings > CI/CD > Variables."
+      when: item.value | length == 0
+      loop:
+        - { var: "MARZBAN_ADMIN_USERNAME", value: "{{ marzban_username }}" }
+        - { var: "MARZBAN_URL", value: "{{ marzban_url }}" }
+      loop_control:
+        label: "{{ item.var }}"
 
   tasks:
     - name: Check if Docker is installed
@@ -115,6 +132,62 @@
         - "{{ node_dir }}"
         - "{{ node_var_dir }}"
 
+    # ============================================================================
+    # AUTHENTICATION & CERTIFICATE FETCH
+    # ============================================================================
+
+    - name: Authenticate with Marzban Master API
+      uri:
+        url: "{{ marzban_url }}/api/admin/token"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          username: "{{ marzban_username }}"
+          password: "{{ marzban_password }}"
+        return_content: yes
+        status_code: 200
+        timeout: 30
+      register: auth_response
+      no_log: true
+
+    - name: Display auth success
+      debug:
+        msg: "Successfully authenticated with Marzban Master at {{ marzban_url }}"
+      when: auth_response.status == 200
+
+    - name: Fail if authentication failed
+      fail:
+        msg: "Authentication failed with Marzban Master. Status: {{ auth_response.status | default('unknown') }}. Check MARZBAN_ADMIN_USERNAME and MARZBAN_ADMIN_PASSWORD."
+      when: auth_response.status != 200
+
+    - name: Check if certificate already exists
+      stat:
+        path: "{{ cert_file }}"
+      register: existing_cert
+
+    - name: Read existing certificate content
+      slurp:
+        src: "{{ cert_file }}"
+      register: existing_cert_content
+      when: existing_cert.stat.exists
+
+    - name: Fetch SSL certificate from Master API
+      uri:
+        url: "{{ marzban_url }}/api/nodes/settings"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ auth_response.json.access_token }}"
+        return_content: yes
+        status_code: 200
+        timeout: 30
+      register: cert_response
+
+    - name: Set certificate changed fact
+      set_fact:
+        cert_changed: >-
+          {{ not existing_cert.stat.exists or
+             (existing_cert_content.content | b64decode) != cert_response.json.certificate }}
+
     - name: Check if marzban-node container is running
       command: docker ps -q -f name=marzban-node
       register: container_check
@@ -124,10 +197,24 @@
     - name: Set deployment mode fact
       set_fact:
         is_fresh_install: "{{ container_check.stdout == '' }}"
+        restart_required: "{{ is_fresh_install or cert_changed }}"
 
     - name: Display deployment mode
       debug:
         msg: "Deployment mode: {{ 'FRESH INSTALL' if is_fresh_install else 'UPDATE' }} on {{ inventory_hostname }}"
+
+    - name: Display certificate status
+      debug:
+        msg: "Certificate {{ 'CHANGED' if cert_changed else 'unchanged' }}. Container restart {{ 'REQUIRED' if restart_required else 'not required' }}."
+
+    - name: Save SSL certificate to node
+      copy:
+        content: "{{ cert_response.json.certificate }}"
+        dest: "{{ cert_file }}"
+        mode: '0644'
+        owner: "{{ ansible_user | default(ansible_ssh_user) }}"
+        group: "{{ ansible_user | default(ansible_ssh_user) }}"
+      when: cert_response.json.certificate is defined
 
     - name: Create Docker Compose file for Marzban Node
       copy:
@@ -144,7 +231,7 @@
                 - XRAY_API_PORT={{ xray_api_port }}
                 - SSL_CLIENT_CERT_FILE=/var/lib/marzban-node/ssl_client_cert.pem
               volumes:
-                - ./var:/var/lib/marzban-node
+                - ./var:/var/lib/marzban-node:ro
               logging:
                 driver: "json-file"
                 options:
@@ -153,6 +240,7 @@
         mode: '0644'
         owner: "{{ ansible_user | default(ansible_ssh_user) }}"
         group: "{{ ansible_user | default(ansible_ssh_user) }}"
+      register: compose_file
 
     - name: Validate Docker Compose configuration
       command: docker compose config
@@ -166,16 +254,34 @@
         msg: "Docker Compose configuration is valid"
       when: compose_config.rc == 0
 
-    - name: Pull latest Marzban Node image (for updates)
+    # ============================================================================
+    # DOCKER CONTAINER MANAGEMENT (IDEMPOTENT)
+    # ============================================================================
+
+    - name: Pull latest Marzban Node image
       command: docker compose pull
       args:
         chdir: "{{ node_dir }}"
       when: not is_fresh_install
 
-    - name: Start or update Marzban Node
+    - name: Start Marzban Node (fresh install or restart required)
       command: docker compose up -d
       args:
         chdir: "{{ node_dir }}"
+      when: restart_required
+
+    - name: Restart Marzban Node (certificate changed, compose updated)
+      command: docker compose restart
+      args:
+        chdir: "{{ node_dir }}"
+      when:
+        - not restart_required
+        - compose_file is changed
+
+    - name: Check Marzban Node container status
+      command: docker ps -q -f name=marzban-node
+      register: container_status
+      changed_when: false
 
     - name: Wait for Marzban Node to be ready
       uri:
@@ -187,40 +293,22 @@
       delay: 2
       until: health_check.status == 200
       ignore_errors: yes
+      when: restart_required or compose_file is changed or container_status.stdout != ''
 
     - name: Prune old Docker images
       command: docker image prune -f
       changed_when: true
       ignore_errors: yes
 
-    - name: Fetch SSL certificate from Master (if domain_name provided)
-      uri:
-        url: "https://{{ domain_name | default(inventory_hostname) }}/api/nodes/settings"
-        method: GET
-        return_content: yes
-        validate_certs: no
-        timeout: 30
-      register: cert_response
-      ignore_errors: yes
-      when: domain_name is defined or is_fresh_install
-
-    - name: Save SSL certificate to node
-      copy:
-        content: "{{ cert_response.json.certificate }}"
-        dest: "{{ node_var_dir }}/ssl_client_cert.pem"
-        mode: '0644'
-      when:
-        - cert_response is defined
-        - cert_response.json is defined
-        - cert_response.json.certificate is defined
-
     - name: Display deployment status
       debug:
         msg: |
-          Marzban Node {{ 'installed' if is_fresh_install else 'updated' }} successfully on {{ inventory_hostname }}!
+          Marzban Node deployment completed on {{ inventory_hostname }}!
           - Node directory: {{ node_dir }}
           - Service port: {{ service_port }}
           - Xray API port: {{ xray_api_port }}
-          - Health check: {{ 'PASSED' if health_check.status == 200 else 'PENDING (node may be waiting for SSL cert)' }}
-          - Deployment type: {{ 'Fresh install' if is_fresh_install else 'Rolling update' }}
-          - SSL Cert: {{ 'Fetched from master' if cert_response is defined and cert_response.json is defined and cert_response.json.certificate is defined else 'Not fetched' }}
+          - SSL certificate: {{ 'saved to ' ~ cert_file }}
+          - Certificate changed: {{ cert_changed }}
+          - Container restarted: {{ restart_required or (compose_file is changed) }}
+          - Health check: {{ 'PASSED' if health_check.status is defined and health_check.status == 200 else 'SKIPPED/PENDING' }}
+          - Deployment type: {{ 'Fresh install' if is_fresh_install else 'Idempotent update' }}

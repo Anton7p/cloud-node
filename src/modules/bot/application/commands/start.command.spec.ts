@@ -83,7 +83,9 @@ describe('StartCommand (Clean UI)', () => {
   });
 
   it('should have correct pattern', () => {
-    expect(command.pattern).toEqual(/^(start|start_menu|show_main_menu)(\s+.*)?$/);
+    expect(command.pattern).toEqual(
+      /^(start|start_menu|show_main_menu)(\s+.*)?$/,
+    );
   });
 
   it('should match "start" command', () => {
