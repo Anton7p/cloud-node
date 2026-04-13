@@ -1,7 +1,7 @@
 stages:
-  - infrastructure
   - build
   - deploy
+  - infrastructure
 
 variables:
   DOCKER_IMAGE_NAME: $CI_REGISTRY_IMAGE
