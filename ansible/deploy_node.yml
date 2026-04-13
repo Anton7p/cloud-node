@@ -11,22 +11,37 @@
     xray_api_port: 62051
     marzban_node_image: gozargah/marzban-node:latest
     compose_project_name: "marzban-node"
-    # Marzban Master URL - supports both extra-vars (-e) and env variables
-    marzban_url: "{{ MARZBAN_URL | default(lookup('env', 'MARZBAN_URL'), true) }}"
     # Credentials - supports both extra-vars (-e) and env variables
     marzban_username: "{{ MARZBAN_ADMIN_USERNAME | default(lookup('env', 'MARZBAN_ADMIN_USERNAME'), true) }}"
     marzban_password: "{{ MARZBAN_ADMIN_PASSWORD | default(lookup('env', 'MARZBAN_ADMIN_PASSWORD'), true) }}"
 
   pre_tasks:
+    - name: Compute Marzban API URL
+      set_fact:
+        computed_api_url: "{{ 'https://' ~ domain_name ~ '/api' if domain_name is defined and domain_name | length > 0 else 'http://' ~ lookup('env', 'SERVER_IP') ~ ':8000/api' }}"
+      delegate_to: localhost
+      become: no
+      run_once: yes
+
+    - name: Display computed API URL
+      debug:
+        msg: "Using Marzban API URL: {{ computed_api_url }}"
+      delegate_to: localhost
+      become: no
+      run_once: yes
+
     - name: Validate required GitLab variables
       fail:
         msg: "Missing required GitLab CI/CD variable: {{ item.var }}. Please set it in GitLab Settings > CI/CD > Variables."
       when: item.value | length == 0
       loop:
         - { var: "MARZBAN_ADMIN_USERNAME", value: "{{ marzban_username }}" }
-        - { var: "MARZBAN_URL", value: "{{ marzban_url }}" }
+        - { var: "MARZBAN_ADMIN_PASSWORD", value: "{{ marzban_password }}" }
       loop_control:
         label: "{{ item.var }}"
+      delegate_to: localhost
+      become: no
+      run_once: yes
 
   tasks:
     - name: Check if Docker is installed
@@ -133,12 +148,12 @@
         - "{{ node_var_dir }}"
 
     # ============================================================================
-    # AUTHENTICATION & CERTIFICATE FETCH
+    # AUTHENTICATION & CERTIFICATE FETCH (RUNS ON GITLAB RUNNER - LOCALHOST)
     # ============================================================================
 
     - name: Authenticate with Marzban Master API
       uri:
-        url: "{{ marzban_url }}/api/admin/token"
+        url: "{{ computed_api_url }}/admin/token"
         method: POST
         body_format: form-urlencoded
         body:
@@ -149,31 +164,29 @@
         timeout: 30
       register: auth_response
       no_log: true
+      delegate_to: localhost
+      become: no
+      run_once: yes
 
     - name: Display auth success
       debug:
-        msg: "Successfully authenticated with Marzban Master at {{ marzban_url }}"
+        msg: "Successfully authenticated with Marzban Master at {{ computed_api_url }}"
       when: auth_response.status == 200
+      delegate_to: localhost
+      become: no
+      run_once: yes
 
     - name: Fail if authentication failed
       fail:
         msg: "Authentication failed with Marzban Master. Status: {{ auth_response.status | default('unknown') }}. Check MARZBAN_ADMIN_USERNAME and MARZBAN_ADMIN_PASSWORD."
       when: auth_response.status != 200
-
-    - name: Check if certificate already exists
-      stat:
-        path: "{{ cert_file }}"
-      register: existing_cert
-
-    - name: Read existing certificate content
-      slurp:
-        src: "{{ cert_file }}"
-      register: existing_cert_content
-      when: existing_cert.stat.exists
+      delegate_to: localhost
+      become: no
+      run_once: yes
 
     - name: Fetch SSL certificate from Master API
       uri:
-        url: "{{ marzban_url }}/api/nodes/settings"
+        url: "{{ computed_api_url }}/nodes/settings"
         method: GET
         headers:
           Authorization: "Bearer {{ auth_response.json.access_token }}"
@@ -181,12 +194,36 @@
         status_code: 200
         timeout: 30
       register: cert_response
+      delegate_to: localhost
+      become: no
+      run_once: yes
+
+    - name: Save certificate locally on Runner
+      copy:
+        content: "{{ cert_response.json.certificate }}"
+        dest: "/tmp/ssl_client_cert.pem"
+        mode: '0644'
+      when: cert_response.json.certificate is defined
+      delegate_to: localhost
+      become: no
+      run_once: yes
+
+    - name: Check if certificate already exists on node
+      stat:
+        path: "{{ cert_file }}"
+      register: existing_cert
+
+    - name: Read existing certificate content from node
+      slurp:
+        src: "{{ cert_file }}"
+      register: existing_cert_content
+      when: existing_cert.stat.exists
 
     - name: Set certificate changed fact
       set_fact:
         cert_changed: >-
           {{ not existing_cert.stat.exists or
-             (existing_cert_content.content | b64decode) != cert_response.json.certificate }}
+             (existing_cert_content.content | b64decode) != hostvars['localhost']['cert_response'].json.certificate }}
 
     - name: Check if marzban-node container is running
       command: docker ps -q -f name=marzban-node
@@ -207,14 +244,14 @@
       debug:
         msg: "Certificate {{ 'CHANGED' if cert_changed else 'unchanged' }}. Container restart {{ 'REQUIRED' if restart_required else 'not required' }}."
 
-    - name: Save SSL certificate to node
+    - name: Copy SSL certificate from Runner to node
       copy:
-        content: "{{ cert_response.json.certificate }}"
+        src: "/tmp/ssl_client_cert.pem"
         dest: "{{ cert_file }}"
         mode: '0644'
         owner: "{{ ansible_user | default(ansible_ssh_user) }}"
         group: "{{ ansible_user | default(ansible_ssh_user) }}"
-      when: cert_response.json.certificate is defined
+      when: cert_changed
 
     - name: Create Docker Compose file for Marzban Node
       copy:
@@ -268,7 +305,7 @@
       command: docker compose up -d
       args:
         chdir: "{{ node_dir }}"
-      when: restart_required
+      when: restart_required or cert_changed
 
     - name: Restart Marzban Node (certificate changed, compose updated)
       command: docker compose restart

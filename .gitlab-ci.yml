@@ -40,7 +40,6 @@ infrastructure:
     - |
       ansible-playbook -i inventory.ini deploy_node.yml -f 10 \
         --extra-vars "domain_name=${DOMAIN_NAME}" \
-        -e "MARZBAN_URL=${MARZBAN_URL}" \
         -e "MARZBAN_ADMIN_USERNAME=${MARZBAN_ADMIN_USERNAME}" \
         -e "MARZBAN_ADMIN_PASSWORD=${MARZBAN_ADMIN_PASSWORD}"
     - echo "Infrastructure configuration completed!"
@@ -97,7 +96,6 @@ deploy:
       export REMOTE_REDIS_HOST="$REDIS_HOST"
       export REMOTE_REDIS_PORT="${REDIS_PORT:-6379}"
       export REMOTE_REDIS_PASSWORD="$REDIS_PASSWORD"
-      export REMOTE_MARZBAN_URL="$MARZBAN_URL"
       export REMOTE_MARZBAN_ADMIN_USERNAME="$MARZBAN_ADMIN_USERNAME"
       export REMOTE_MARZBAN_ADMIN_PASSWORD="$MARZBAN_ADMIN_PASSWORD"
       export REMOTE_SUB_BASE_URL="$SUB_BASE_URL"
@@ -119,7 +117,6 @@ deploy:
         echo "REDIS_HOST=${REMOTE_REDIS_HOST}" >> .env
         echo "REDIS_PORT=${REMOTE_REDIS_PORT}" >> .env
         echo "REDIS_PASSWORD=${REMOTE_REDIS_PASSWORD}" >> .env
-        echo "MARZBAN_URL=${REMOTE_MARZBAN_URL}" >> .env
         echo "MARZBAN_ADMIN_USERNAME=${REMOTE_MARZBAN_ADMIN_USERNAME}" >> .env
         echo "MARZBAN_ADMIN_PASSWORD=${REMOTE_MARZBAN_ADMIN_PASSWORD}" >> .env
         echo "SUB_BASE_URL=${REMOTE_SUB_BASE_URL}" >> .env
@@ -143,7 +140,6 @@ deploy:
         export REDIS_HOST=${REMOTE_REDIS_HOST}
         export REDIS_PORT=${REMOTE_REDIS_PORT}
         export REDIS_PASSWORD=${REMOTE_REDIS_PASSWORD}
-        export MARZBAN_URL=${REMOTE_MARZBAN_URL}
         export MARZBAN_ADMIN_USERNAME=${REMOTE_MARZBAN_ADMIN_USERNAME}
         export MARZBAN_ADMIN_PASSWORD=${REMOTE_MARZBAN_ADMIN_PASSWORD}
         export SUB_BASE_URL=${REMOTE_SUB_BASE_URL}
