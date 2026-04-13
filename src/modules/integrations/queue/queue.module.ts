@@ -4,6 +4,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { ProvisioningQueue } from './provisioning.queue';
 import { ProvisioningProcessor } from './provisioning.processor';
 import { MarzbanService } from '../providers/marzban/marzban.service';
+import { MarzbanModule } from '../providers/marzban/marzban.module';
 import { RentalsModule } from '../../rentals/rentals.module';
 import { AppConfig } from '../../../shared/config/configuration';
 
@@ -36,6 +37,7 @@ import { AppConfig } from '../../../shared/config/configuration';
       name: 'provisioning',
     }),
     RentalsModule,
+    MarzbanModule,
   ],
   providers: [ProvisioningQueue, ProvisioningProcessor, MarzbanService],
   exports: [ProvisioningQueue, MarzbanService],
