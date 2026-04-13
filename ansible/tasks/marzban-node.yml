@@ -6,18 +6,14 @@
   changed_when: false
   ignore_errors: yes
 
-- name: Set deployment mode fact
+- name: Set fresh install fact
   set_fact:
     is_fresh_install: "{{ container_check.stdout == '' }}"
+
+- name: Set restart required fact
+  set_fact:
     restart_required: "{{ is_fresh_install or cert_changed }}"
 
-- name: Display deployment mode
-  debug:
-    msg: "Deployment mode: {{ 'FRESH INSTALL' if is_fresh_install else 'UPDATE' }} on {{ inventory_hostname }}"
-
-- name: Display certificate status
-  debug:
-    msg: "Certificate {{ 'CHANGED' if cert_changed else 'unchanged' }}. Container restart {{ 'REQUIRED' if restart_required else 'not required' }}."
 
 - name: Copy SSL certificate from Runner to node
   copy:
@@ -27,6 +23,16 @@
     owner: "{{ ansible_user | default(ansible_ssh_user) }}"
     group: "{{ ansible_user | default(ansible_ssh_user) }}"
   when: cert_changed
+
+- name: Verify certificate file exists on node
+  stat:
+    path: "{{ cert_file }}"
+  register: cert_file_check
+
+- name: Fail if certificate file not found
+  fail:
+    msg: "Certificate file not found at {{ cert_file }} after copy operation"
+  when: cert_changed and not cert_file_check.stat.exists
 
 - name: Create Docker Compose file for Marzban Node
   copy:
@@ -43,7 +49,7 @@
             - XRAY_API_PORT={{ xray_api_port }}
             - SSL_CLIENT_CERT_FILE=/var/lib/marzban-node/ssl_client_cert.pem
           volumes:
-            - ./var:/var/lib/marzban-node:ro
+            - {{ node_var_dir }}:/var/lib/marzban-node:ro
           logging:
             driver: "json-file"
             options:
@@ -60,11 +66,6 @@
     chdir: "{{ node_dir }}"
   register: compose_config
   changed_when: false
-
-- name: Display compose validation result
-  debug:
-    msg: "Docker Compose configuration is valid"
-  when: compose_config.rc == 0
 
 - name: Pull latest Marzban Node image
   command: docker compose pull
