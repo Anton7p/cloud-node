@@ -48,4 +48,12 @@ echo "ansible_ssh_extra_args=-o StrictHostKeyChecking=no -o UserKnownHostsFile=/
 
 echo ""
 echo "Inventory file generated: $OUTPUT_FILE"
-echo "Total nodes: ${#IPS[@]}"
+if [ -n "$INFRASTRUCTURE_IP_LIST" ]; then
+    IFS=',' read -ra IPS <<< "$INFRASTRUCTURE_IP_LIST"
+    echo "Total nodes: ${#IPS[@]}"
+else
+    echo "Total nodes: 0"
+fi
+if [ -n "$SERVER_IP" ]; then
+    echo "Master server: $SERVER_IP"
+fi
