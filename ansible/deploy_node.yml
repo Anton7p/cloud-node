@@ -18,7 +18,7 @@
   pre_tasks:
     - name: Compute Marzban API URL
       set_fact:
-        computed_api_url: "{{ 'https://' ~ domain_name ~ '/api' if domain_name is defined and domain_name | length > 0 else 'http://' ~ lookup('env', 'SERVER_IP') ~ ':8000/api' }}"
+        computed_api_url: "{{ 'http://' ~ lookup('env', 'SERVER_IP') ~ ':8000/api' if lookup('env', 'SERVER_IP') | length > 0 else 'https://' ~ domain_name ~ '/api' }}"
       delegate_to: localhost
       become: no
       run_once: yes
