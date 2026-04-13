@@ -38,6 +38,7 @@
       loop:
         - { var: "MARZBAN_ADMIN_USERNAME", value: "{{ marzban_username }}" }
         - { var: "MARZBAN_ADMIN_PASSWORD", value: "{{ marzban_password }}" }
+        - { var: "DOMAIN_NAME", value: "{{ domain_name }}" }
       loop_control:
         label: "{{ item.var }}"
       delegate_to: localhost

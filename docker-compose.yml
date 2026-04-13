@@ -17,6 +17,7 @@ services:
       MARZBAN_ADMIN_PASSWORD: ${MARZBAN_ADMIN_PASSWORD}
       INFRASTRUCTURE_IP_LIST: ${INFRASTRUCTURE_IP_LIST}
       DOMAIN_NAME: ${DOMAIN_NAME}
+      MARZBAN_NODE_CERT_DIR: /var/www/marzban_node/var
     env_file:
       - .env
     command: sh -c "npx prisma migrate deploy && node dist/main.js"

@@ -25,9 +25,12 @@ infrastructure:
     - echo "Configuring infrastructure nodes via Ansible..."
     - cd ansible
     - |
-      # Generate inventory from INFRASTRUCTURE_IP_LIST
+      # Generate inventory from SERVER_IP and INFRASTRUCTURE_IP_LIST
+      echo "[master]" > inventory.ini
+      echo "${SERVER_IP} ansible_user=${SERVER_USER:-root} ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory.ini
+      echo "" >> inventory.ini
       if [ -n "$INFRASTRUCTURE_IP_LIST" ]; then
-        echo "[nodes]" > inventory.ini
+        echo "[nodes]" >> inventory.ini
         IFS=',' read -ra IPS <<< "$INFRASTRUCTURE_IP_LIST"
         for ip in "${IPS[@]}"; do
           echo "${ip} ansible_user=${SERVER_USER:-root} ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory.ini

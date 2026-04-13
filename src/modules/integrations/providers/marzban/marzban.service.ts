@@ -283,7 +283,9 @@ export class MarzbanService implements OnModuleInit {
       return false;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 403) {
-        this.logger.warn('Admin creation forbidden - admin may already exist or API requires auth');
+        this.logger.warn(
+          'Admin creation forbidden - admin may already exist or API requires auth',
+        );
       } else {
         this.logger.error(
           'Failed to create first admin:',
@@ -348,9 +350,12 @@ export class MarzbanService implements OnModuleInit {
             error.code === 'ENOTFOUND');
 
         // If 401 and admin not yet created, try to create first admin
-        const isUnauthorized = axios.isAxiosError(error) && error.response?.status === 401;
+        const isUnauthorized =
+          axios.isAxiosError(error) && error.response?.status === 401;
         if (isUnauthorized && !adminCreated && attempt > 2) {
-          this.logger.log('Authentication failed with 401, attempting to create first admin...');
+          this.logger.log(
+            'Authentication failed with 401, attempting to create first admin...',
+          );
           adminCreated = await this.createFirstAdmin();
           if (adminCreated) {
             // Retry immediately after creating admin
@@ -484,9 +489,7 @@ export class MarzbanService implements OnModuleInit {
   private buildSubscriptionUrl(username: string): string {
     const subBaseUrl =
       this.configService.get<AppConfig['subBaseUrl']>('app.subBaseUrl') ||
-      (this.domainName
-        ? `https://${this.domainName}`
-        : '');
+      (this.domainName ? `https://${this.domainName}` : '');
     return `${subBaseUrl.replace(/\/$/, '')}/${username}`;
   }
 
