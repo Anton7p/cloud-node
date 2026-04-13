@@ -14,6 +14,7 @@
     # Credentials - supports both extra-vars (-e) and env variables
     marzban_username: "{{ MARZBAN_ADMIN_USERNAME | default(lookup('env', 'MARZBAN_ADMIN_USERNAME'), true) }}"
     marzban_password: "{{ MARZBAN_ADMIN_PASSWORD | default(lookup('env', 'MARZBAN_ADMIN_PASSWORD'), true) }}"
+    domain_name: "{{ DOMAIN_NAME | default(lookup('env', 'DOMAIN_NAME'), true) }}"
 
   pre_tasks:
     - name: Compute Marzban API URL

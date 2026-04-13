@@ -7,9 +7,9 @@ variables:
   DOCKER_IMAGE_NAME: $CI_REGISTRY_IMAGE
   DOCKER_IMAGE_TAG: $CI_COMMIT_SHORT_SHA
   DOCKER_IMAGE_LATEST: $CI_REGISTRY_IMAGE:latest
-  SERVER_IP: ${SERVER_IP:-62.60.229.227}
+  SERVER_IP: ${SERVER_IP}
   ANSIBLE_HOST_KEY_CHECKING: "False"
-  DOMAIN_NAME: ${DOMAIN_NAME:-cloudnode-host.ru}
+  DOMAIN_NAME: ${DOMAIN_NAME}
 
 # Infrastructure stage - Deploy and configure remote nodes via Ansible
 infrastructure:
@@ -41,7 +41,8 @@ infrastructure:
       ansible-playbook -i inventory.ini deploy_node.yml -f 10 \
         --extra-vars "domain_name=${DOMAIN_NAME}" \
         -e "MARZBAN_ADMIN_USERNAME=${MARZBAN_ADMIN_USERNAME}" \
-        -e "MARZBAN_ADMIN_PASSWORD=${MARZBAN_ADMIN_PASSWORD}"
+        -e "MARZBAN_ADMIN_PASSWORD=${MARZBAN_ADMIN_PASSWORD}" \
+        -e "SERVER_IP=${SERVER_IP}"
     - echo "Infrastructure configuration completed!"
   only:
     - main
@@ -98,9 +99,11 @@ deploy:
       export REMOTE_REDIS_PASSWORD="$REDIS_PASSWORD"
       export REMOTE_MARZBAN_ADMIN_USERNAME="$MARZBAN_ADMIN_USERNAME"
       export REMOTE_MARZBAN_ADMIN_PASSWORD="$MARZBAN_ADMIN_PASSWORD"
+      export REMOTE_MARZBAN_URL="http://marzban:8000"
       export REMOTE_SUB_BASE_URL="$SUB_BASE_URL"
       export REMOTE_INFRASTRUCTURE_IP_LIST="$INFRASTRUCTURE_IP_LIST"
       export REMOTE_DOMAIN_NAME="$DOMAIN_NAME"
+      export REMOTE_MARZBAN_NODE_CERT_DIR="/var/www/marzban_node/var"
       ssh -o StrictHostKeyChecking=no ${SERVER_USER:-root}@${SERVER_IP} << EOF
         set -e
 
@@ -117,11 +120,13 @@ deploy:
         echo "REDIS_HOST=${REMOTE_REDIS_HOST}" >> .env
         echo "REDIS_PORT=${REMOTE_REDIS_PORT}" >> .env
         echo "REDIS_PASSWORD=${REMOTE_REDIS_PASSWORD}" >> .env
+        echo "MARZBAN_URL=${REMOTE_MARZBAN_URL}" >> .env
         echo "MARZBAN_ADMIN_USERNAME=${REMOTE_MARZBAN_ADMIN_USERNAME}" >> .env
         echo "MARZBAN_ADMIN_PASSWORD=${REMOTE_MARZBAN_ADMIN_PASSWORD}" >> .env
         echo "SUB_BASE_URL=${REMOTE_SUB_BASE_URL}" >> .env
         echo "INFRASTRUCTURE_IP_LIST=${REMOTE_INFRASTRUCTURE_IP_LIST}" >> .env
         echo "DOMAIN_NAME=${REMOTE_DOMAIN_NAME}" >> .env
+        echo "MARZBAN_NODE_CERT_DIR=${REMOTE_MARZBAN_NODE_CERT_DIR}" >> .env
 
         echo "[DEPLOY] Logging into Docker Registry..."
         echo "${REMOTE_CI_REGISTRY_PASSWORD}" | docker login -u "${REMOTE_CI_REGISTRY_USER}" --password-stdin ${REMOTE_CI_REGISTRY}
@@ -140,6 +145,7 @@ deploy:
         export REDIS_HOST=${REMOTE_REDIS_HOST}
         export REDIS_PORT=${REMOTE_REDIS_PORT}
         export REDIS_PASSWORD=${REMOTE_REDIS_PASSWORD}
+        export MARZBAN_URL=${REMOTE_MARZBAN_URL}
         export MARZBAN_ADMIN_USERNAME=${REMOTE_MARZBAN_ADMIN_USERNAME}
         export MARZBAN_ADMIN_PASSWORD=${REMOTE_MARZBAN_ADMIN_PASSWORD}
         export SUB_BASE_URL=${REMOTE_SUB_BASE_URL}
