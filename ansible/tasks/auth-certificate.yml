@@ -84,11 +84,20 @@
     headers:
       Authorization: "Bearer {{ auth_response.json.access_token }}"
     return_content: yes
-    status_code: 200
+    status_code: [200, 404]
     timeout: 30
   register: cert_response
   delegate_to: localhost
   become: no
+  run_once: yes
+
+- name: Full API Debug
+  debug:
+    msg: 
+      - "Full URL: {{ computed_api_url }}/node/settings"
+      - "Status Code: {{ cert_response.status }}"
+      - "Response Body: {{ cert_response.content }}"
+  delegate_to: localhost
   run_once: yes
 
 
@@ -99,10 +108,18 @@
   become: no
   run_once: yes
 
+- name: Fail if certificate endpoint returned 404
+  fail:
+    msg: "Certificate endpoint /node/settings not found (404). Please check your Marzban API version and configuration."
+  when: cert_response.status == 404
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
 - name: Fail if certificate not found in response
   fail:
     msg: "Certificate not found in Marzban API response. Response keys: {{ cert_response.json.keys() | default([]) }}"
-  when: cert_response.json.certificate is not defined or cert_response.json.certificate == ""
+  when: cert_response.status == 200 and (cert_response.json.certificate is not defined or cert_response.json.certificate == "")
   delegate_to: localhost
   become: no
   run_once: yes
