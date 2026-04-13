@@ -1,0 +1,171 @@
+---
+# Authentication and certificate handling tasks
+- name: Wait for Marzban API to be available
+  uri:
+    url: "{{ computed_api_url }}/admin/token"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      username: "{{ marzban_username }}"
+      password: "{{ marzban_password }}"
+    return_content: yes
+    status_code: [200, 401, 403]
+    timeout: 10
+  register: auth_check
+  retries: 30
+  delay: 5
+  until: auth_check.status is defined and (auth_check.status == 200 or auth_check.status == 401 or auth_check.status == 403)
+  no_log: true
+  delegate_to: localhost
+  become: no
+  run_once: yes
+  ignore_errors: yes
+
+- name: Attempt to create first admin (if auth returns 401)
+  uri:
+    url: "{{ computed_api_url }}/admin"
+    method: POST
+    body_format: json
+    body:
+      username: "{{ marzban_username }}"
+      password: "{{ marzban_password }}"
+      is_sudo: true
+    return_content: yes
+    status_code: [200, 201, 403]
+    timeout: 10
+  when: auth_check.status == 401
+  register: create_admin_response
+  no_log: true
+  delegate_to: localhost
+  become: no
+  run_once: yes
+  ignore_errors: yes
+
+- name: Authenticate with Marzban Master API
+  uri:
+    url: "{{ computed_api_url }}/admin/token"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      username: "{{ marzban_username }}"
+      password: "{{ marzban_password }}"
+    return_content: yes
+    status_code: 200
+    timeout: 30
+  register: auth_response
+  no_log: true
+  delegate_to: localhost
+  become: no
+  run_once: yes
+  retries: 5
+  delay: 3
+  until: auth_response.status == 200
+
+- name: Display auth success
+  debug:
+    msg: "Successfully authenticated with Marzban Master at {{ computed_api_url }}"
+  when: auth_response.status == 200
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
+- name: Fail if authentication failed
+  fail:
+    msg: "Authentication failed with Marzban Master. Status: {{ auth_response.status | default('unknown') }}. Check MARZBAN_ADMIN_USERNAME and MARZBAN_ADMIN_PASSWORD."
+  when: auth_response.status != 200
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
+- name: Fetch SSL certificate from Master API (try admin path)
+  uri:
+    url: "{{ computed_api_url }}/admin/nodes/settings"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ auth_response.json.access_token }}"
+    return_content: yes
+    status_code: [200, 404]
+    timeout: 30
+  register: cert_response_admin
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
+- name: Fetch SSL certificate from Master API (try direct path)
+  uri:
+    url: "{{ computed_api_url }}/nodes/settings"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ auth_response.json.access_token }}"
+    return_content: yes
+    status_code: [200, 404]
+    timeout: 30
+  register: cert_response_direct
+  delegate_to: localhost
+  become: no
+  run_once: yes
+  when: cert_response_admin.status == 404
+
+- name: Set certificate response from successful call
+  set_fact:
+    cert_response: "{{ cert_response_admin if cert_response_admin.status == 200 else cert_response_direct }}"
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
+- name: Fail if both certificate endpoints failed
+  fail:
+    msg: "Certificate endpoints not found. Tried /admin/nodes/settings and /nodes/settings. Please check Marzban API version."
+  when: cert_response.status == 404
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
+- name: Debug certificate response
+  debug:
+    msg: "Certificate fetch status: {{ cert_response.status }}. Certificate defined: {{ cert_response.json.certificate is defined }}. Length: {{ cert_response.json.certificate | default('') | length }}"
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
+- name: Fail if certificate not found in response
+  fail:
+    msg: "Certificate not found in Marzban API response. Response keys: {{ cert_response.json.keys() | default([]) }}"
+  when: cert_response.json.certificate is not defined or cert_response.json.certificate == ""
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
+- name: Save certificate locally on Runner
+  copy:
+    content: "{{ cert_response.json.certificate }}"
+    dest: "/tmp/ssl_client_cert.pem"
+    mode: '0644'
+  when: cert_response.json.certificate is defined
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
+- name: Store certificate content as fact
+  set_fact:
+    new_certificate: "{{ cert_response.json.certificate }}"
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
+- name: Check if certificate already exists on node
+  stat:
+    path: "{{ cert_file }}"
+  register: existing_cert
+
+- name: Read existing certificate content from node
+  slurp:
+    src: "{{ cert_file }}"
+  register: existing_cert_content
+  when: existing_cert.stat.exists
+
+- name: Set certificate changed fact
+  set_fact:
+    cert_changed: >-
+      {{ not existing_cert.stat.exists or
+         (existing_cert_content.content | b64decode) != hostvars['localhost']['new_certificate'] }}

@@ -1,0 +1,72 @@
+---
+# Docker installation and configuration tasks
+- name: Check if Docker is installed
+  command: docker --version
+  register: docker_check
+  ignore_errors: yes
+  changed_when: false
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Remove conflicting packages
+  apt:
+    name:
+      - containerd
+      - docker.io
+      - docker-compose
+      - podman-docker
+    state: absent
+    purge: yes
+  when: ansible_facts['os_family'] == "Debian"
+  ignore_errors: yes
+
+- name: Install prerequisites for Docker
+  apt:
+    name:
+      - curl
+      - ca-certificates
+      - gnupg
+      - lsb-release
+      - iptables
+    state: present
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Install Docker using official script
+  shell: |
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sh get-docker.sh
+    rm get-docker.sh
+  args:
+    creates: /usr/bin/docker
+  when: docker_check.rc != 0
+
+- name: Enable and start Docker service
+  systemd:
+    name: docker
+    enabled: yes
+    state: started
+
+- name: Add user to docker group
+  user:
+    name: "{{ ansible_user | default(ansible_ssh_user) }}"
+    groups: docker
+    append: yes
+  ignore_errors: yes
+
+- name: Ensure Docker Compose V2 plugin directory exists
+  file:
+    path: /usr/libexec/docker/cli-plugins
+    state: directory
+    mode: '0755'
+
+- name: Create docker-compose symlink for compatibility
+  file:
+    src: /usr/libexec/docker/cli-plugins/docker-compose
+    dest: /usr/local/bin/docker-compose
+    state: link
+    force: yes
+  ignore_errors: yes
