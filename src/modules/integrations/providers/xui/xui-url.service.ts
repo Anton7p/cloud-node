@@ -35,7 +35,9 @@ export class XuiUrlService {
         return null;
       }
 
-      const streamSettings = JSON.parse(inbound.streamSettings) as XuiStreamSettings;
+      const streamSettings = JSON.parse(
+        inbound.streamSettings,
+      ) as XuiStreamSettings;
       const baseUrl =
         this.configService.get<AppConfig['marzbanUrl']>('app.marzbanUrl');
       const host = baseUrl ? new URL(baseUrl).hostname : 'localhost';
@@ -161,7 +163,7 @@ export class XuiUrlService {
 
     const userInfo = `${method}:${password}`;
     const encodedUserInfo = Buffer.from(userInfo).toString('base64');
-    
+
     return `ss://${encodedUserInfo}@${host}:${port}#${encodeURIComponent(client.email)}`;
   }
 }

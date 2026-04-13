@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AxiosInstance } from 'axios';
-import { MarzbanTokenResponse, MarzbanCredentials } from './types/marzban.types';
+import {
+  MarzbanTokenResponse,
+  MarzbanCredentials,
+} from './types/marzban.types';
 import { AppConfig } from '../../../../shared/config/configuration';
 import axios from 'axios';
 

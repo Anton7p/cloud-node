@@ -30,7 +30,7 @@ export class MarzbanCertificateService {
       this.logger.log('Fetching SSL certificate from Marzban Master...');
 
       const response =
-        await this.httpClient.get<MarzbanNodeSettings>('/nodes/settings');
+        await this.httpClient.get<MarzbanNodeSettings>('/node/settings');
 
       if (!response.data?.certificate) {
         this.logger.warn('No certificate returned from Marzban API');
@@ -66,7 +66,9 @@ export class MarzbanCertificateService {
    */
   certificateExists(): boolean {
     try {
-      return fs.existsSync(this.certPath) && fs.statSync(this.certPath).isFile();
+      return (
+        fs.existsSync(this.certPath) && fs.statSync(this.certPath).isFile()
+      );
     } catch {
       return false;
     }

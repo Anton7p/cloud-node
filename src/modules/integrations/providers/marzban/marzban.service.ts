@@ -110,7 +110,7 @@ export class MarzbanService implements OnModuleInit {
       }
 
       const result = await this.userService.createUser(telegramId, months);
-      
+
       // Handle token expiration and retry
       if (!result.success && result.error?.includes('401')) {
         this.logger.log('Token expired, re-authenticating...');
@@ -119,7 +119,7 @@ export class MarzbanService implements OnModuleInit {
           return this.userService.createUser(telegramId, months);
         }
       }
-      
+
       return result;
     } catch (error) {
       this.logger.error(

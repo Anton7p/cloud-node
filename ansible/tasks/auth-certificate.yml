@@ -77,49 +77,20 @@
   become: no
   run_once: yes
 
-- name: Fetch SSL certificate from Master API (try admin path)
+- name: Fetch SSL certificate from Master API
   uri:
-    url: "{{ computed_api_url }}/admin/nodes/settings"
+    url: "{{ computed_api_url }}/node/settings"
     method: GET
     headers:
       Authorization: "Bearer {{ auth_response.json.access_token }}"
     return_content: yes
-    status_code: [200, 404]
+    status_code: 200
     timeout: 30
-  register: cert_response_admin
+  register: cert_response
   delegate_to: localhost
   become: no
   run_once: yes
 
-- name: Fetch SSL certificate from Master API (try direct path)
-  uri:
-    url: "{{ computed_api_url }}/nodes/settings"
-    method: GET
-    headers:
-      Authorization: "Bearer {{ auth_response.json.access_token }}"
-    return_content: yes
-    status_code: [200, 404]
-    timeout: 30
-  register: cert_response_direct
-  delegate_to: localhost
-  become: no
-  run_once: yes
-  when: cert_response_admin.status == 404
-
-- name: Set certificate response from successful call
-  set_fact:
-    cert_response: "{{ cert_response_admin if cert_response_admin.status == 200 else cert_response_direct }}"
-  delegate_to: localhost
-  become: no
-  run_once: yes
-
-- name: Fail if both certificate endpoints failed
-  fail:
-    msg: "Certificate endpoints not found. Tried /admin/nodes/settings and /nodes/settings. Please check Marzban API version."
-  when: cert_response.status == 404
-  delegate_to: localhost
-  become: no
-  run_once: yes
 
 - name: Debug certificate response
   debug:
