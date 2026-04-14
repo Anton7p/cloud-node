@@ -2,6 +2,16 @@
 # Marzban Core API Setup - Orchestration file
 # Includes all sub-tasks for complete Marzban setup
 
+- name: DEBUG - Entering Marzban setup flow
+  debug:
+    msg:
+      - "=== MARZBAN SETUP FLOW START ==="
+      - "API URL: {{ computed_api_url }}"
+      - "Domain: {{ domain_name }}"
+      - "Auth token defined: {{ auth_response.json.access_token is defined }}"
+  delegate_to: localhost
+  run_once: yes
+
 # 1. Generate X25519 keys for Reality protocol
 - name: Setup X25519 keys
   include_tasks: marzban-keys.yml

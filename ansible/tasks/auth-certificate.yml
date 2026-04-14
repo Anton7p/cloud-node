@@ -69,6 +69,18 @@
   become: no
   run_once: yes
 
+- name: DEBUG - Log auth response details
+  debug:
+    msg:
+      - "=== AUTH DEBUG ==="
+      - "Status: {{ auth_response.status | default('N/A') }}"
+      - "Token defined: {{ auth_response.json.access_token is defined }}"
+      - "Token type: {{ auth_response.json.token_type | default('N/A') }}"
+      - "Response keys: {{ auth_response.json.keys() | default([]) }}"
+  when: auth_response.status == 200
+  delegate_to: localhost
+  run_once: yes
+
 - name: Fail if authentication failed
   fail:
     msg: "Authentication failed with Marzban Master. Status: {{ auth_response.status | default('unknown') }}. Check VPN_ADMIN_USERNAME and VPN_ADMIN_PASSWORD."

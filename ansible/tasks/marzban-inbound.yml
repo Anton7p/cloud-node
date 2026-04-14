@@ -2,6 +2,20 @@
 # Marzban Inbound Creation - VLESS + Reality
 # Creates default inbound with subscription support
 
+- name: DEBUG - Log inbound creation prerequisites
+  debug:
+    msg:
+      - "=== INBOUND CREATION DEBUG ==="
+      - "reality_inbound_exists: {{ reality_inbound_exists }}"
+      - "reality_private_key defined: {{ reality_private_key is defined }}"
+      - "reality_private_key: {{ reality_private_key | default('N/A') | truncate(20) }}..."
+      - "reality_public_key: {{ reality_public_key | default('N/A') | truncate(20) }}..."
+      - "reality_short_id: {{ reality_short_id | default('N/A') }}"
+      - "domain_name: {{ domain_name }}"
+      - "Will create inbound: {{ not reality_inbound_exists and reality_private_key is defined }}"
+  delegate_to: localhost
+  run_once: yes
+
 - name: Create default VLESS + Reality Inbound
   uri:
     url: "{{ computed_api_url }}/inbounds"

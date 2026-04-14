@@ -17,6 +17,20 @@
   run_once: yes
   ignore_errors: yes
 
+- name: DEBUG - Log API response details
+  debug:
+    msg:
+      - "=== INBOUNDS API CHECK DEBUG ==="
+      - "URL: {{ computed_api_url }}/inbounds"
+      - "Status: {{ existing_inbounds_check.status | default('N/A') }}"
+      - "Failed: {{ existing_inbounds_check.failed | default(false) }}"
+      - "Content Type: {{ existing_inbounds_check.content | default('') | type_debug }}"
+      - "JSON Type: {{ existing_inbounds_check.json | default('N/A') | type_debug }}"
+      - "JSON Content: {{ existing_inbounds_check.json | default('N/A') }}"
+      - "Response Body: {{ existing_inbounds_check.content | default('N/A') | truncate(500) }}"
+  delegate_to: localhost
+  run_once: yes
+
 - name: Fail if API returned an error
   fail:
     msg: "API Request failed! Status: {{ existing_inbounds_check.status | default('N/A') }}. Body: {{ existing_inbounds_check.content | default('N/A') }}"
@@ -31,6 +45,15 @@
          'VLESS_REALITY' in (existing_inbounds_check.json | map(attribute='tag') | list) }}
   delegate_to: localhost
   become: no
+  run_once: yes
+
+- name: DEBUG - Log reality_inbound_exists fact
+  debug:
+    msg:
+      - "=== INBOUND EXISTS CHECK RESULT ==="
+      - "reality_inbound_exists: {{ reality_inbound_exists }}"
+      - "Will generate new keys: {{ not reality_inbound_exists }}"
+  delegate_to: localhost
   run_once: yes
 
 - name: Generate X25519 keys using xray command
