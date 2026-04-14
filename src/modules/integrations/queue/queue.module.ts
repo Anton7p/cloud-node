@@ -40,7 +40,7 @@ import { AppConfig } from '../../../shared/config/configuration';
     }),
     forwardRef(() => RentalsModule),
     MarzbanModule,
-    BotModule,
+    forwardRef(() => BotModule),
   ],
   providers: [ProvisioningQueue, ProvisioningProcessor],
   exports: [ProvisioningQueue],
