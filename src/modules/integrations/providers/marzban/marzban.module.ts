@@ -6,12 +6,14 @@ import { MarzbanAuthService } from './marzban-auth.service';
 import { MarzbanCertificateService } from './marzban-certificate.service';
 import { MarzbanNodeService } from './marzban-node.service';
 import { MarzbanUserService } from './marzban-user.service';
+import { MarzbanApiClient } from './marzban-api-client.service';
 
 @Module({
   imports: [HttpModule, ConfigModule],
   providers: [
     MarzbanService,
     MarzbanAuthService,
+    MarzbanApiClient,
     MarzbanCertificateService,
     MarzbanNodeService,
     MarzbanUserService,

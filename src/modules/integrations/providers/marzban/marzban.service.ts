@@ -1,7 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { HttpService } from '@nestjs/axios';
-import axios, { AxiosInstance } from 'axios';
 import { AppConfig } from '../../../../shared/config/configuration';
 import { MarzbanAuthService } from './marzban-auth.service';
 import { MarzbanCertificateService } from './marzban-certificate.service';
@@ -9,16 +7,30 @@ import { MarzbanNodeService } from './marzban-node.service';
 import { MarzbanUserService } from './marzban-user.service';
 import { CreateUserResult } from './types/marzban.types';
 
+/**
+ * MarzbanService - высокоуровневый фасад для работы с Marzban API
+ *
+ * Ответственности:
+ * - Оркестрация подсервисов (Auth, Certificate, Node, User)
+ * - Инициализация модуля (login -> fetch cert -> register nodes)
+ * - Предоставление внешнего API для других модулей
+ *
+ * Зависимости:
+ * - MarzbanAuthService: аутентификация и токены
+ * - MarzbanCertificateService: работа с SSL сертификатами
+ * - MarzbanNodeService: управление нодами
+ * - MarzbanUserService: управление пользователями
+ *
+ * НЕ имеет прямых HTTP клиентов - весь транспорт через подсервисы.
+ */
 @Injectable()
 export class MarzbanService implements OnModuleInit {
   private readonly logger = new Logger(MarzbanService.name);
   private readonly domainName: string | undefined;
   private readonly internalBaseUrl: string;
-  private readonly axiosInstance: AxiosInstance;
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly httpService: HttpService,
     private readonly authService: MarzbanAuthService,
     private readonly certificateService: MarzbanCertificateService,
     private readonly nodeService: MarzbanNodeService,
@@ -32,35 +44,6 @@ export class MarzbanService implements OnModuleInit {
     // External domain for public links
     this.domainName =
       this.configService.get<AppConfig['domainName']>('app.domainName');
-
-    // Create isolated axios instance for Marzban API
-    this.axiosInstance = axios.create({
-      baseURL: `${this.internalBaseUrl}/api`,
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-    });
-
-    // Add authorization interceptor
-    this.axiosInstance.interceptors.request.use(
-      (config) => {
-        const token = this.authService.getAccessToken();
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-      },
-      (error) => Promise.reject(error),
-    );
-  }
-
-  /**
-   * Get isolated axios instance for Marzban API
-   */
-  getAxiosInstance(): AxiosInstance {
-    return this.axiosInstance;
   }
 
   async onModuleInit(): Promise<void> {

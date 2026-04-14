@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { CreateUserResult, MarzbanUserResponse } from './types/marzban.types';
 import { AppConfig } from '../../../../shared/config/configuration';
-import { MarzbanService } from './marzban.service';
+import { MarzbanApiClient } from './marzban-api-client.service';
 
 @Injectable()
 export class MarzbanUserService {
@@ -12,7 +12,7 @@ export class MarzbanUserService {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly marzbanService: MarzbanService,
+    private readonly apiClient: MarzbanApiClient,
   ) {
     this.domainName =
       this.configService.get<AppConfig['domainName']>('app.domainName');
@@ -60,7 +60,7 @@ export class MarzbanUserService {
         requestBody.limitIp = limitIp;
       }
 
-      const response = await this.marzbanService
+      const response = await this.apiClient
         .getAxiosInstance()
         .post<MarzbanUserResponse>('/user', requestBody);
 

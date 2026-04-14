@@ -4,7 +4,7 @@ import { MarzbanNodeSettings } from './types/marzban.types';
 import { AppConfig } from '../../../../shared/config/configuration';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { MarzbanService } from './marzban.service';
+import { MarzbanApiClient } from './marzban-api-client.service';
 
 @Injectable()
 export class MarzbanCertificateService {
@@ -13,7 +13,7 @@ export class MarzbanCertificateService {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly marzbanService: MarzbanService,
+    private readonly apiClient: MarzbanApiClient,
   ) {
     const certDir =
       this.configService.get<AppConfig['marzbanNodeCertDir']>(
@@ -29,7 +29,7 @@ export class MarzbanCertificateService {
     try {
       this.logger.log('Fetching SSL certificate from Marzban Master...');
 
-      const response = await this.marzbanService
+      const response = await this.apiClient
         .getAxiosInstance()
         .get<MarzbanNodeSettings>('/node/settings');
 
