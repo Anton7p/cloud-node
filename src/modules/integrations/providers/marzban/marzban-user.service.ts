@@ -140,7 +140,8 @@ export class MarzbanUserService {
    * Uses DOMAIN_NAME for external links
    */
   private buildSubscriptionUrl(username: string): string {
-    const subBaseUrl = this.configService.get<AppConfig['subBaseUrl']>('app.subBaseUrl');
+    const subBaseUrl =
+      this.configService.get<AppConfig['subBaseUrl']>('app.subBaseUrl');
 
     // Если SUB_BASE_URL задан и не содержит placeholder - используем его
     if (subBaseUrl && !subBaseUrl.includes('cloudnode-host')) {

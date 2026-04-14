@@ -49,3 +49,5 @@ build/
 dist/
 
 /generated/prisma
+
+.windsurfrules

@@ -110,11 +110,11 @@ deploy:
       export REMOTE_REDIS_PASSWORD="$REDIS_PASSWORD"
       export REMOTE_VPN_ADMIN_USERNAME="$VPN_ADMIN_USERNAME"
       export REMOTE_VPN_ADMIN_PASSWORD="$VPN_ADMIN_PASSWORD"
-      export REMOTE_MARZBAN_URL="${MARZBAN_URL:-http://marzban:8000}"
+      export REMOTE_MARZBAN_URL="http://marzban:8000"
       export REMOTE_SUB_BASE_URL="$SUB_BASE_URL"
       export REMOTE_INFRASTRUCTURE_IP_LIST="$INFRASTRUCTURE_IP_LIST"
       export REMOTE_DOMAIN_NAME="$DOMAIN_NAME"
-      export REMOTE_MARZBAN_NODE_CERT_DIR="${MARZBAN_NODE_CERT_DIR:-/var/www/marzban_node/var}"
+      export REMOTE_MARZBAN_NODE_CERT_DIR="/var/www/marzban_node/var"
       ssh -o StrictHostKeyChecking=no ${SERVER_USER:-root}@${SERVER_IP} << EOF
         set -e
 
@@ -174,69 +174,6 @@ deploy:
 
         echo "[DEPLOY] Deployment completed successfully!"
       EOF
-    - |
-      # Deploy to all infrastructure nodes atomically
-      if [ -n "$INFRASTRUCTURE_IP_LIST" ]; then
-        IFS=',' read -ra NODES <<< "$INFRASTRUCTURE_IP_LIST"
-        DEPLOY_SUCCESS=0
-        DEPLOY_FAILED=0
-        FAILED_NODES=""
-        
-        for node_ip in "${NODES[@]}"; do
-          echo "[DEPLOY] Deploying to node: $node_ip"
-          
-          ssh-keyscan -H $node_ip >> ~/.ssh/known_hosts 2>/dev/null || true
-          
-          # Copy docker-compose.yml to node
-          rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no" docker-compose.yml ${SERVER_USER:-root}@${node_ip}:/var/www/cloudnode/ || {
-            echo "[DEPLOY] FAILED to copy files to $node_ip"
-            DEPLOY_FAILED=$((DEPLOY_FAILED + 1))
-            FAILED_NODES="$FAILED_NODES $node_ip"
-            continue
-          }
-          
-          # Execute remote deployment via base64-encoded script
-          REMOTE_SCRIPT_B64=$(echo "c2V0IC1lCmNkIC92YXIvd3d3L2Nsb3Vkbm9kZSB8fCBta2RpciAtcCAvdmFyL3d3dy9jbG91ZG5vZGUgJiYgY2QgL3Zhci93d3cvY2xvdWRub2RlCgplY2hvICJbREVQTE9ZXSBDcmVhdGluZyAuZW52IGZpbGUuLi4iCmVjaG8gIk5PREVfRU5WPXByb2R1Y3Rpb24iID4gLmVudgplY2hvICJEQVRBQkFTRV9VUkw9cG9zdGdyZXNxbDovL3Bvc3RncmVzOnt7REJfUEFTU1dPUkR9fUBkYjo1NDMyL2Nsb3Vkbm9kZT9zY2hlbWE9cHVibGljIiA+PiAuZW52CmVjaG8gIkRCX1BBU1NXT1JEPXt7REJfUEFTU1dPUkR9fSIgPj4gLmVudgplY2hvICJURUxFQUdSQU1fQk9UX1RPS0VOPXt7VEVMRUdSQU1fQk9UX1RPS0VOfX0iID4+IC5lbnYKZWNobyAiRU5DUllQVElPTl9LRVk9e3tFTkNSWVBUSU9OX0tFWX19IiA+PiAuZW52CmVjaG8gIkRPQ0tFUl9JTUFHRV9OQU1FPXt7RE9DS0VSX0lNQUdFX05BTUV9fSIgPj4gLmVudgplY2hvICJSRURJU19IT1NUPXt7UkVESVNfSE9TVH19IiA+PiAuZW52CmVjaG8gIlJFRElTX1BPUlQ9e3tSRURJU19QT1JUfX0iID4+IC5lbnYKZWNobyAiUkVESVNfUEFTU1dPUkQ9e3tSRURJU19QQVNTV09SRH19IiA+PiAuZW52CmVjaG8gIk1BUlpCQU5fVVJMPXt7TUFSWkJBTl9VUkx9fSIgPj4gLmVudgplY2hvICJWUE5fQURNSU5fVVNFUk5BTUU9e3tWUE5fQURNSU5fVVNFUk5BTUV9fSIgPj4gLmVudgplY2hvICJWUE5fQURNSU5fUEFTU1dPUkQ9e3tWUE5fQURNSU5fUEFTU1dPUkR9fSIgPj4gLmVudgplY2hvICJTVUJfQkFTRV9VUkw9e3tTVUJfQkFTRV9VUkx9fSIgPj4gLmVudgplY2hvICJJTkZSQVNUUlVDVFVSRV9JUF9MSVNUPXt7SU5GUkFTVFJVR1RVUkVfSVBfTElTVH19IiA+PiAuZW52CmVjaG8gIkRPTUFJTl9OQU1FPXt7RE9NQUlOX05BTUV9fSIgPj4gLmVudgplY2hvICJNQVJaQkFOX05PREVfQ0VSVF9ESVI9e3tNQVJaQkFOX05PREVfQ0VSVF9ESVJ9fSIgPj4gLmVudgoKZWNobyAiW0RFUExPWV0gTG9nZ2luZyBpbnRvIHJlZ2lzdHJ5Li4uIgplY2hvICJ7e0NJX1JFR0lTVFJZX1BBU1NXT1JEfX0iIHwgZG9ja2VyIGxvZ2luIC11ICJ7e0NJX1JFR0lTVFJZX1VTRVJ9fSIgLS1wYXNzd29yZC1zdGRpbiB7e0NJX1JFR0lTVFJZfX0KCgplY2hvICJbREVQTE9ZXSBQdWxsaW5nIGltYWdlLi4uIgpkb2NrZXIgcHVsbCB7e0RPQ0tFUl9JTUFHRV9OQU1FfX06bGF0ZXN0CgplY2hvICJbREVQTE9ZXSBSZXN0YXJ0aW5nIGNvbnRhaW5lcnMuLi4iCmRvY2tlciBjb21wb3NlIGRvd24gfHwgdHJ1ZQoKZXhwb3J0IERCX1BBU1NXT1JEPXt7REJfUEFTU1dPUkR9fQpleHBvcnQgVEVMRUdSQU1fQk9UX1RPS0VOPXt7VEVMRUdSQU1fQk9UX1RPS0VOfX0KZXhwb3J0IEVOQ1JZUFRJT05fS0VZPXt7RU5DUllQVElPTl9LRVl9fQpleHBvcnQgRE9DS0VSX0lNQUdFX05BTUU9e3tET0NLRVJfSU1BR0VfTkFNRX19CmV4cG9ydCBSRURJU19IT1NUPXt7UkVESVNfSE9TVH19CmV4cG9ydCBSRURJU19QT1JUPXt7UkVESVNfUE9SVH19CmV4cG9ydCBSRURJU19QQVNTV09SRD17e1JFRElTX1BBU1NXT1JEfX0KZXhwb3J0IE1BUlpCQU5fVVJMPXt7TUFSWkJBTl9VUkx9fQpleHBvcnQgVlBOX0FETUlOX1VTRVJOQU1FPXt7VlBOX0FETU5fVVNFUk5BTUV9fQpleHBvcnQgVlBOX0FETUlOX1BBU1NXT1JEPXt7VlBOX0FETU5fUEFTU1dPUkR9fQpleHBvcnQgU1VCX0JBU0VfVVJMPXt7U1VCX0JBU0VfVVJMfX0KZXhwb3J0IElORkFTVFJVR1RVUkVfSVBfTElTVD17e0lORkFTVFJVR1RVUkVfSVBfTElTVH19CmV4cG9ydCBET01BSU5fTkFNRT17e0RPbUFJTl9OQU1FfX0KCmRvY2tlciBjb21wb3NlIHVwIC1kCmRvY2tlciBpbWFnZSBwcmluZSAtZgoKZWNobyAiW0RFUExPWV0gTm9kZSBkZXBsb3llZCBzdWNjZXNzZnVsbHkhIgo=" | base64 -d | sed \
-            -e "s/{{DB_PASSWORD}}/$REMOTE_DB_PASSWORD/g" \
-            -e "s/{{TELEGRAM_BOT_TOKEN}}/$REMOTE_TELEGRAM_BOT_TOKEN/g" \
-            -e "s/{{ENCRYPTION_KEY}}/$REMOTE_ENCRYPTION_KEY/g" \
-            -e "s|{{DOCKER_IMAGE_NAME}}|$REMOTE_DOCKER_IMAGE_NAME|g" \
-            -e "s/{{REDIS_HOST}}/$REMOTE_REDIS_HOST/g" \
-            -e "s/{{REDIS_PORT}}/$REMOTE_REDIS_PORT/g" \
-            -e "s/{{REDIS_PASSWORD}}/$REMOTE_REDIS_PASSWORD/g" \
-            -e "s|{{MARZBAN_URL}}|$REMOTE_MARZBAN_URL|g" \
-            -e "s/{{VPN_ADMIN_USERNAME}}/$REMOTE_VPN_ADMIN_USERNAME/g" \
-            -e "s/{{VPN_ADMIN_PASSWORD}}/$REMOTE_VPN_ADMIN_PASSWORD/g" \
-            -e "s|{{SUB_BASE_URL}}|$REMOTE_SUB_BASE_URL|g" \
-            -e "s/{{INFRASTRUCTURE_IP_LIST}}/$REMOTE_INFRASTRUCTURE_IP_LIST/g" \
-            -e "s/{{DOMAIN_NAME}}/$REMOTE_DOMAIN_NAME/g" \
-            -e "s|{{MARZBAN_NODE_CERT_DIR}}|$REMOTE_MARZBAN_NODE_CERT_DIR|g" \
-            -e "s/{{CI_REGISTRY_USER}}/$REMOTE_CI_REGISTRY_USER/g" \
-            -e "s/{{CI_REGISTRY_PASSWORD}}/$REMOTE_CI_REGISTRY_PASSWORD/g" \
-            -e "s|{{CI_REGISTRY}}|$REMOTE_CI_REGISTRY|g")
-          
-          if echo "$REMOTE_SCRIPT_B64" | ssh -o StrictHostKeyChecking=no ${SERVER_USER:-root}@${node_ip} "bash"; then
-            DEPLOY_SUCCESS=$((DEPLOY_SUCCESS + 1))
-            echo "[DEPLOY] Node $node_ip: SUCCESS"
-          else
-            DEPLOY_FAILED=$((DEPLOY_FAILED + 1))
-            FAILED_NODES="$FAILED_NODES $node_ip"
-            echo "[DEPLOY] Node $node_ip: FAILED"
-          fi
-        done
-        
-        echo "========================================="
-        echo "[DEPLOY] SUMMARY:"
-        echo "[DEPLOY] Success: $DEPLOY_SUCCESS nodes"
-        echo "[DEPLOY] Failed: $DEPLOY_FAILED nodes"
-        if [ $DEPLOY_FAILED -gt 0 ]; then
-          echo "[DEPLOY] Failed nodes:$FAILED_NODES"
-          echo "[DEPLOY] PIPELINE FAILED - check failed nodes!"
-          exit 1
-        fi
-        echo "========================================="
-      fi
-      
     - echo "Deployment finished!"
   only:
     - main

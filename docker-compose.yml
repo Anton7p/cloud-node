@@ -12,12 +12,12 @@ services:
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD}
-      MARZBAN_URL: ${MARZBAN_URL:-http://marzban:8000}
+      MARZBAN_URL: http://marzban:8000
       VPN_ADMIN_USERNAME: ${VPN_ADMIN_USERNAME}
       VPN_ADMIN_PASSWORD: ${VPN_ADMIN_PASSWORD}
       INFRASTRUCTURE_IP_LIST: ${INFRASTRUCTURE_IP_LIST}
       DOMAIN_NAME: ${DOMAIN_NAME}
-      MARZBAN_NODE_CERT_DIR: ${MARZBAN_NODE_CERT_DIR:-/var/www/marzban_node/var}
+      MARZBAN_NODE_CERT_DIR: /var/www/marzban_node/var
     env_file:
       - .env
     command: sh -c "npx prisma migrate deploy && node dist/main.js"
@@ -25,9 +25,9 @@ services:
       db:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      marzban:
         condition: service_started
+      marzban:
+        condition: service_healthy
     networks:
       - cloudnode-network
     volumes:
@@ -48,7 +48,7 @@ services:
     restart: always
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
       - POSTGRES_DB=cloudnode
       - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
@@ -56,40 +56,32 @@ services:
     networks:
       - cloudnode-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cloudnode"]
+      interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 30s
+      retries: 5
+      start_period: 10s
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
 
-  # Redis service - for BullMQ queues
+  # Redis service - for BullMQ queues (password protected)
   redis:
-    image: redis:7-alpine
+    image: redis:alpine
     container_name: cloudnode-redis
     restart: always
-    command: >
-      sh -c "
-        if [ -n \"$$REDIS_PASSWORD\" ]; then
-          redis-server --appendonly yes --requirepass $$REDIS_PASSWORD
-        else
-          redis-server --appendonly yes
-        fi
-      "
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
     volumes:
       - redis-data:/data
     networks:
       - cloudnode-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis123}", "ping"]
+      interval: 10s
       timeout: 3s
-      retries: 10
-      start_period: 10s
+      retries: 5
     logging:
       driver: "json-file"
       options:
@@ -109,7 +101,7 @@ services:
       - XRAY_SUBSCRIPTION_URL=${SUB_BASE_URL}
       - XRAY_EXECUTABLE_PATH=/usr/local/bin/xray
       - SUDO_USERNAME=${VPN_ADMIN_USERNAME:-admin}
-      - SUDO_PASSWORD=${VPN_ADMIN_PASSWORD}
+      - SUDO_PASSWORD=${VPN_ADMIN_PASSWORD:-admin123}
     volumes:
       - marzban-data:/var/lib/marzban
     networks:
@@ -117,11 +109,11 @@ services:
     ports:
       - "8000:8000"
     healthcheck:
-      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/127.0.0.1/8000' 2>/dev/null || exit 1"]
+      test: ["CMD-SHELL", "timeout 1s bash -c '</dev/tcp/127.0.0.1/8000' || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 12
-      start_period: 60s
+      retries: 10
+      start_period: 30s
     logging:
       driver: "json-file"
       options:
