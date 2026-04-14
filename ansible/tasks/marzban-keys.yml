@@ -17,11 +17,19 @@
   run_once: yes
   ignore_errors: yes
 
+- name: Fail if API returned an error
+  fail:
+    msg: "API Request failed! Status: {{ existing_inbounds_check.status | default('N/A') }}. Body: {{ existing_inbounds_check.content | default('N/A') }}"
+  when: existing_inbounds_check.failed | default(false)
+  run_once: yes
+
 - name: Set fact - check if VLESS_REALITY inbound exists
   set_fact:
     reality_inbound_exists: >-
       {{ existing_inbounds_check.json is defined and
-         existing_inbounds_check.json | selectattr('tag', 'equalto', 'VLESS_REALITY') | list | length > 0 }}
+         existing_inbounds_check.json is iterable and
+         existing_inbounds_check.json is not string and
+         'VLESS_REALITY' in (existing_inbounds_check.json | map(attribute='tag') | list) }}
   delegate_to: localhost
   become: no
   run_once: yes
