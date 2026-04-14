@@ -156,4 +156,7 @@
   set_fact:
     cert_changed: >-
       {{ not existing_cert.stat.exists or
-         (existing_cert_content.content | b64decode) != hostvars['localhost']['new_certificate'] }}
+         (existing_cert_content.content | b64decode) != new_certificate }}
+  delegate_to: localhost
+  become: no
+  run_once: yes
