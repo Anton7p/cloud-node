@@ -48,11 +48,19 @@ export class MarzbanUserService {
           (isTrialAccount ? ' (TRIAL - limitIp: 2)' : ''),
       );
 
+      // Get inbound tag from config (default: VLESS_REALITY)
+      const inboundTag = this.configService.get<AppConfig['marzbanInboundTag']>('app.marzbanInboundTag') || 'VLESS_REALITY';
+
       const requestBody: Record<string, unknown> = {
         username,
         expire: expireTimestamp,
         data_limit: dataLimit,
         status: 'active',
+        proxies: {
+          vless: {
+            id: inboundTag,
+          },
+        },
       };
 
       // Add limitIp for trial accounts
@@ -65,11 +73,8 @@ export class MarzbanUserService {
         .post<MarzbanUserResponse>('/user', requestBody);
 
       if (response.data.subscription_url || response.data.username) {
-        // Use subscription_url from Marzban API, sanitize if needed, or build manually
-        const rawUrl = response.data.subscription_url;
-        const subscriptionUrl = rawUrl
-          ? this.sanitizeSubscriptionUrl(rawUrl)
-          : this.buildSubscriptionUrl(response.data.username);
+        // Always build subscription URL using DOMAIN_NAME
+        const subscriptionUrl = this.buildSubscriptionUrl(response.data.username);
 
         this.logger.log(
           `User ${response.data.username} created successfully with subscription URL`,
@@ -120,41 +125,13 @@ export class MarzbanUserService {
   }
 
   /**
-   * Sanitize subscription URL from Marzban API - replace placeholder with real domain
-   */
-  private sanitizeSubscriptionUrl(url: string): string {
-    if (!this.domainName) {
-      return url;
-    }
-
-    // Заменяем placeholder домен на реальный DOMAIN_NAME
-    // Учитываем варианты: cloudnode-host, cloudnode-host.ru, cloudnode-host.com и т.д.
-    if (url.includes('cloudnode-host')) {
-      return url.replace(/cloudnode-host(?:\.\w+)?/, this.domainName);
-    }
-
-    return url;
-  }
-
-  /**
-   * Build subscription URL manually if Marzban API doesn't return it
-   * Uses DOMAIN_NAME for external links
+   * Build subscription URL using DOMAIN_NAME
    */
   private buildSubscriptionUrl(username: string): string {
-    const subBaseUrl =
-      this.configService.get<AppConfig['subBaseUrl']>('app.subBaseUrl');
-
-    // Если SUB_BASE_URL задан и не содержит placeholder - используем его
-    if (subBaseUrl && !subBaseUrl.includes('cloudnode-host')) {
-      return `${subBaseUrl.replace(/\/$/, '')}/${username}`;
-    }
-
-    // Fallback на DOMAIN_NAME
     if (this.domainName) {
       return `https://${this.domainName}/${username}`;
     }
 
-    // Крайний случай - пустой URL
     this.logger.warn('DOMAIN_NAME not set, subscription URL may be invalid');
     return `/${username}`;
   }

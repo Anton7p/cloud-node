@@ -17,7 +17,6 @@ export interface AppConfig {
   vpnPanelUrl: string | undefined;
   vpnAdminUsername: string | undefined;
   vpnAdminPassword: string | undefined;
-  subBaseUrl: string | undefined;
   // Domain name for external links
   domainName: string | undefined;
   // SSL / Certbot
@@ -28,6 +27,8 @@ export interface AppConfig {
   infrastructureIpList: string | undefined;
   // Marzban Node SSL certificate directory
   marzbanNodeCertDir: string | undefined;
+  // Marzban Inbound tag for user creation
+  marzbanInboundTag: string | undefined;
   // Default data limit for new users (in bytes)
   defaultDataLimit: number;
   // Days per month for subscription calculation
@@ -60,7 +61,6 @@ export const configuration = registerAs('app', (): AppConfig => {
     vpnPanelUrl: process.env.VPN_PANEL_URL,
     vpnAdminUsername: process.env.VPN_ADMIN_USERNAME,
     vpnAdminPassword: process.env.VPN_ADMIN_PASSWORD,
-    subBaseUrl: process.env.SUB_BASE_URL,
     // Domain name for external links
     domainName: process.env.DOMAIN_NAME,
     // SSL / Certbot
@@ -71,6 +71,8 @@ export const configuration = registerAs('app', (): AppConfig => {
     infrastructureIpList: process.env.INFRASTRUCTURE_IP_LIST,
     // Marzban Node SSL certificate directory
     marzbanNodeCertDir: process.env.MARZBAN_NODE_CERT_DIR,
+    // Marzban Inbound tag for user creation (default: VLESS_REALITY)
+    marzbanInboundTag: process.env.MARZBAN_INBOUND_TAG || 'VLESS_REALITY',
     // Default data limit for new users (100 GB in bytes)
     defaultDataLimit:
       parseInt(process.env.DEFAULT_DATA_LIMIT, 10) || 107374182400,
@@ -113,7 +115,6 @@ export const validationSchema = Joi.object({
   VPN_PANEL_URL: Joi.string().uri().optional(),
   VPN_ADMIN_USERNAME: Joi.string().optional(),
   VPN_ADMIN_PASSWORD: Joi.string().optional(),
-  SUB_BASE_URL: Joi.string().uri().optional(),
   // Domain name for external links - optional
   DOMAIN_NAME: Joi.string().optional(),
   // SSL / Certbot email for Let's Encrypt - optional
@@ -124,6 +125,8 @@ export const validationSchema = Joi.object({
   INFRASTRUCTURE_IP_LIST: Joi.string().optional(),
   // Marzban Node SSL certificate directory - optional
   MARZBAN_NODE_CERT_DIR: Joi.string().optional(),
+  // Marzban Inbound tag for user creation - optional, default VLESS_REALITY
+  MARZBAN_INBOUND_TAG: Joi.string().optional(),
   // Default data limit for new users (in bytes) - optional, default 100 GB
   DEFAULT_DATA_LIMIT: Joi.number().integer().min(0).optional(),
   // Days per month for subscription calculation - optional, default 30

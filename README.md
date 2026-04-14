@@ -97,7 +97,11 @@ SERVER_USER=                  # root (default)
 VPN_ADMIN_USERNAME=
 VPN_ADMIN_PASSWORD=
 DOMAIN_NAME=
-SUB_BASE_URL=
+
+# VLESS + Reality Inbound (опциональные)
+REALITY_PRIVATE_KEY=          # Приватный ключ Reality (генерируется xray)
+REALITY_SHORT_ID=              # Short ID для Reality (по умолчанию: abcd1234)
+MARZBAN_INBOUND_TAG=           # Тег инбаунда (по умолчанию: VLESS_REALITY)
 
 # Docker Registry
 CI_REGISTRY_USER=
@@ -193,9 +197,9 @@ const commandHandlers = [
 - [x] Модульная система UI
 - [x] Map-based роутинг команд
 - [x] Joi валидация конфигурации
-- [ ] BullMQ для очередей задач
+- [x] BullMQ для очередей задач
+- [x] VPN-конфигурации VLESS + Reality
 - [ ] Платежная интеграция (Stripe/Crypto)
-- [ ] VPN-конфигурации WireGuard/Xray
 - [ ] Админ-панель
 
 ## Ссылки на инструкции

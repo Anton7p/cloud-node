@@ -48,7 +48,9 @@ infrastructure:
         --extra-vars "domain_name=${DOMAIN_NAME}" \
         -e "VPN_ADMIN_USERNAME=${VPN_ADMIN_USERNAME}" \
         -e "VPN_ADMIN_PASSWORD=${VPN_ADMIN_PASSWORD}" \
-        -e "SERVER_IP=${SERVER_IP}"
+        -e "SERVER_IP=${SERVER_IP}" \
+        -e "REALITY_PRIVATE_KEY=${REALITY_PRIVATE_KEY}" \
+        -e "REALITY_SHORT_ID=${REALITY_SHORT_ID}"
     - echo "Infrastructure configuration completed!"
   only:
     - main
@@ -111,10 +113,12 @@ deploy:
       export REMOTE_VPN_ADMIN_USERNAME="$VPN_ADMIN_USERNAME"
       export REMOTE_VPN_ADMIN_PASSWORD="$VPN_ADMIN_PASSWORD"
       export REMOTE_MARZBAN_URL="http://marzban:8000"
-      export REMOTE_SUB_BASE_URL="$SUB_BASE_URL"
       export REMOTE_INFRASTRUCTURE_IP_LIST="$INFRASTRUCTURE_IP_LIST"
       export REMOTE_DOMAIN_NAME="$DOMAIN_NAME"
       export REMOTE_MARZBAN_NODE_CERT_DIR="/var/www/marzban_node/var"
+      export REMOTE_REALITY_PRIVATE_KEY="$REALITY_PRIVATE_KEY"
+      export REMOTE_REALITY_SHORT_ID="$REALITY_SHORT_ID"
+      export REMOTE_MARZBAN_INBOUND_TAG="${MARZBAN_INBOUND_TAG:-VLESS_REALITY}"
       ssh -o StrictHostKeyChecking=no ${SERVER_USER:-root}@${SERVER_IP} << EOF
         set -e
 
@@ -134,10 +138,10 @@ deploy:
         echo "MARZBAN_URL=${REMOTE_MARZBAN_URL}" >> .env
         echo "VPN_ADMIN_USERNAME=${REMOTE_VPN_ADMIN_USERNAME}" >> .env
         echo "VPN_ADMIN_PASSWORD=${REMOTE_VPN_ADMIN_PASSWORD}" >> .env
-        echo "SUB_BASE_URL=${REMOTE_SUB_BASE_URL}" >> .env
         echo "INFRASTRUCTURE_IP_LIST=${REMOTE_INFRASTRUCTURE_IP_LIST}" >> .env
         echo "DOMAIN_NAME=${REMOTE_DOMAIN_NAME}" >> .env
         echo "MARZBAN_NODE_CERT_DIR=${REMOTE_MARZBAN_NODE_CERT_DIR}" >> .env
+        echo "MARZBAN_INBOUND_TAG=${REMOTE_MARZBAN_INBOUND_TAG}" >> .env
 
         echo "[DEPLOY] Logging into Docker Registry..."
         echo "${REMOTE_CI_REGISTRY_PASSWORD}" | docker login -u "${REMOTE_CI_REGISTRY_USER}" --password-stdin ${REMOTE_CI_REGISTRY}
@@ -159,7 +163,6 @@ deploy:
         export MARZBAN_URL=${REMOTE_MARZBAN_URL}
         export VPN_ADMIN_USERNAME=${REMOTE_VPN_ADMIN_USERNAME}
         export VPN_ADMIN_PASSWORD=${REMOTE_VPN_ADMIN_PASSWORD}
-        export SUB_BASE_URL=${REMOTE_SUB_BASE_URL}
         export INFRASTRUCTURE_IP_LIST=${REMOTE_INFRASTRUCTURE_IP_LIST}
         export DOMAIN_NAME=${REMOTE_DOMAIN_NAME}
 

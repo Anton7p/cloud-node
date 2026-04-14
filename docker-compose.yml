@@ -98,7 +98,6 @@ services:
       - UVICORN_HOST=0.0.0.0
       - UVICORN_PORT=8000
       - DASHBOARD_PATH=/dashboard
-      - XRAY_SUBSCRIPTION_URL=${SUB_BASE_URL}
       - XRAY_EXECUTABLE_PATH=/usr/local/bin/xray
       - SUDO_USERNAME=${VPN_ADMIN_USERNAME:-admin}
       - SUDO_PASSWORD=${VPN_ADMIN_PASSWORD:-admin123}
