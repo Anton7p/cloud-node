@@ -49,7 +49,10 @@ export class MarzbanUserService {
       );
 
       // Get inbound tag from config (default: VLESS_REALITY)
-      const inboundTag = this.configService.get<AppConfig['marzbanInboundTag']>('app.marzbanInboundTag') || 'VLESS_REALITY';
+      const inboundTag =
+        this.configService.get<AppConfig['marzbanInboundTag']>(
+          'app.marzbanInboundTag',
+        ) || 'VLESS_REALITY';
 
       const requestBody: Record<string, unknown> = {
         username,
@@ -74,7 +77,9 @@ export class MarzbanUserService {
 
       if (response.data.subscription_url || response.data.username) {
         // Always build subscription URL using DOMAIN_NAME
-        const subscriptionUrl = this.buildSubscriptionUrl(response.data.username);
+        const subscriptionUrl = this.buildSubscriptionUrl(
+          response.data.username,
+        );
 
         this.logger.log(
           `User ${response.data.username} created successfully with subscription URL`,
