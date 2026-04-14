@@ -235,4 +235,56 @@ export class RentalsRepository {
       include: { user: true },
     });
   }
+
+  /**
+   * Получение активных аренд с пагинацией (limit/offset)
+   * @param limit - количество записей на странице
+   * @param offset - смещение от начала
+   * @returns массив активных аренд с информацией о пользователях
+   */
+  async findActivePaginated(limit: number, offset: number): Promise<Rental[]> {
+    return this.prisma.rental.findMany({
+      where: { status: RentalStatus.ACTIVE },
+      include: { user: true },
+      take: limit,
+      skip: offset,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Получение общего количества активных аренд (для пагинации)
+   * @returns количество активных аренд
+   */
+  async countActive(): Promise<number> {
+    return this.prisma.rental.count({
+      where: { status: RentalStatus.ACTIVE },
+    });
+  }
+
+  /**
+   * Поиск активных аренд с пагинацией и фильтрацией по пользователю
+   * @param userId - ID пользователя (опционально)
+   * @param limit - количество записей на странице
+   * @param offset - смещение от начала
+   * @returns массив активных аренд
+   */
+  async findActiveByUserIdPaginated(
+    userId: number | undefined,
+    limit: number,
+    offset: number,
+  ): Promise<Rental[]> {
+    const where = {
+      status: RentalStatus.ACTIVE,
+      ...(userId && { userId }),
+    };
+
+    return this.prisma.rental.findMany({
+      where,
+      include: { user: true },
+      take: limit,
+      skip: offset,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }

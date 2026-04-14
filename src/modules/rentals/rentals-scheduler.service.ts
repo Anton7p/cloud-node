@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { RentalStatus } from '@prisma/client';
 import { PrismaService } from '../../shared/prisma/prisma.service';
 import { RentalsService } from './rentals.service';
-import { MarzbanService } from '../integrations/providers/marzban/marzban.service';
 import dayjs from 'dayjs';
 
 /**
@@ -21,7 +21,7 @@ export class RentalsSchedulerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly rentalsService: RentalsService,
-    private readonly marzbanService: MarzbanService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /**
@@ -116,11 +116,16 @@ export class RentalsSchedulerService {
             data: { status: RentalStatus.EXPIRED },
           });
 
-          // Вызываем метод приостановки у провайдера (Marzban)
+          // Эмитируем событие для приостановки пользователя в Marzban
           if (rental.user?.telegramId) {
-            // TODO: Реализовать suspendUser в MarzbanService
+            const telegramIdNum = Number(rental.user.telegramId);
+            this.eventEmitter.emit('rental.expired', {
+              rentalId: rental.id,
+              userId: rental.user.id,
+              telegramId: telegramIdNum,
+            });
             this.logger.log(
-              `Suspended user ${rental.user.telegramId} (rental ${rental.id})`,
+              `Emitted rental.expired for user ${telegramIdNum} (rental ${rental.id})`,
             );
           }
 

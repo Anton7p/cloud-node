@@ -26,6 +26,28 @@ export class MarzbanAuthService {
   }
 
   /**
+   * Sanitize Axios error to prevent logging sensitive data (passwords, tokens)
+   */
+  private sanitizeAxiosError(error: unknown): string {
+    if (!axios.isAxiosError(error)) {
+      return error instanceof Error ? error.message : 'Unknown error';
+    }
+
+    // Only extract safe information: status code, status text, generic message
+    const status = error.response?.status;
+    const statusText = error.response?.statusText;
+    const code = error.code;
+
+    if (status) {
+      return `HTTP ${status} ${statusText || ''}`.trim();
+    }
+    if (code) {
+      return `Network error: ${code}`;
+    }
+    return 'Request failed';
+  }
+
+  /**
    * Login to Marzban API and get JWT token with retry logic
    */
   async login(): Promise<boolean> {
@@ -104,7 +126,7 @@ export class MarzbanAuthService {
 
         this.logger.error(
           'Failed to authenticate with Marzban:',
-          error instanceof Error ? error.message : 'Unknown error',
+          this.sanitizeAxiosError(error),
         );
         return false;
       }
@@ -156,7 +178,7 @@ export class MarzbanAuthService {
       } else {
         this.logger.error(
           'Failed to create first admin:',
-          error instanceof Error ? error.message : 'Unknown error',
+          this.sanitizeAxiosError(error),
         );
       }
       return false;

@@ -1,5 +1,13 @@
+# CloudNode VPN Bot
 
-⚡️ Быстрый и стабильный VPN прямо в Telegram. Поддержка ПК, телефонов, телевизоров. Реферальная система 50%.
+⚡️ Быстрый и стабильный VPN прямо в Telegram. Поддержка ПК, телефонов, телевизоров.
+
+## Production Ready
+
+- **GitOps деплой** через GitLab CI/CD
+- **Мультинодная инфраструктура** с атомарным деплоем
+- **VLESS + Reality** протокол через Marzban
+- **BullMQ** для асинхронных задач
 
 ## Архитектура (Clean Architecture)
 
@@ -9,44 +17,17 @@ src/
 ├── main.ts                    # Точка входа
 ├── shared/                    # Общие сервисы
 │   ├── prisma/                # Prisma ORM
-│   │   ├── prisma.module.ts
-│   │   └── prisma.service.ts
 │   ├── config/                # Конфигурация
-│   │   └── configuration.ts
+│   ├── encryption/            # Шифрование
 │   └── health/                # Health check
-│       └── health.controller.ts
 ├── modules/                   # Domain модули
-│   ├── users/                 # Модуль пользователей
-│   │   ├── repositories/
-│   │   │   └── users.repository.ts
-│   │   ├── users.module.ts
-│   │   └── users.service.ts
-│   ├── rentals/               # Модуль аренды
-│   │   ├── repositories/
-│   │   │   └── rentals.repository.ts
-│   │   ├── rentals.module.ts
-│   │   └── rentals.service.ts
-│   └── bot/                   # Telegram Bot модуль
-│       ├── application/
-│       │   ├── base.action.ts
-│       │   └── commands/
-│       │       ├── start.command.ts
-│       │       ├── menu.commands.ts
-│       │       ├── instructions.command.ts
-│       │       ├── key-management.commands.ts
-│       │       └── rental.commands.ts
-│       ├── filters/
-│       │   └── bot-exception.filter.ts
-│       ├── types/
-│       │   └── bot.types.ts
-│       ├── ui/                # UI Layer
-│       │   ├── templates/
-│       │   │   └── clean.templates.ts
-│       │   └── keyboards/
-│       │       └── clean.keyboards.ts
-│       ├── bot.update.ts
-│       ├── bot-actions.service.ts
-│       └── bot.module.ts
+│   ├── users/                 # Пользователи
+│   ├── rentals/               # Аренда подписок
+│   ├── payments/              # Платежи (заглушка)
+│   ├── bot/                   # Telegram Bot
+│   └── integrations/          # Внешние интеграции
+│       ├── queue/             # BullMQ очереди
+│       └── providers/         # Marzban API
 └── prisma/
     └── schema.prisma          # Схема БД
 ```
@@ -88,49 +69,45 @@ registerHandler(handler: BaseAction): void {
 
 ## Технологии
 
-- **NestJS** — фреймворк для Node.js
-- **nestjs-telegraf** — интеграция с Telegram Bot API
-- **Prisma ORM** — работа с PostgreSQL
-- **@nestjs/config** — управление конфигурацией
-- **@nestjs/terminus** — health checks
-- **Joi** — валидация переменных окружения
+- **NestJS** — фреймворк
+- **nestjs-telegraf** — Telegram Bot API
+- **Prisma ORM** — PostgreSQL
+- **BullMQ** — очереди задач (Redis)
+- **Marzban** — VPN панель (VLESS/Reality)
+- **Joi** — валидация конфигурации
 
-## Установка
+## GitOps Деплой (Production)
 
-```bash
-npm install
-```
+### Требуемые переменные GitLab CI/CD
 
-## Настройка
-
-1. Создайте файл `.env`:
-```bash
-cp .env.example .env
-```
-
-2. Заполните `.env`:
 ```env
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
-NODE_ENV=development
-PORT=3000
-DATABASE_URL="postgresql://user:pass@localhost:5432/cloudnode?schema=public"
+# Обязательные
+TELEGRAM_BOT_TOKEN=
+DB_PASSWORD=
+REDIS_PASSWORD=
+ENCRYPTION_KEY=
+
+# Инфраструктура
+SERVER_IP=                    # Master node
+INFRASTRUCTURE_IP_LIST=       # Node1,Node2 (через запятую)
+SSH_PRIVATE_KEY=              # Доступ к нодам
+SERVER_USER=                  # root (default)
+
+# Marzban VPN
+VPN_ADMIN_USERNAME=
+VPN_ADMIN_PASSWORD=
+DOMAIN_NAME=
+SUB_BASE_URL=
+
+# Docker Registry
+CI_REGISTRY_USER=
+CI_REGISTRY_PASSWORD=
 ```
 
-3. Инициализируйте БД:
-```bash
-npx prisma migrate dev --name init
-npx prisma generate
-```
-
-## Запуск
+### Деплой
 
 ```bash
-# Разработка
-npm run start:dev
-
-# Продакшн
-npm run build
-npm run start:prod
+git push origin main  # Автоматический деплой на все ноды
 ```
 
 ## Health Check
@@ -138,6 +115,12 @@ npm run start:prod
 ```
 GET http://localhost:3000/health
 ```
+
+## Отказоустойчивость
+
+- **Атомарный деплой** — если одна нода падает, пайплайн фейлится
+- **BullMQ retry** — 9 попыток для provisioning задач
+- **Graceful degradation** — бот работает даже при проблемах с VPN API
 
 ## Команды бота
 

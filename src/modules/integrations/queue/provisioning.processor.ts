@@ -1,11 +1,11 @@
 import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Job } from 'bullmq';
 import { RentalStatus } from '@prisma/client';
 import { MarzbanService } from '../providers/marzban/marzban.service';
 import { RentalsService } from '../../rentals/rentals.service';
 import { RentalsRepository } from '../../rentals/repositories/rentals.repository';
-import { BotService } from '../../bot/bot.service';
 
 interface ProvisioningJobData {
   rentalId: number;
@@ -25,7 +25,7 @@ export class ProvisioningProcessor extends WorkerHost {
     private readonly marzbanService: MarzbanService,
     private readonly rentalsService: RentalsService,
     private readonly rentalsRepository: RentalsRepository,
-    private readonly botService: BotService,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     super();
   }
@@ -57,10 +57,12 @@ export class ProvisioningProcessor extends WorkerHost {
 
       // Notify user about successful activation
       if (chatId) {
-        await this.botService.notifySubscriptionSuccess(
+        this.eventEmitter.emit('subscription.success', {
           chatId,
-          result.subscriptionUrl,
-        );
+          subscriptionUrl: result.subscriptionUrl,
+          rentalId,
+          telegramId,
+        });
       }
     } catch (error) {
       const errorMessage =
@@ -76,7 +78,12 @@ export class ProvisioningProcessor extends WorkerHost {
 
       // Notify user about failure
       if (chatId) {
-        await this.botService.notifySubscriptionFailed(chatId, errorMessage);
+        this.eventEmitter.emit('subscription.failed', {
+          chatId,
+          error: errorMessage,
+          rentalId,
+          telegramId,
+        });
       }
 
       throw error; // Re-throw to trigger retry

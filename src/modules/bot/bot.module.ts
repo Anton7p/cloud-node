@@ -1,11 +1,11 @@
-import { Module, Logger, forwardRef } from '@nestjs/common';
+import { Module, Logger } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TelegrafModule } from 'nestjs-telegraf';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import { PrismaModule } from '../../shared/prisma/prisma.module';
-import { RentalsModule } from '../rentals/rentals.module';
 import { UsersModule } from '../users/users.module';
-import { IntegrationsModule } from '../integrations/integrations.module';
+import { RentalsModule } from '../rentals/rentals.module';
+import { MarzbanModule } from '../integrations/providers/marzban/marzban.module';
 import { PaymentModule } from '../payments/payment.module';
 import { BotUpdate } from './bot.update';
 import { BotActionsService } from './bot-actions.service';
@@ -80,8 +80,8 @@ const commandHandlers = [
     }),
     PrismaModule,
     UsersModule,
-    forwardRef(() => RentalsModule),
-    forwardRef(() => IntegrationsModule),
+    RentalsModule,
+    MarzbanModule,
     PaymentModule,
   ],
   providers: [

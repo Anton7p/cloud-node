@@ -23,6 +23,53 @@ export class MarzbanCertificateService {
   }
 
   /**
+   * Check directory permissions (existence, writable)
+   * @param dirPath - directory path to check
+   * @returns object with status and error message if applicable
+   */
+  async checkDirectoryPermissions(dirPath: string): Promise<{
+    ok: boolean;
+    error?: string;
+  }> {
+    try {
+      // Check if directory exists
+      try {
+        await fs.access(dirPath);
+      } catch {
+        // Directory doesn't exist, try to create it
+        try {
+          await fs.mkdir(dirPath, { recursive: true, mode: 0o700 });
+          this.logger.log(`Created certificate directory: ${dirPath}`);
+        } catch (mkdirError) {
+          return {
+            ok: false,
+            error: `Cannot create directory ${dirPath}: ${mkdirError instanceof Error ? mkdirError.message : 'Unknown error'}`,
+          };
+        }
+      }
+
+      // Check if directory is writable by attempting to write a test file
+      const testFile = path.join(dirPath, '.write_test');
+      try {
+        await fs.writeFile(testFile, '', { mode: 0o600 });
+        await fs.unlink(testFile);
+      } catch (writeError) {
+        return {
+          ok: false,
+          error: `Directory ${dirPath} is not writable: ${writeError instanceof Error ? writeError.message : 'Unknown error'}`,
+        };
+      }
+
+      return { ok: true };
+    } catch (error) {
+      return {
+        ok: false,
+        error: `Permission check failed for ${dirPath}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      };
+    }
+  }
+
+  /**
    * Fetch SSL certificate from Marzban Master and save it locally
    */
   async fetchAndSaveCert(): Promise<void> {
@@ -40,18 +87,39 @@ export class MarzbanCertificateService {
 
       const certDir = path.dirname(this.certPath);
 
-      try {
-        await fs.access(certDir);
-      } catch {
-        await fs.mkdir(certDir, { recursive: true });
-        this.logger.log(`Created certificate directory: ${certDir}`);
+      // Check directory permissions before writing
+      const permissionCheck = await this.checkDirectoryPermissions(certDir);
+      if (!permissionCheck.ok) {
+        this.logger.error(
+          `Certificate directory permission check failed: ${permissionCheck.error}`,
+        );
+        return;
       }
 
+      // Write certificate with restricted permissions (owner read/write only)
       await fs.writeFile(this.certPath, response.data.certificate, {
         mode: 0o600,
+        flag: 'w',
       });
 
-      this.logger.log(`SSL certificate saved to: ${this.certPath}`);
+      // Verify file was written and has correct permissions
+      const stats = await fs.stat(this.certPath);
+      if (!stats.isFile()) {
+        this.logger.error('Certificate file was not created properly');
+        return;
+      }
+
+      // Check file mode (should be 0o600 = 384)
+      const fileMode = stats.mode & 0o777;
+      if (fileMode !== 0o600) {
+        this.logger.warn(
+          `Certificate file has unexpected permissions: ${fileMode.toString(8)}, expected 600`,
+        );
+      }
+
+      this.logger.log(
+        `SSL certificate saved to: ${this.certPath} (size: ${stats.size} bytes, mode: ${fileMode.toString(8)})`,
+      );
     } catch (error) {
       this.logger.error(
         'Failed to fetch and save certificate:',

@@ -1,11 +1,10 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
 import { ProvisioningQueue } from './provisioning.queue';
 import { ProvisioningProcessor } from './provisioning.processor';
 import { MarzbanModule } from '../providers/marzban/marzban.module';
 import { RentalsModule } from '../../rentals/rentals.module';
-import { BotModule } from '../../bot/bot.module';
 import { AppConfig } from '../../../shared/config/configuration';
 
 @Module({
@@ -38,9 +37,8 @@ import { AppConfig } from '../../../shared/config/configuration';
     BullModule.registerQueue({
       name: 'provisioning',
     }),
-    forwardRef(() => RentalsModule),
     MarzbanModule,
-    forwardRef(() => BotModule),
+    RentalsModule,
   ],
   providers: [ProvisioningQueue, ProvisioningProcessor],
   exports: [ProvisioningQueue],
