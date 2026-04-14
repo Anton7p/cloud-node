@@ -27,8 +27,7 @@
   set_fact:
     reality_inbound_exists: >-
       {{ existing_inbounds_check.json is defined and
-         existing_inbounds_check.json is iterable and
-         existing_inbounds_check.json is not string and
+         existing_inbounds_check.json | type_debug == 'list' and
          'VLESS_REALITY' in (existing_inbounds_check.json | map(attribute='tag') | list) }}
   delegate_to: localhost
   become: no
