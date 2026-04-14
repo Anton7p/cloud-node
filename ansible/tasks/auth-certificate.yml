@@ -71,7 +71,7 @@
 
 - name: Fail if authentication failed
   fail:
-    msg: "Authentication failed with Marzban Master. Status: {{ auth_response.status | default('unknown') }}. Check MARZBAN_ADMIN_USERNAME and MARZBAN_ADMIN_PASSWORD."
+    msg: "Authentication failed with Marzban Master. Status: {{ auth_response.status | default('unknown') }}. Check VPN_ADMIN_USERNAME and VPN_ADMIN_PASSWORD."
   when: auth_response.status != 200
   delegate_to: localhost
   become: no

@@ -78,7 +78,7 @@ export class XuiAuthService {
   }
 
   private getCredentials(): XuiCredentials | null {
-    // Use shared VPN panel credentials (MARZBAN_ADMIN_USERNAME / MARZBAN_ADMIN_PASSWORD)
+    // Use shared VPN panel credentials (VPN_ADMIN_USERNAME / VPN_ADMIN_PASSWORD)
     const username = this.configService.get<AppConfig['vpnAdminUsername']>(
       'app.vpnAdminUsername',
     );

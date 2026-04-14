@@ -12,8 +12,8 @@
     marzban_node_image: gozargah/marzban-node:latest
     compose_project_name: "marzban-node"
     # Credentials - supports both extra-vars (-e) and env variables
-    marzban_username: "{{ MARZBAN_ADMIN_USERNAME | default(lookup('env', 'MARZBAN_ADMIN_USERNAME'), true) }}"
-    marzban_password: "{{ MARZBAN_ADMIN_PASSWORD | default(lookup('env', 'MARZBAN_ADMIN_PASSWORD'), true) }}"
+    marzban_username: "{{ VPN_ADMIN_USERNAME | default(lookup('env', 'VPN_ADMIN_USERNAME'), true) }}"
+    marzban_password: "{{ VPN_ADMIN_PASSWORD | default(lookup('env', 'VPN_ADMIN_PASSWORD'), true) }}"
     domain_name: "{{ DOMAIN_NAME | default(lookup('env', 'DOMAIN_NAME'), true) }}"
 
   pre_tasks:
@@ -36,8 +36,8 @@
         msg: "Missing required GitLab CI/CD variable: {{ item.var }}. Please set it in GitLab Settings > CI/CD > Variables."
       when: item.value | length == 0
       loop:
-        - { var: "MARZBAN_ADMIN_USERNAME", value: "{{ marzban_username }}" }
-        - { var: "MARZBAN_ADMIN_PASSWORD", value: "{{ marzban_password }}" }
+        - { var: "VPN_ADMIN_USERNAME", value: "{{ marzban_username }}" }
+        - { var: "VPN_ADMIN_PASSWORD", value: "{{ marzban_password }}" }
         - { var: "DOMAIN_NAME", value: "{{ domain_name }}" }
       loop_control:
         label: "{{ item.var }}"
