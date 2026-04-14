@@ -65,10 +65,11 @@ export class MarzbanUserService {
         .post<MarzbanUserResponse>('/user', requestBody);
 
       if (response.data.subscription_url || response.data.username) {
-        // Use subscription_url from Marzban API, or build manually if not provided
-        const subscriptionUrl =
-          response.data.subscription_url ||
-          this.buildSubscriptionUrl(response.data.username);
+        // Use subscription_url from Marzban API, sanitize if needed, or build manually
+        const rawUrl = response.data.subscription_url;
+        const subscriptionUrl = rawUrl
+          ? this.sanitizeSubscriptionUrl(rawUrl)
+          : this.buildSubscriptionUrl(response.data.username);
 
         this.logger.log(
           `User ${response.data.username} created successfully with subscription URL`,
@@ -119,13 +120,40 @@ export class MarzbanUserService {
   }
 
   /**
+   * Sanitize subscription URL from Marzban API - replace placeholder with real domain
+   */
+  private sanitizeSubscriptionUrl(url: string): string {
+    if (!this.domainName) {
+      return url;
+    }
+
+    // Заменяем placeholder домен на реальный DOMAIN_NAME
+    if (url.includes('cloudnode-host')) {
+      return url.replace(/cloudnode-host/, this.domainName);
+    }
+
+    return url;
+  }
+
+  /**
    * Build subscription URL manually if Marzban API doesn't return it
    * Uses DOMAIN_NAME for external links
    */
   private buildSubscriptionUrl(username: string): string {
-    const subBaseUrl =
-      this.configService.get<AppConfig['subBaseUrl']>('app.subBaseUrl') ||
-      (this.domainName ? `https://${this.domainName}` : '');
-    return `${subBaseUrl.replace(/\/$/, '')}/${username}`;
+    const subBaseUrl = this.configService.get<AppConfig['subBaseUrl']>('app.subBaseUrl');
+
+    // Если SUB_BASE_URL задан и не содержит placeholder - используем его
+    if (subBaseUrl && !subBaseUrl.includes('cloudnode-host')) {
+      return `${subBaseUrl.replace(/\/$/, '')}/${username}`;
+    }
+
+    // Fallback на DOMAIN_NAME
+    if (this.domainName) {
+      return `https://${this.domainName}/${username}`;
+    }
+
+    // Крайний случай - пустой URL
+    this.logger.warn('DOMAIN_NAME not set, subscription URL may be invalid');
+    return `/${username}`;
   }
 }
