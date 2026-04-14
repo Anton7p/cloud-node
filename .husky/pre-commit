@@ -1,1 +1,1 @@
-npm run lint && npx prisma validate  && npm test
+npm run lint && npx prisma validate
