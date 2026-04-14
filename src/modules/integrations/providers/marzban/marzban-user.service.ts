@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AxiosInstance } from 'axios';
+import { HttpService } from '@nestjs/axios';
+import axios from 'axios';
 import { CreateUserResult, MarzbanUserResponse } from './types/marzban.types';
 import { AppConfig } from '../../../../shared/config/configuration';
-import axios from 'axios';
 
 @Injectable()
 export class MarzbanUserService {
@@ -12,7 +12,7 @@ export class MarzbanUserService {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly httpClient: AxiosInstance,
+    private readonly httpService: HttpService,
   ) {
     this.domainName =
       this.configService.get<AppConfig['domainName']>('app.domainName');
@@ -20,6 +20,7 @@ export class MarzbanUserService {
 
   /**
    * Create a new user in Marzban with traffic limit and expiry
+   * For trial accounts (months <= 0.1), sets limitIp to 2 devices
    */
   async createUser(
     telegramId: string,
@@ -27,26 +28,43 @@ export class MarzbanUserService {
   ): Promise<CreateUserResult> {
     try {
       const username = `user_${telegramId}`;
-      const expireDays = months * 30;
-      // 100 GB traffic limit in bytes
-      const dataLimit = 107374182400;
+      const daysPerMonth = this.configService.get<
+        AppConfig['subscriptionDaysPerMonth']
+      >('app.subscriptionDaysPerMonth');
+      const expireDays = months * daysPerMonth;
+      const dataLimit = this.configService.get<AppConfig['defaultDataLimit']>(
+        'app.defaultDataLimit',
+      );
       const expireTimestamp = Math.floor(
         (Date.now() + expireDays * 24 * 60 * 60 * 1000) / 1000,
       );
 
+      // Trial account detection: months <= 0.1 (approximately 3 days or less)
+      const isTrialAccount = months <= 0.1;
+      const limitIp = isTrialAccount ? 2 : undefined;
+
       this.logger.log(
-        `Creating Marzban user ${username} with ${months} months subscription`,
+        `Creating Marzban user ${username} with ${months} months subscription` +
+          (isTrialAccount ? ' (TRIAL - limitIp: 2)' : ''),
       );
 
-      const response = await this.httpClient.post<MarzbanUserResponse>(
-        '/user',
-        {
-          username,
-          expire: expireTimestamp,
-          data_limit: dataLimit,
-          status: 'active',
-        },
-      );
+      const requestBody: Record<string, unknown> = {
+        username,
+        expire: expireTimestamp,
+        data_limit: dataLimit,
+        status: 'active',
+      };
+
+      // Add limitIp for trial accounts
+      if (limitIp) {
+        requestBody.limitIp = limitIp;
+      }
+
+      const response =
+        await this.httpService.axiosRef.post<MarzbanUserResponse>(
+          '/user',
+          requestBody,
+        );
 
       if (response.data.subscription_url || response.data.username) {
         // Use subscription_url from Marzban API, or build manually if not provided

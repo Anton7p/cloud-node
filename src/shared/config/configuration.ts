@@ -13,10 +13,10 @@ export interface AppConfig {
   redisHost: string;
   redisPort: number;
   redisPassword: string | undefined;
-  // Marzban API
-  marzbanUrl: string | undefined;
-  marzbanAdminUsername: string | undefined;
-  marzbanAdminPassword: string | undefined;
+  // VPN Panel API (Marzban & XUI shared)
+  vpnPanelUrl: string | undefined;
+  vpnAdminUsername: string | undefined;
+  vpnAdminPassword: string | undefined;
   subBaseUrl: string | undefined;
   // Domain name for external links
   domainName: string | undefined;
@@ -28,6 +28,13 @@ export interface AppConfig {
   infrastructureIpList: string | undefined;
   // Marzban Node SSL certificate directory
   marzbanNodeCertDir: string | undefined;
+  // Default data limit for new users (in bytes)
+  defaultDataLimit: number;
+  // Days per month for subscription calculation
+  subscriptionDaysPerMonth: number;
+  // Trial configuration
+  trialDays: number;
+  trialIpLimit: number;
 }
 
 const logger = new Logger('Config');
@@ -49,10 +56,10 @@ export const configuration = registerAs('app', (): AppConfig => {
     redisHost: process.env.REDIS_HOST?.trim() || 'redis',
     redisPort: parseInt(process.env.REDIS_PORT, 10) || 6379,
     redisPassword: process.env.REDIS_PASSWORD,
-    // Marzban API
-    marzbanUrl: process.env.MARZBAN_URL,
-    marzbanAdminUsername: process.env.MARZBAN_ADMIN_USERNAME,
-    marzbanAdminPassword: process.env.MARZBAN_ADMIN_PASSWORD,
+    // VPN Panel API (shared for Marzban & XUI)
+    vpnPanelUrl: process.env.VPN_PANEL_URL,
+    vpnAdminUsername: process.env.VPN_ADMIN_USERNAME,
+    vpnAdminPassword: process.env.VPN_ADMIN_PASSWORD,
     subBaseUrl: process.env.SUB_BASE_URL,
     // Domain name for external links
     domainName: process.env.DOMAIN_NAME,
@@ -64,6 +71,15 @@ export const configuration = registerAs('app', (): AppConfig => {
     infrastructureIpList: process.env.INFRASTRUCTURE_IP_LIST,
     // Marzban Node SSL certificate directory
     marzbanNodeCertDir: process.env.MARZBAN_NODE_CERT_DIR,
+    // Default data limit for new users (100 GB in bytes)
+    defaultDataLimit:
+      parseInt(process.env.DEFAULT_DATA_LIMIT, 10) || 107374182400,
+    // Days per month for subscription calculation
+    subscriptionDaysPerMonth:
+      parseInt(process.env.SUBSCRIPTION_DAYS_PER_MONTH, 10) || 30,
+    // Trial configuration (default: 3 days, 2 IP limit)
+    trialDays: parseInt(process.env.TRIAL_DAYS, 10) || 3,
+    trialIpLimit: parseInt(process.env.TRIAL_IP_LIMIT, 10) || 2,
   };
 });
 
@@ -93,10 +109,10 @@ export const validationSchema = Joi.object({
   REDIS_HOST: Joi.string().allow('').default('redis'),
   REDIS_PORT: Joi.number().port().default(6379),
   REDIS_PASSWORD: Joi.string().optional(),
-  // Marzban configuration - optional, warns only
-  MARZBAN_URL: Joi.string().uri().optional(),
-  MARZBAN_ADMIN_USERNAME: Joi.string().optional(),
-  MARZBAN_ADMIN_PASSWORD: Joi.string().optional(),
+  // VPN Panel configuration (shared for Marzban & XUI) - optional, warns only
+  VPN_PANEL_URL: Joi.string().uri().optional(),
+  VPN_ADMIN_USERNAME: Joi.string().optional(),
+  VPN_ADMIN_PASSWORD: Joi.string().optional(),
   SUB_BASE_URL: Joi.string().uri().optional(),
   // Domain name for external links - optional
   DOMAIN_NAME: Joi.string().optional(),
@@ -108,4 +124,11 @@ export const validationSchema = Joi.object({
   INFRASTRUCTURE_IP_LIST: Joi.string().optional(),
   // Marzban Node SSL certificate directory - optional
   MARZBAN_NODE_CERT_DIR: Joi.string().optional(),
+  // Default data limit for new users (in bytes) - optional, default 100 GB
+  DEFAULT_DATA_LIMIT: Joi.number().integer().min(0).optional(),
+  // Days per month for subscription calculation - optional, default 30
+  SUBSCRIPTION_DAYS_PER_MONTH: Joi.number().integer().min(1).optional(),
+  // Trial configuration - optional with defaults
+  TRIAL_DAYS: Joi.number().integer().min(1).optional(),
+  TRIAL_IP_LIMIT: Joi.number().integer().min(1).optional(),
 });

@@ -1,12 +1,45 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { AxiosInstance, AxiosResponse } from 'axios';
+import { ConfigService } from '@nestjs/config';
+import { HttpService } from '@nestjs/axios';
+import { randomUUID } from 'crypto';
 import { XuiAddClientResponse, XuiClientData } from './types/xui.types';
+import { AppConfig } from '../../../../shared/config/configuration';
 
 @Injectable()
 export class XuiClientService {
   private readonly logger = new Logger(XuiClientService.name);
 
-  constructor(private readonly httpClient: AxiosInstance) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly httpService: HttpService,
+  ) {}
+
+  private getBaseUrl(): string {
+    // Use VPN_PANEL_URL with fallback to internal Docker URL
+    return (
+      this.configService.get<AppConfig['vpnPanelUrl']>('app.vpnPanelUrl') ||
+      'http://cloudnode-marzban:8000'
+    );
+  }
+
+  private getApiPath(): string {
+    return '/xui';
+  }
+
+  private getDefaultIpLimit(): number {
+    // Default IP limit for XUI clients
+    return 2;
+  }
+
+  private getDefaultDataLimit(): number {
+    // Default data limit in bytes (0 = unlimited)
+    return 0;
+  }
+
+  private getDefaultExpireDays(): number {
+    // Default expiration days for XUI clients
+    return 30;
+  }
 
   /**
    * Add a new client (user) to a specific inbound
@@ -23,12 +56,12 @@ export class XuiClientService {
       const settings = {
         clients: [
           {
-            id: clientData.id || this.generateUUID(),
+            id: clientData.id || randomUUID(),
             flow: clientData.flow || 'xtls-rprx-vision',
             email: clientData.email,
-            limitIp: clientData.limitIp || 2,
-            totalGB: clientData.totalGB || 0,
-            expireDays: clientData.expireDays || 30,
+            limitIp: clientData.limitIp ?? this.getDefaultIpLimit(),
+            totalGB: clientData.totalGB ?? this.getDefaultDataLimit(),
+            expireDays: clientData.expireDays ?? this.getDefaultExpireDays(),
             enable: true,
           },
         ],
@@ -38,10 +71,18 @@ export class XuiClientService {
       formData.append('id', inboundId.toString());
       formData.append('settings', JSON.stringify(settings));
 
-      const response: AxiosResponse<XuiAddClientResponse> =
-        await this.httpClient.post(
-          `/xui/inbound/addClient/${inboundId}`,
+      const baseUrl = this.getBaseUrl();
+      const apiPath = this.getApiPath();
+
+      const response =
+        await this.httpService.axiosRef.post<XuiAddClientResponse>(
+          `${baseUrl}${apiPath}/inbound/addClient/${inboundId}`,
           formData.toString(),
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+          },
         );
 
       if (response.data.success) {
@@ -63,17 +104,6 @@ export class XuiClientService {
   }
 
   /**
-   * Generate a UUID for VLESS/VMESS clients
-   */
-  private generateUUID(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
-  }
-
-  /**
    * Update existing client in inbound
    */
   async updateClient(
@@ -88,12 +118,12 @@ export class XuiClientService {
       const settings = {
         clients: [
           {
-            id: clientData.id || this.generateUUID(),
+            id: clientData.id || randomUUID(),
             flow: clientData.flow || 'xtls-rprx-vision',
             email: clientData.email,
-            limitIp: clientData.limitIp || 2,
-            totalGB: clientData.totalGB || 0,
-            expireDays: clientData.expireDays || 30,
+            limitIp: clientData.limitIp ?? this.getDefaultIpLimit(),
+            totalGB: clientData.totalGB ?? this.getDefaultDataLimit(),
+            expireDays: clientData.expireDays ?? this.getDefaultExpireDays(),
             enable: true,
           },
         ],
@@ -103,10 +133,18 @@ export class XuiClientService {
       formData.append('id', inboundId.toString());
       formData.append('settings', JSON.stringify(settings));
 
-      const response: AxiosResponse<XuiAddClientResponse> =
-        await this.httpClient.post(
-          `/xui/inbound/updateClient/${inboundId}`,
+      const baseUrl = this.getBaseUrl();
+      const apiPath = this.getApiPath();
+
+      const response =
+        await this.httpService.axiosRef.post<XuiAddClientResponse>(
+          `${baseUrl}${apiPath}/inbound/updateClient/${inboundId}`,
           formData.toString(),
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+          },
         );
 
       if (response.data.success) {
@@ -138,10 +176,18 @@ export class XuiClientService {
       formData.append('id', inboundId.toString());
       formData.append('email', email);
 
-      const response: AxiosResponse<XuiAddClientResponse> =
-        await this.httpClient.post(
-          `/xui/inbound/delClient/${inboundId}`,
+      const baseUrl = this.getBaseUrl();
+      const apiPath = this.getApiPath();
+
+      const response =
+        await this.httpService.axiosRef.post<XuiAddClientResponse>(
+          `${baseUrl}${apiPath}/inbound/delClient/${inboundId}`,
           formData.toString(),
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+          },
         );
 
       if (response.data.success) {

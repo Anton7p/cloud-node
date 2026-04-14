@@ -1,8 +1,11 @@
 import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
+import { RentalStatus } from '@prisma/client';
 import { MarzbanService } from '../providers/marzban/marzban.service';
 import { RentalsService } from '../../rentals/rentals.service';
+import { RentalsRepository } from '../../rentals/repositories/rentals.repository';
+import { BotService } from '../../bot/bot.service';
 
 interface ProvisioningJobData {
   rentalId: number;
@@ -21,12 +24,14 @@ export class ProvisioningProcessor extends WorkerHost {
   constructor(
     private readonly marzbanService: MarzbanService,
     private readonly rentalsService: RentalsService,
+    private readonly rentalsRepository: RentalsRepository,
+    private readonly botService: BotService,
   ) {
     super();
   }
 
   async process(job: Job<ProvisioningJobData>): Promise<void> {
-    const { rentalId, telegramId, months } = job.data;
+    const { rentalId, telegramId, months, chatId } = job.data;
 
     this.logger.log(
       `Processing provisioning job ${job.id} for rental ${rentalId}, user ${telegramId}`,
@@ -49,11 +54,31 @@ export class ProvisioningProcessor extends WorkerHost {
       this.logger.log(
         `Successfully provisioned rental ${rentalId} with subscription URL`,
       );
+
+      // Notify user about successful activation
+      if (chatId) {
+        await this.botService.notifySubscriptionSuccess(
+          chatId,
+          result.subscriptionUrl,
+        );
+      }
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+
       this.logger.error(
         `Provisioning failed for rental ${rentalId}:`,
-        error instanceof Error ? error.message : 'Unknown error',
+        errorMessage,
       );
+
+      // Update rental status to EXPIRED to mark it as failed
+      await this.rentalsRepository.updateStatus(rentalId, RentalStatus.EXPIRED);
+
+      // Notify user about failure
+      if (chatId) {
+        await this.botService.notifySubscriptionFailed(chatId, errorMessage);
+      }
+
       throw error; // Re-throw to trigger retry
     }
   }

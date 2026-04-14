@@ -7,6 +7,9 @@ import { RentalData } from '../bot/types/bot.types';
 import { UsersService } from '../users/users.service';
 import { EncryptionService } from '../../shared/encryption/encryption.service';
 import dayjs from 'dayjs';
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
+
+dayjs.extend(isSameOrAfter);
 
 export { Rental, RentalStatus } from '@prisma/client';
 
@@ -45,40 +48,55 @@ export class RentalsService {
   /**
    * Активация аренды с транзакционной безопасностью
    * Логика: продлеваем активную или создаем новую
+   * Все запросы к БД выполняются внутри $transaction для предотвращения race conditions
    */
-  async activateRental(telegramId: number): Promise<Rental | null> {
+  async activateRental(
+    telegramId: number,
+    chatId?: number,
+    messageId?: number,
+  ): Promise<Rental | null> {
     const user = await this.usersService.findByTelegramId(telegramId);
     if (!user) {
       this.logger.warn(`User not found for activation: ${telegramId}`);
       return null;
     }
 
-    const pendingRental = await this.rentalsRepository.findPendingByUserId(
-      user.id,
-    );
-    if (!pendingRental) {
-      this.logger.warn(`No pending rental found for user: ${telegramId}`);
-      return null;
-    }
-
     const now = dayjs();
-    const activeRental = await this.rentalsRepository.findActiveByUserId(
-      user.id,
-    );
 
-    // Транзакция: либо продлеваем активную, либо активируем новую
+    // Транзакция: все операции с БД выполняются атомарно
     const result = await this.prisma.$transaction(async (tx) => {
+      // Ищем pending аренду внутри транзакции
+      const pendingRental = await tx.rental.findFirst({
+        where: {
+          userId: user.id,
+          status: RentalStatus.PENDING,
+        },
+      });
+
+      if (!pendingRental) {
+        this.logger.warn(`No pending rental found for user: ${telegramId}`);
+        return null;
+      }
+
+      // Ищем активную аренду внутри транзакции
+      const activeRental = await tx.rental.findFirst({
+        where: {
+          userId: user.id,
+          status: RentalStatus.ACTIVE,
+        },
+      });
+
       // Если есть активная аренда и она не просрочена - продлеваем
       if (
         activeRental &&
         activeRental.endDate &&
-        dayjs(activeRental.endDate).isAfter(now)
+        dayjs(activeRental.endDate).isSameOrAfter(now)
       ) {
         const newTerm = activeRental.term + pendingRental.term;
-        const newEndDate = dayjs(activeRental.endDate).add(
-          pendingRental.term,
-          'month',
-        );
+        // Для коротких сроков используем дни, иначе месяцы
+        const newEndDate = pendingRental.term < 1
+          ? dayjs(activeRental.endDate).add(Math.round(pendingRental.term * 30), 'day')
+          : dayjs(activeRental.endDate).add(pendingRental.term, 'month');
 
         // Помечаем pending как COMPLETED (не удаляем для истории)
         await tx.rental.update({
@@ -103,7 +121,10 @@ export class RentalsService {
       }
 
       // Если активной нет или просрочена - активируем pending
-      const endDate = now.add(pendingRental.term, 'month');
+      // Для коротких сроков (trial < 1 месяц) используем дни, иначе месяцы
+      const endDate = pendingRental.term < 1
+        ? now.add(Math.round(pendingRental.term * 30), 'day')
+        : now.add(pendingRental.term, 'month');
 
       const updated = await tx.rental.update({
         where: { id: pendingRental.id },
@@ -121,7 +142,7 @@ export class RentalsService {
       return updated;
     });
 
-    // Эмитируем событие для интеграций
+    // Эмитируем событие для интеграций (вне транзакции)
     if (result) {
       this.eventEmitter.emit('rental.activated', {
         rentalId: result.id,
@@ -129,8 +150,8 @@ export class RentalsService {
         telegramId,
         term: result.term,
         endDate: result.endDate,
-        chatId: 0, // Will be set by caller
-        messageId: 0, // Will be set by caller
+        chatId: chatId ?? 0,
+        messageId: messageId ?? 0,
       });
     }
 
@@ -155,8 +176,8 @@ export class RentalsService {
     return this.rentalsRepository.findActiveByUserId(user.id);
   }
 
-  async removeRental(id: number): Promise<boolean> {
-    return this.rentalsRepository.delete(id);
+  async completeRental(id: number): Promise<boolean> {
+    return this.rentalsRepository.complete(id);
   }
 
   async getAllRentals(): Promise<Rental[]> {

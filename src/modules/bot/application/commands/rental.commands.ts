@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { RentalsService } from '../../../rentals/rentals.service';
 import { MarzbanService } from '../../../integrations/providers/marzban/marzban.service';
+import { PaymentService } from '../../../payments/payment.service';
 import { BaseAction, CommandContext, safeDeleteMessage } from '../base.action';
 import {
   MESSAGES,
   ACCESS_PRICES,
   keyDisplayKeyboard,
   extendSuccessKeyboard,
+  mainKeyboard,
 } from '../../ui';
 
 /**
@@ -17,9 +19,72 @@ export async function handleRental(
   ctx: CommandContext['ctx'],
   rentalsService: RentalsService,
   marzbanService: MarzbanService,
+  paymentService: PaymentService,
   userId: number,
   months: number,
+  data: string,
 ): Promise<void> {
+  // Handle free trial (free_test or months = 0)
+  if (data === 'free_test' || months === 0) {
+    const result = await paymentService.createTrialRental(userId);
+
+    if (!result.success) {
+      await ctx.reply(result.message || MESSAGES.ERROR, {
+        reply_markup: mainKeyboard().reply_markup,
+      });
+      return;
+    }
+
+    // Create Marzban user for trial (limitIp: 2 is set automatically for trials)
+    const marzbanResult = await marzbanService.createUser(
+      String(userId),
+      months,
+    );
+    if (!marzbanResult.success || !marzbanResult.subscriptionUrl) {
+      await ctx.reply(MESSAGES.ERROR);
+      return;
+    }
+
+    // Update rental with subscription URL
+    if (result.rentalId) {
+      await rentalsService.updateAccessKey(
+        result.rentalId,
+        marzbanResult.subscriptionUrl,
+      );
+    }
+
+    await ctx.reply(
+      MESSAGES.KEY_READY('3 дня бесплатно', marzbanResult.subscriptionUrl),
+      {
+        parse_mode: 'Markdown',
+        reply_markup: keyDisplayKeyboard(marzbanResult.subscriptionUrl)
+          .reply_markup,
+      },
+    );
+    return;
+  }
+
+  // Handle paid options (week, month_1, month_3, etc.) - show payment stub message
+  if (data === 'week' || data.startsWith('month_')) {
+    let result;
+    if (data === 'week') {
+      result = await paymentService.processWeekPayment(userId);
+    } else {
+      const monthsCount = parseInt(data.replace('month_', ''), 10);
+      result = await paymentService.processMonthPayment(userId, monthsCount);
+    }
+
+    await ctx.reply(
+      result.message ||
+        'Платежная система в процессе подключения. Попробуйте наш бесплатный период.',
+      {
+        reply_markup: mainKeyboard().reply_markup,
+      },
+    );
+    return;
+  }
+
+  // Legacy flow for other cases (should not reach here with new UI)
   const price = ACCESS_PRICES.find((p) => p.months === months);
   if (!price) {
     await ctx.reply(MESSAGES.ERROR);
@@ -70,6 +135,7 @@ export class RentCommand extends BaseAction {
   constructor(
     private readonly rentalsService: RentalsService,
     private readonly marzbanService: MarzbanService,
+    private readonly paymentService: PaymentService,
   ) {
     super(RentCommand.name);
   }
@@ -94,8 +160,10 @@ export class RentCommand extends BaseAction {
       ctx,
       this.rentalsService,
       this.marzbanService,
+      this.paymentService,
       userId,
       months,
+      data,
     );
   }
 }

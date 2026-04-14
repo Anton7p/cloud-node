@@ -40,10 +40,11 @@ export class ProvisioningQueue {
         messageId,
       },
       {
+        jobId: `provisioning-${rentalId}`,
         attempts: 10,
         backoff: {
-          type: 'fixed',
-          delay: 30000, // 30 seconds
+          type: 'exponential',
+          delay: 5000, // Initial delay: 5 seconds
         },
         removeOnComplete: 100,
         removeOnFail: 50,

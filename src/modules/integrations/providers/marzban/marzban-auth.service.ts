@@ -1,12 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AxiosInstance } from 'axios';
+import { HttpService } from '@nestjs/axios';
+import axios from 'axios';
 import {
   MarzbanTokenResponse,
   MarzbanCredentials,
 } from './types/marzban.types';
 import { AppConfig } from '../../../../shared/config/configuration';
-import axios from 'axios';
 
 @Injectable()
 export class MarzbanAuthService {
@@ -15,9 +15,15 @@ export class MarzbanAuthService {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly httpClient: AxiosInstance,
-    private readonly internalBaseUrl: string,
+    private readonly httpService: HttpService,
   ) {}
+
+  private getInternalBaseUrl(): string {
+    return (
+      this.configService.get<AppConfig['vpnPanelUrl']>('app.vpnPanelUrl') ||
+      'http://cloudnode-marzban:8000'
+    );
+  }
 
   /**
    * Login to Marzban API and get JWT token with retry logic
@@ -45,16 +51,18 @@ export class MarzbanAuthService {
         params.append('username', credentials.username);
         params.append('password', credentials.password);
 
-        const response = await axios.post<MarzbanTokenResponse>(
-          `${this.internalBaseUrl}/api/admin/token`,
-          params,
-          {
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
+        const baseUrl = this.getInternalBaseUrl();
+        const response =
+          await this.httpService.axiosRef.post<MarzbanTokenResponse>(
+            `${baseUrl}/api/admin/token`,
+            params,
+            {
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              timeout: 30000,
             },
-            timeout: 30000,
-          },
-        );
+          );
 
         if (response.data.access_token) {
           this.accessToken = response.data.access_token;
@@ -66,15 +74,15 @@ export class MarzbanAuthService {
         return false;
       } catch (error) {
         const isLastAttempt = attempt === maxRetries;
+        const isAxiosError = axios.isAxiosError(error);
         const isConnectionError =
-          axios.isAxiosError(error) &&
+          isAxiosError &&
           (error.code === 'ECONNREFUSED' ||
             error.code === 'ECONNRESET' ||
             error.code === 'ENOTFOUND');
 
         // If 401 and admin not yet created, try to create first admin
-        const isUnauthorized =
-          axios.isAxiosError(error) && error.response?.status === 401;
+        const isUnauthorized = isAxiosError && error.response?.status === 401;
         if (isUnauthorized && !adminCreated && attempt > 2) {
           this.logger.log(
             'Authentication failed with 401, attempting to create first admin...',
@@ -118,8 +126,9 @@ export class MarzbanAuthService {
 
       this.logger.log('Creating first admin user in Marzban...');
 
-      const response = await axios.post(
-        `${this.internalBaseUrl}/api/admin`,
+      const baseUrl = this.getInternalBaseUrl();
+      const response = await this.httpService.axiosRef.post(
+        `${baseUrl}/api/admin`,
         {
           username: credentials.username,
           password: credentials.password,
@@ -155,15 +164,15 @@ export class MarzbanAuthService {
   }
 
   private getCredentials(): MarzbanCredentials | null {
-    const username = this.configService.get<AppConfig['marzbanAdminUsername']>(
-      'app.marzbanAdminUsername',
+    const username = this.configService.get<AppConfig['vpnAdminUsername']>(
+      'app.vpnAdminUsername',
     );
-    const password = this.configService.get<AppConfig['marzbanAdminPassword']>(
-      'app.marzbanAdminPassword',
+    const password = this.configService.get<AppConfig['vpnAdminPassword']>(
+      'app.vpnAdminPassword',
     );
 
     if (!username || !password) {
-      this.logger.warn('Marzban credentials not configured');
+      this.logger.warn('VPN panel credentials not configured');
       return null;
     }
 

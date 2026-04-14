@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AxiosInstance } from 'axios';
+import { HttpService } from '@nestjs/axios';
 import { MarzbanNode, NODE_SERVICE_PORT } from './types/marzban.types';
 import { AppConfig } from '../../../../shared/config/configuration';
 
@@ -10,7 +10,7 @@ export class MarzbanNodeService {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly httpClient: AxiosInstance,
+    private readonly httpService: HttpService,
   ) {}
 
   /**
@@ -65,7 +65,8 @@ export class MarzbanNodeService {
    */
   async getExistingNodes(): Promise<MarzbanNode[]> {
     try {
-      const response = await this.httpClient.get<MarzbanNode[]>('/nodes');
+      const response =
+        await this.httpService.axiosRef.get<MarzbanNode[]>('/nodes');
       return response.data || [];
     } catch (error) {
       this.logger.error(
@@ -86,15 +87,23 @@ export class MarzbanNodeService {
       port: NODE_SERVICE_PORT,
     };
 
-    await this.httpClient.post('/node', nodeData);
+    await this.httpService.axiosRef.post('/node', nodeData);
   }
 
   /**
    * Get available nodes from Marzban
    */
   async getNodes(): Promise<string[]> {
-    // For now, return static nodes. In production, this could fetch from Marzban API
-    return ['Финляндия', 'Германия', 'Турция'];
+    try {
+      const existingNodes = await this.getExistingNodes();
+      return existingNodes.filter((node) => node.name).map((node) => node.name);
+    } catch (error) {
+      this.logger.error(
+        'Failed to get nodes:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
+      return [];
+    }
   }
 
   /**

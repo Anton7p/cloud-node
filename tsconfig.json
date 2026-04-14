@@ -25,6 +25,6 @@
     "transpileOnly": true,
     "compiler": "tsx"
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "test/**/*"],
   "exclude": ["node_modules", "dist"]
 }

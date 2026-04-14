@@ -1,25 +1,75 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { AxiosInstance, AxiosResponse } from 'axios';
+import { ConfigService } from '@nestjs/config';
+import { HttpService } from '@nestjs/axios';
 import { XuiInboundsResponse, XuiInbound } from './types/xui.types';
+import { AppConfig } from '../../../../shared/config/configuration';
+
+interface CachedInbounds {
+  data: XuiInbound[];
+  timestamp: number;
+}
 
 @Injectable()
 export class XuiInboundService {
   private readonly logger = new Logger(XuiInboundService.name);
+  private cache: CachedInbounds | null = null;
 
-  constructor(private readonly httpClient: AxiosInstance) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly httpService: HttpService,
+  ) {}
+
+  private getCacheTtl(): number {
+    // Convert seconds to milliseconds (default: 60 seconds)
+    return 60 * 1000;
+  }
+
+  private isCacheValid(): boolean {
+    if (!this.cache) return false;
+    const ttl = this.getCacheTtl();
+    return Date.now() - this.cache.timestamp < ttl;
+  }
+
+  private getBaseUrl(): string {
+    // Use VPN_PANEL_URL with fallback to internal Docker URL
+    return (
+      this.configService.get<AppConfig['vpnPanelUrl']>('app.vpnPanelUrl') ||
+      'http://cloudnode-marzban:8000'
+    );
+  }
+
+  private getApiPath(): string {
+    return '/xui';
+  }
 
   /**
    * Get list of all inbounds (available protocols)
+   * Uses caching to avoid spamming the API
    */
   async getInbounds(): Promise<XuiInbound[]> {
-    try {
-      this.logger.log('Fetching inbounds list...');
+    // Return cached data if valid
+    if (this.isCacheValid()) {
+      this.logger.debug(`Returning ${this.cache.data.length} cached inbounds`);
+      return this.cache.data;
+    }
 
-      const response: AxiosResponse<XuiInboundsResponse> =
-        await this.httpClient.get('/xui/inbound/list');
+    try {
+      this.logger.log('Fetching inbounds list from XUI...');
+
+      const baseUrl = this.getBaseUrl();
+      const apiPath = this.getApiPath();
+
+      const response = await this.httpService.axiosRef.get<XuiInboundsResponse>(
+        `${baseUrl}${apiPath}/inbound/list`,
+      );
 
       if (response.data.success && response.data.obj) {
         this.logger.log(`Retrieved ${response.data.obj.length} inbounds`);
+        // Update cache
+        this.cache = {
+          data: response.data.obj,
+          timestamp: Date.now(),
+        };
         return response.data.obj;
       }
 
@@ -32,6 +82,14 @@ export class XuiInboundService {
       );
       return [];
     }
+  }
+
+  /**
+   * Clear the inbounds cache
+   */
+  clearCache(): void {
+    this.cache = null;
+    this.logger.log('Inbounds cache cleared');
   }
 
   /**

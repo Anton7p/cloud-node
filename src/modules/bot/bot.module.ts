@@ -1,4 +1,4 @@
-import { Module, Logger } from '@nestjs/common';
+import { Module, Logger, forwardRef } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TelegrafModule } from 'nestjs-telegraf';
 import { SocksProxyAgent } from 'socks-proxy-agent';
@@ -6,6 +6,7 @@ import { PrismaModule } from '../../shared/prisma/prisma.module';
 import { RentalsModule } from '../rentals/rentals.module';
 import { UsersModule } from '../users/users.module';
 import { IntegrationsModule } from '../integrations/integrations.module';
+import { PaymentModule } from '../payments/payment.module';
 import { BotUpdate } from './bot.update';
 import { BotActionsService } from './bot-actions.service';
 import {
@@ -22,6 +23,7 @@ import {
   PartnersCommand,
   LegalCommand,
 } from './application/commands';
+import { BotService } from './bot.service';
 
 /**
  * Все Command handlers, реализующие BaseAction
@@ -78,16 +80,20 @@ const commandHandlers = [
     }),
     PrismaModule,
     UsersModule,
-    RentalsModule,
-    IntegrationsModule,
+    forwardRef(() => RentalsModule),
+    forwardRef(() => IntegrationsModule),
+    PaymentModule,
   ],
   providers: [
     // Controller (Infrastructure layer)
     BotUpdate,
     // Orchestrator (Infrastructure layer)
     BotActionsService,
+    // Bot API Service for notifications
+    BotService,
     // Application Layer: Command Handlers
     ...commandHandlers,
   ],
+  exports: [BotService],
 })
 export class BotModule {}

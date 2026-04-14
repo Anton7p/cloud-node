@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import axios, { AxiosInstance } from 'axios';
+import { HttpService } from '@nestjs/axios';
 import { AppConfig } from '../../../../shared/config/configuration';
 import { MarzbanAuthService } from './marzban-auth.service';
 import { MarzbanCertificateService } from './marzban-certificate.service';
@@ -11,37 +11,35 @@ import { CreateUserResult } from './types/marzban.types';
 @Injectable()
 export class MarzbanService implements OnModuleInit {
   private readonly logger = new Logger(MarzbanService.name);
-  private readonly httpClient: AxiosInstance;
   private readonly domainName: string | undefined;
-  private readonly internalBaseUrl: string | undefined;
+  private readonly internalBaseUrl: string;
 
   constructor(
     private readonly configService: ConfigService,
+    private readonly httpService: HttpService,
     private readonly authService: MarzbanAuthService,
     private readonly certificateService: MarzbanCertificateService,
     private readonly nodeService: MarzbanNodeService,
     private readonly userService: MarzbanUserService,
   ) {
-    // Internal URL for Docker service communication
+    // Internal URL for Docker service communication (uses VPN_PANEL_URL)
     this.internalBaseUrl =
-      this.configService.get<AppConfig['marzbanUrl']>('app.marzbanUrl') ||
+      this.configService.get<AppConfig['vpnPanelUrl']>('app.vpnPanelUrl') ||
       'http://cloudnode-marzban:8000';
 
     // External domain for public links
     this.domainName =
       this.configService.get<AppConfig['domainName']>('app.domainName');
 
-    // Use internal URL for API calls
-    this.httpClient = axios.create({
-      baseURL: `${this.internalBaseUrl}/api`,
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-    });
+    // Configure shared HTTP client with authorization interceptor
+    const httpClient = this.httpService.axiosRef;
+    httpClient.defaults.baseURL = `${this.internalBaseUrl}/api`;
+    httpClient.defaults.timeout = 30000;
+    httpClient.defaults.headers.common['Content-Type'] = 'application/json';
+    httpClient.defaults.headers.common['Accept'] = 'application/json';
 
-    this.httpClient.interceptors.request.use(
+    // Add authorization interceptor
+    httpClient.interceptors.request.use(
       (config) => {
         const token = this.authService.getAccessToken();
         if (token) {
@@ -153,13 +151,13 @@ export class MarzbanService implements OnModuleInit {
   getExternalUrl(): string {
     return this.domainName
       ? `https://${this.domainName}`
-      : this.internalBaseUrl || 'http://cloudnode-marzban:8000';
+      : this.internalBaseUrl;
   }
 
   /**
    * Get internal URL for API calls (Docker service name)
    */
   getInternalUrl(): string {
-    return this.internalBaseUrl || 'http://cloudnode-marzban:8000';
+    return this.internalBaseUrl;
   }
 }

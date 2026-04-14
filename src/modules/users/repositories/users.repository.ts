@@ -5,6 +5,11 @@ import { User } from '@prisma/client';
 export type UserStatus = 'active' | 'expired';
 export type UserSubscriptionType = 'free' | 'premium';
 
+export const DEFAULT_USER_STATUS: UserStatus = 'active';
+export const DEFAULT_SUBSCRIPTION_TYPE: UserSubscriptionType = 'free';
+export const PREMIUM_SUBSCRIPTION_TYPE: UserSubscriptionType = 'premium';
+export const EXPIRED_USER_STATUS: UserStatus = 'expired';
+
 export interface CreateUserData {
   telegramId: number;
   username?: string;
@@ -12,6 +17,21 @@ export interface CreateUserData {
   languageCode?: string;
   status?: UserStatus;
   subscriptionType?: UserSubscriptionType;
+}
+
+/**
+ * DTO для обновления пользователя
+ * Запрещает обновление системных полей
+ */
+export interface UpdateUserDto {
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  languageCode?: string;
+  status?: UserStatus;
+  subscriptionType?: UserSubscriptionType;
+  expiresAt?: Date;
+  lastActivityAt?: Date;
 }
 
 /**
@@ -39,8 +59,8 @@ export class UsersRepository {
         username: data.username,
         firstName: data.firstName,
         languageCode: data.languageCode,
-        status: data.status ?? 'active',
-        subscriptionType: data.subscriptionType ?? 'free',
+        status: data.status ?? DEFAULT_USER_STATUS,
+        subscriptionType: data.subscriptionType ?? DEFAULT_SUBSCRIPTION_TYPE,
       },
     });
 
@@ -65,8 +85,8 @@ export class UsersRepository {
         username: data.username,
         firstName: data.firstName,
         languageCode: data.languageCode,
-        status: data.status ?? 'active',
-        subscriptionType: data.subscriptionType ?? 'free',
+        status: data.status ?? DEFAULT_USER_STATUS,
+        subscriptionType: data.subscriptionType ?? DEFAULT_SUBSCRIPTION_TYPE,
       },
     });
 
@@ -95,21 +115,24 @@ export class UsersRepository {
    */
   async update(
     telegramId: number,
-    updates: Partial<Omit<User, 'id' | 'telegramId' | 'createdAt'>>,
+    updates: UpdateUserDto,
   ): Promise<User | null> {
-    const exists = await this.findByTelegramId(telegramId);
-    if (!exists) {
-      this.logger.warn(`User not found for update: ${telegramId}`);
+    try {
+      const user = await this.prisma.user.update({
+        where: { telegramId: BigInt(telegramId) },
+        data: updates,
+      });
+
+      this.logger.log(`Updated user: ${telegramId}`);
+      return user;
+    } catch (error) {
+      // Prisma error P2025: Record to update does not exist
+      this.logger.warn(
+        `User not found for update: ${telegramId}`,
+        error instanceof Error ? error.message : '',
+      );
       return null;
     }
-
-    const user = await this.prisma.user.update({
-      where: { telegramId: BigInt(telegramId) },
-      data: updates,
-    });
-
-    this.logger.log(`Updated user: ${telegramId}`);
-    return user;
   }
 
   /**
@@ -134,18 +157,15 @@ export class UsersRepository {
 
   /**
    * Обновление подписки с датой окончания
+   * Примечание: расчет даты перенесен в UsersService (кумулятивное продление)
    */
   async updateSubscription(
     telegramId: number,
-    days: number,
+    expiresAt: Date,
   ): Promise<User | null> {
-    const now = new Date();
-    const expiresAt = new Date();
-    expiresAt.setDate(now.getDate() + days);
-
     return this.update(telegramId, {
-      subscriptionType: 'premium',
-      status: 'active',
+      subscriptionType: PREMIUM_SUBSCRIPTION_TYPE,
+      status: DEFAULT_USER_STATUS,
       expiresAt,
     });
   }
@@ -154,18 +174,21 @@ export class UsersRepository {
    * Удаление пользователя
    */
   async delete(telegramId: number): Promise<boolean> {
-    const exists = await this.findByTelegramId(telegramId);
-    if (!exists) {
-      this.logger.warn(`Attempted to delete non-existent user: ${telegramId}`);
+    try {
+      await this.prisma.user.delete({
+        where: { telegramId: BigInt(telegramId) },
+      });
+
+      this.logger.log(`Deleted user: ${telegramId}`);
+      return true;
+    } catch (error) {
+      // Prisma error P2025: Record to delete does not exist
+      this.logger.warn(
+        `Attempted to delete non-existent user: ${telegramId}`,
+        error instanceof Error ? error.message : '',
+      );
       return false;
     }
-
-    await this.prisma.user.delete({
-      where: { telegramId: BigInt(telegramId) },
-    });
-
-    this.logger.log(`Deleted user: ${telegramId}`);
-    return true;
   }
 
   /**
@@ -188,13 +211,19 @@ export class UsersRepository {
     free: number;
     premium: number;
   }> {
-    const [total, active, expired, free, premium] = await Promise.all([
-      this.prisma.user.count(),
-      this.prisma.user.count({ where: { status: 'active' } }),
-      this.prisma.user.count({ where: { status: 'expired' } }),
-      this.prisma.user.count({ where: { subscriptionType: 'free' } }),
-      this.prisma.user.count({ where: { subscriptionType: 'premium' } }),
-    ]);
+    // Use $transaction for atomic multi-query execution
+    const [total, active, expired, free, premium] =
+      await this.prisma.$transaction([
+        this.prisma.user.count(),
+        this.prisma.user.count({ where: { status: DEFAULT_USER_STATUS } }),
+        this.prisma.user.count({ where: { status: EXPIRED_USER_STATUS } }),
+        this.prisma.user.count({
+          where: { subscriptionType: DEFAULT_SUBSCRIPTION_TYPE },
+        }),
+        this.prisma.user.count({
+          where: { subscriptionType: PREMIUM_SUBSCRIPTION_TYPE },
+        }),
+      ]);
 
     return { total, active, expired, free, premium };
   }

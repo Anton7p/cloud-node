@@ -18,6 +18,12 @@ export interface RentalData {
   endDate?: Date;
 }
 
+export interface ExtendRentalData {
+  id: number;
+  additionalTerm: number;
+  newEndDate: Date;
+}
+
 /**
  * RentalsRepository - изоляция доступа к данным аренды
  *
@@ -35,80 +41,79 @@ export class RentalsRepository {
 
   /**
    * Создание новой аренды со статусом pending
+   * Атомарная операция: деактивирует существующие pending и создает новую
    */
   async createPending(userId: number, term: number): Promise<Rental> {
-    // Сначала деактивируем существующие pending аренды этого пользователя
-    await this.deactivateExistingPending(userId);
-
-    const rental = await this.prisma.rental.create({
-      data: {
-        userId,
-        term,
-        status: RentalStatus.PENDING,
-      },
-    });
-
-    this.logger.log(
-      `Created pending rental for user ${userId}, term: ${term} months`,
-    );
-    return rental;
-  }
-
-  /**
-   * Активация pending аренды (с продлением существующей active если не просрочена)
-   */
-  async activate(userId: number): Promise<Rental | null> {
-    const pendingRental = await this.findPendingByUserId(userId);
-
-    if (!pendingRental) {
-      this.logger.warn(`No pending rental found for user ${userId}`);
-      return null;
-    }
-
-    const now = new Date();
-    const activeRental = await this.findActiveByUserId(userId);
-
-    // Если есть активная аренда и она НЕ просрочена - продлеваем её
-    if (activeRental && activeRental.endDate && activeRental.endDate > now) {
-      const newTerm = activeRental.term + pendingRental.term;
-      const newEndDate = new Date(activeRental.endDate);
-      newEndDate.setMonth(newEndDate.getMonth() + pendingRental.term);
-
-      // Удаляем pending аренду (не нужна, т.к. продлеваем существующую)
-      await this.prisma.rental.delete({ where: { id: pendingRental.id } });
-
-      // Продлеваем активную аренду
-      const updated = await this.prisma.rental.update({
-        where: { id: activeRental.id },
+    return this.prisma.$transaction(async (tx) => {
+      // Сначала деактивируем существующие pending аренды этого пользователя
+      await tx.rental.updateMany({
+        where: {
+          userId,
+          status: RentalStatus.PENDING,
+        },
         data: {
-          term: newTerm,
-          endDate: newEndDate,
+          status: RentalStatus.EXPIRED,
+        },
+      });
+
+      const rental = await tx.rental.create({
+        data: {
+          userId,
+          term,
+          status: RentalStatus.PENDING,
         },
       });
 
       this.logger.log(
-        `Extended rental ${updated.id} for user ${userId}, new term: ${newTerm} months, expires: ${newEndDate.toISOString()}`,
+        `Created pending rental for user ${userId}, term: ${term} months`,
       );
-      return updated;
-    }
+      return rental;
+    });
+  }
 
-    // Если активной нет или она просрочена - активируем pending как новую
-    const endDate = new Date(now);
-    endDate.setMonth(endDate.getMonth() + pendingRental.term);
-
-    const updated = await this.prisma.rental.update({
-      where: { id: pendingRental.id },
+  /**
+   * Создание новой активной аренды
+   */
+  async create(
+    userId: number,
+    term: number,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<Rental> {
+    const rental = await this.prisma.rental.create({
       data: {
+        userId,
+        term,
         status: RentalStatus.ACTIVE,
-        startDate: now,
+        startDate,
         endDate,
       },
     });
 
     this.logger.log(
-      `Activated rental ${updated.id} for user ${userId}, expires: ${endDate.toISOString()}`,
+      `Created active rental ${rental.id} for user ${userId}, expires: ${endDate.toISOString()}`,
     );
-    return updated;
+    return rental;
+  }
+
+  /**
+   * Продление существующей аренды
+   */
+  async extend(data: ExtendRentalData): Promise<Rental> {
+    const { id, additionalTerm, newEndDate } = data;
+
+    const rental = await this.prisma.rental.update({
+      where: { id },
+      data: {
+        term: { increment: additionalTerm },
+        endDate: newEndDate,
+      },
+    });
+
+    this.logger.log(
+      `Extended rental ${rental.id}, new term: ${rental.term} months, expires: ${newEndDate.toISOString()}`,
+    );
+    return rental;
   }
 
   /**
@@ -152,75 +157,73 @@ export class RentalsRepository {
 
   /**
    * Проверка наличия активной аренды
+   * Оптимизировано: использует findFirst с select для экономии ресурсов БД
    */
   async hasActive(userId: number): Promise<boolean> {
-    const count = await this.prisma.rental.count({
+    const rental = await this.prisma.rental.findFirst({
       where: {
         userId,
         status: RentalStatus.ACTIVE,
       },
+      select: { id: true },
     });
-    return count > 0;
+    return rental !== null;
   }
 
   /**
    * Проверка наличия pending аренды
+   * Оптимизировано: использует findFirst с select для экономии ресурсов БД
    */
   async hasPending(userId: number): Promise<boolean> {
-    const count = await this.prisma.rental.count({
+    const rental = await this.prisma.rental.findFirst({
       where: {
         userId,
         status: RentalStatus.PENDING,
       },
+      select: { id: true },
     });
-    return count > 0;
+    return rental !== null;
   }
 
   /**
-   * Удаление аренды
+   * Обновление статуса аренды
    */
-  async delete(id: number): Promise<boolean> {
+  async updateStatus(id: number, status: RentalStatus): Promise<Rental | null> {
     try {
-      await this.prisma.rental.delete({
+      const updated = await this.prisma.rental.update({
         where: { id },
+        data: { status },
       });
-      this.logger.log(`Deleted rental: ${id}`);
-      return true;
-    } catch {
-      return false;
+      this.logger.log(`Updated rental ${id} status to ${status}`);
+      return updated;
+    } catch (error) {
+      this.logger.error(
+        `Failed to update rental ${id} status:`,
+        error instanceof Error ? error.message : 'Unknown error',
+      );
+      return null;
     }
   }
 
   /**
-   * Деактивация существующих pending аренд пользователя
-   * (для предотвращения конфликтов при создании новой)
+   * Завершение аренды (мягкое удаление для сохранения истории)
+   * Вместо физического удаления обновляет статус на COMPLETED
    */
-  private async deactivateExistingPending(userId: number): Promise<void> {
-    await this.prisma.rental.updateMany({
-      where: {
-        userId,
-        status: RentalStatus.PENDING,
-      },
-      data: {
-        status: RentalStatus.EXPIRED,
-      },
-    });
-  }
-
-  /**
-   * Деактивация существующей active аренды пользователя
-   * (для предотвращения unique constraint при активации новой)
-   */
-  private async deactivateExistingActive(userId: number): Promise<void> {
-    await this.prisma.rental.updateMany({
-      where: {
-        userId,
-        status: RentalStatus.ACTIVE,
-      },
-      data: {
-        status: RentalStatus.EXPIRED,
-      },
-    });
+  async complete(id: number): Promise<boolean> {
+    try {
+      await this.prisma.rental.update({
+        where: { id },
+        data: { status: RentalStatus.COMPLETED },
+      });
+      this.logger.log(`Completed rental: ${id}`);
+      return true;
+    } catch (error) {
+      this.logger.error(
+        `Failed to complete rental ${id}:`,
+        error instanceof Error ? error.message : 'Unknown error',
+      );
+      return false;
+    }
   }
 
   /**

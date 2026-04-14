@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import axios, { AxiosInstance } from 'axios';
+import { HttpService } from '@nestjs/axios';
 import { AppConfig } from '../../../../shared/config/configuration';
 import { XuiAuthService } from './xui-auth.service';
 import { XuiInboundService } from './xui-inbound.service';
@@ -11,28 +11,31 @@ import { XuiInbound, XuiClientData } from './types/xui.types';
 @Injectable()
 export class XuiApiService {
   private readonly logger = new Logger(XuiApiService.name);
-  private readonly httpClient: AxiosInstance;
 
   constructor(
     private readonly configService: ConfigService,
+    private readonly httpService: HttpService,
     private readonly authService: XuiAuthService,
     private readonly inboundService: XuiInboundService,
     private readonly clientService: XuiClientService,
     private readonly urlService: XuiUrlService,
   ) {
+    // Use VPN_PANEL_URL with fallback to internal Docker URL
     const baseUrl =
-      this.configService.get<AppConfig['marzbanUrl']>('app.marzbanUrl');
+      this.configService.get<AppConfig['vpnPanelUrl']>('app.vpnPanelUrl') ||
+      'http://cloudnode-marzban:8000';
+    const apiPath = '/xui';
 
-    this.httpClient = axios.create({
-      baseURL: baseUrl,
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      maxRedirects: 0,
-    });
+    // Configure shared HTTP client
+    const httpClient = this.httpService.axiosRef;
+    httpClient.defaults.baseURL = `${baseUrl}${apiPath}`;
+    httpClient.defaults.timeout = 30000;
+    httpClient.defaults.headers.common['Content-Type'] =
+      'application/x-www-form-urlencoded';
+    httpClient.defaults.maxRedirects = 0;
 
-    this.httpClient.interceptors.request.use(
+    // Add session cookie interceptor
+    httpClient.interceptors.request.use(
       (config) => {
         const sessionCookie = this.authService.getSessionCookie();
         if (sessionCookie) {

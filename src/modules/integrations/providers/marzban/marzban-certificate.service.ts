@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AxiosInstance } from 'axios';
+import { HttpService } from '@nestjs/axios';
 import { MarzbanNodeSettings } from './types/marzban.types';
 import { AppConfig } from '../../../../shared/config/configuration';
-import * as fs from 'fs';
+import * as fs from 'fs/promises';
 import * as path from 'path';
 
 @Injectable()
@@ -13,7 +13,7 @@ export class MarzbanCertificateService {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly httpClient: AxiosInstance,
+    private readonly httpService: HttpService,
   ) {
     const certDir =
       this.configService.get<AppConfig['marzbanNodeCertDir']>(
@@ -30,7 +30,9 @@ export class MarzbanCertificateService {
       this.logger.log('Fetching SSL certificate from Marzban Master...');
 
       const response =
-        await this.httpClient.get<MarzbanNodeSettings>('/node/settings');
+        await this.httpService.axiosRef.get<MarzbanNodeSettings>(
+          '/node/settings',
+        );
 
       if (!response.data?.certificate) {
         this.logger.warn('No certificate returned from Marzban API');
@@ -39,13 +41,15 @@ export class MarzbanCertificateService {
 
       const certDir = path.dirname(this.certPath);
 
-      if (!fs.existsSync(certDir)) {
-        fs.mkdirSync(certDir, { recursive: true });
+      try {
+        await fs.access(certDir);
+      } catch {
+        await fs.mkdir(certDir, { recursive: true });
         this.logger.log(`Created certificate directory: ${certDir}`);
       }
 
-      fs.writeFileSync(this.certPath, response.data.certificate, {
-        mode: 0o644,
+      await fs.writeFile(this.certPath, response.data.certificate, {
+        mode: 0o600,
       });
 
       this.logger.log(`SSL certificate saved to: ${this.certPath}`);
@@ -64,11 +68,10 @@ export class MarzbanCertificateService {
   /**
    * Check if certificate exists and is readable
    */
-  certificateExists(): boolean {
+  async certificateExists(): Promise<boolean> {
     try {
-      return (
-        fs.existsSync(this.certPath) && fs.statSync(this.certPath).isFile()
-      );
+      const stat = await fs.stat(this.certPath);
+      return stat.isFile();
     } catch {
       return false;
     }

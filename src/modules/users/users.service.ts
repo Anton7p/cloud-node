@@ -1,13 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { User } from '@prisma/client';
+import dayjs from 'dayjs';
 import {
   UsersRepository,
   CreateUserData,
+  UpdateUserDto,
   UserStatus,
   UserSubscriptionType,
 } from './repositories/users.repository';
 
-export { CreateUserData, UserStatus, UserSubscriptionType };
+export { CreateUserData, UpdateUserDto, UserStatus, UserSubscriptionType };
 
 /**
  * UsersService - бизнес-логика управления пользователями
@@ -50,7 +52,7 @@ export class UsersService {
 
   async update(
     telegramId: number,
-    updates: Partial<Omit<User, 'id' | 'telegramId' | 'createdAt'>>,
+    updates: UpdateUserDto,
   ): Promise<User | null> {
     return this.usersRepository.update(telegramId, updates);
   }
@@ -76,7 +78,32 @@ export class UsersService {
     telegramId: number,
     days: number,
   ): Promise<User | null> {
-    return this.usersRepository.updateSubscription(telegramId, days);
+    // Find user to check current subscription status
+    const user = await this.usersRepository.findByTelegramId(telegramId);
+    if (!user) {
+      this.logger.warn(`User not found for subscription update: ${telegramId}`);
+      return null;
+    }
+
+    // Calculate new expiration date using cumulative renewal logic
+    // If subscription is active (expiresAt in future), add days to expiresAt
+    // If no subscription or expired, count from now
+    const now = dayjs();
+    const currentExpiresAt = user.expiresAt ? dayjs(user.expiresAt) : null;
+    const hasActiveSubscription =
+      currentExpiresAt && currentExpiresAt.isAfter(now);
+
+    const baseDate = hasActiveSubscription ? currentExpiresAt : now;
+    const newExpiresAt = baseDate.add(days, 'day').toDate();
+
+    this.logger.log(
+      `Updating subscription for ${telegramId}: ${days} days, ` +
+        `baseDate=${baseDate.format('YYYY-MM-DD')}, ` +
+        `newExpiresAt=${dayjs(newExpiresAt).format('YYYY-MM-DD')}`,
+    );
+
+    // Update subscription with calculated date
+    return this.usersRepository.updateSubscription(telegramId, newExpiresAt);
   }
 
   async delete(telegramId: number): Promise<boolean> {

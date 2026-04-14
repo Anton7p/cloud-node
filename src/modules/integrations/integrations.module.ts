@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { RentalsModule } from '../rentals/rentals.module';
 import { RentalActivatedListener } from './listeners/rental-activated.listener';
@@ -16,8 +16,13 @@ import { QueueModule } from './queue/queue.module';
  * - Логирование интеграций
  */
 @Module({
-  imports: [ConfigModule, RentalsModule, QueueModule, MarzbanModule],
+  imports: [
+    ConfigModule,
+    forwardRef(() => RentalsModule),
+    QueueModule,
+    MarzbanModule,
+  ],
   providers: [RentalActivatedListener],
-  exports: [MarzbanModule],
+  exports: [forwardRef(() => RentalsModule)],
 })
 export class IntegrationsModule {}
