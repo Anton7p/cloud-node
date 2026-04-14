@@ -110,11 +110,11 @@ services:
     ports:
       - "8000:8000"
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8000/dashboard/ || exit 1"]
-      interval: 10s
+      test: ["CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/8000 2>/dev/null' || exit 1"]
+      interval: 5s
       timeout: 5s
-      retries: 10
-      start_period: 60s
+      retries: 15
+      start_period: 90s
     logging:
       driver: "json-file"
       options:
