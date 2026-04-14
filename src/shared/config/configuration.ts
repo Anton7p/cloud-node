@@ -29,6 +29,9 @@ export interface AppConfig {
   marzbanNodeCertDir: string | undefined;
   // Marzban Inbound tag for user creation
   marzbanInboundTag: string | undefined;
+  // Reality protocol settings
+  realityPublicKey: string | undefined;
+  realityShortId: string | undefined;
   // Default data limit for new users (in bytes)
   defaultDataLimit: number;
   // Days per month for subscription calculation
@@ -73,6 +76,9 @@ export const configuration = registerAs('app', (): AppConfig => {
     marzbanNodeCertDir: process.env.MARZBAN_NODE_CERT_DIR,
     // Marzban Inbound tag for user creation (default: VLESS_REALITY)
     marzbanInboundTag: process.env.MARZBAN_INBOUND_TAG || 'VLESS_REALITY',
+    // Reality protocol settings
+    realityPublicKey: process.env.REALITY_PUBLIC_KEY,
+    realityShortId: process.env.REALITY_SHORT_ID || 'abcd1234',
     // Default data limit for new users (100 GB in bytes)
     defaultDataLimit:
       parseInt(process.env.DEFAULT_DATA_LIMIT, 10) || 107374182400,
@@ -127,6 +133,9 @@ export const validationSchema = Joi.object({
   MARZBAN_NODE_CERT_DIR: Joi.string().optional(),
   // Marzban Inbound tag for user creation - optional, default VLESS_REALITY
   MARZBAN_INBOUND_TAG: Joi.string().optional(),
+  // Reality protocol settings - optional
+  REALITY_PUBLIC_KEY: Joi.string().optional(),
+  REALITY_SHORT_ID: Joi.string().optional(),
   // Default data limit for new users (in bytes) - optional, default 100 GB
   DEFAULT_DATA_LIMIT: Joi.number().integer().min(0).optional(),
   // Days per month for subscription calculation - optional, default 30

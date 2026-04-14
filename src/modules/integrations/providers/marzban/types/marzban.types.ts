@@ -6,6 +6,7 @@ export interface MarzbanTokenResponse {
 export interface MarzbanUserResponse {
   username: string;
   subscription_url: string;
+  uuid?: string;
   expire?: number;
   data_limit?: number;
   status: string;

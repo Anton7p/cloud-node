@@ -9,6 +9,8 @@ import { MarzbanApiClient } from './marzban-api-client.service';
 export class MarzbanUserService {
   private readonly logger = new Logger(MarzbanUserService.name);
   private readonly domainName: string | undefined;
+  private readonly realityPublicKey: string | undefined;
+  private readonly realityShortId: string | undefined;
 
   constructor(
     private readonly configService: ConfigService,
@@ -16,6 +18,10 @@ export class MarzbanUserService {
   ) {
     this.domainName =
       this.configService.get<AppConfig['domainName']>('app.domainName');
+    this.realityPublicKey =
+      this.configService.get<AppConfig['realityPublicKey']>('app.realityPublicKey');
+    this.realityShortId =
+      this.configService.get<AppConfig['realityShortId']>('app.realityShortId') || 'abcd1234';
   }
 
   /**
@@ -76,13 +82,14 @@ export class MarzbanUserService {
         .post<MarzbanUserResponse>('/user', requestBody);
 
       if (response.data.subscription_url || response.data.username) {
-        // Always build subscription URL using DOMAIN_NAME
-        const subscriptionUrl = this.buildSubscriptionUrl(
+        // Build VLESS Reality connection URL with public key
+        const subscriptionUrl = this.buildVlessRealityUrl(
           response.data.username,
+          response.data.uuid || this.generateUUID(),
         );
 
         this.logger.log(
-          `User ${response.data.username} created successfully with subscription URL`,
+          `User ${response.data.username} created successfully with VLESS Reality URL`,
         );
 
         return {
@@ -106,7 +113,7 @@ export class MarzbanUserService {
         );
         return {
           success: true,
-          subscriptionUrl: this.buildSubscriptionUrl(userNameForError),
+          subscriptionUrl: this.buildVlessRealityUrl(userNameForError, this.generateUUID()),
           username: userNameForError,
         };
       }
@@ -130,14 +137,42 @@ export class MarzbanUserService {
   }
 
   /**
-   * Build subscription URL using DOMAIN_NAME
+   * Build VLESS Reality connection URL
+   * Format: vless://uuid@domain:443?security=reality&flow=xtls-rprx-vision&...
    */
-  private buildSubscriptionUrl(username: string): string {
-    if (this.domainName) {
+  private buildVlessRealityUrl(username: string, uuid: string): string {
+    if (!this.domainName) {
+      this.logger.warn('DOMAIN_NAME not set, subscription URL may be invalid');
+      return `vless://${uuid}@unknown:443`;
+    }
+
+    if (!this.realityPublicKey) {
+      this.logger.warn('REALITY_PUBLIC_KEY not set, using subscription path only');
       return `https://${this.domainName}/${username}`;
     }
 
-    this.logger.warn('DOMAIN_NAME not set, subscription URL may be invalid');
-    return `/${username}`;
+    // Build VLESS Reality URL with all required parameters
+    const params = new URLSearchParams({
+      type: 'tcp',
+      security: 'reality',
+      pbk: this.realityPublicKey,
+      sid: this.realityShortId || 'abcd1234',
+      fp: 'chrome',
+      flow: 'xtls-rprx-vision',
+      sni: this.domainName,
+    });
+
+    return `vless://${uuid}@${this.domainName}:443?${params.toString()}#${username}`;
+  }
+
+  /**
+   * Generate UUID v4 for VLESS user
+   */
+  private generateUUID(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
   }
 }

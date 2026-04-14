@@ -50,6 +50,7 @@ infrastructure:
         -e "VPN_ADMIN_PASSWORD=${VPN_ADMIN_PASSWORD}" \
         -e "SERVER_IP=${SERVER_IP}" \
         -e "REALITY_PRIVATE_KEY=${REALITY_PRIVATE_KEY}" \
+        -e "REALITY_PUBLIC_KEY=${REALITY_PUBLIC_KEY}" \
         -e "REALITY_SHORT_ID=${REALITY_SHORT_ID}"
     - echo "Infrastructure configuration completed!"
   only:
@@ -117,6 +118,7 @@ deploy:
       export REMOTE_DOMAIN_NAME="$DOMAIN_NAME"
       export REMOTE_MARZBAN_NODE_CERT_DIR="/var/www/marzban_node/var"
       export REMOTE_REALITY_PRIVATE_KEY="$REALITY_PRIVATE_KEY"
+      export REMOTE_REALITY_PUBLIC_KEY="$REALITY_PUBLIC_KEY"
       export REMOTE_REALITY_SHORT_ID="$REALITY_SHORT_ID"
       export REMOTE_MARZBAN_INBOUND_TAG="${MARZBAN_INBOUND_TAG:-VLESS_REALITY}"
       ssh -o StrictHostKeyChecking=no ${SERVER_USER:-root}@${SERVER_IP} << EOF
@@ -142,6 +144,8 @@ deploy:
         echo "DOMAIN_NAME=${REMOTE_DOMAIN_NAME}" >> .env
         echo "MARZBAN_NODE_CERT_DIR=${REMOTE_MARZBAN_NODE_CERT_DIR}" >> .env
         echo "MARZBAN_INBOUND_TAG=${REMOTE_MARZBAN_INBOUND_TAG}" >> .env
+        echo "REALITY_PUBLIC_KEY=${REMOTE_REALITY_PUBLIC_KEY}" >> .env
+        echo "REALITY_SHORT_ID=${REMOTE_REALITY_SHORT_ID}" >> .env
 
         echo "[DEPLOY] Logging into Docker Registry..."
         echo "${REMOTE_CI_REGISTRY_PASSWORD}" | docker login -u "${REMOTE_CI_REGISTRY_USER}" --password-stdin ${REMOTE_CI_REGISTRY}

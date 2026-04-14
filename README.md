@@ -98,10 +98,11 @@ VPN_ADMIN_USERNAME=
 VPN_ADMIN_PASSWORD=
 DOMAIN_NAME=
 
-# VLESS + Reality Inbound (опциональные)
-REALITY_PRIVATE_KEY=          # Приватный ключ Reality (генерируется xray)
-REALITY_SHORT_ID=              # Short ID для Reality (по умолчанию: abcd1234)
-MARZBAN_INBOUND_TAG=           # Тег инбаунда (по умолчанию: VLESS_REALITY)
+# VLESS + Reality Inbound
+REALITY_PRIVATE_KEY=          # Приватный ключ Reality (генерируется автоматически)
+REALITY_PUBLIC_KEY=           # Публичный ключ Reality (генерируется автоматически)
+REALITY_SHORT_ID=             # Short ID для Reality (генерируется автоматически, 8 hex)
+MARZBAN_INBOUND_TAG=          # Тег инбаунда (по умолчанию: VLESS_REALITY)
 
 # Docker Registry
 CI_REGISTRY_USER=
