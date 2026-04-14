@@ -1,0 +1,82 @@
+---
+# X25519 Key Generation for Reality Protocol
+# Generates keys if VLESS_REALITY inbound doesn't exist yet
+
+- name: Check if X25519 keys already exist in Marzban
+  uri:
+    url: "{{ computed_api_url }}/inbounds"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ auth_response.json.access_token }}"
+    return_content: yes
+    status_code: [200]
+    timeout: 30
+  register: existing_inbounds_check
+  delegate_to: localhost
+  become: no
+  run_once: yes
+  ignore_errors: yes
+
+- name: Set fact - check if VLESS_REALITY inbound exists
+  set_fact:
+    reality_inbound_exists: >-
+      {{ existing_inbounds_check.json is defined and
+         existing_inbounds_check.json | selectattr('tag', 'equalto', 'VLESS_REALITY') | list | length > 0 }}
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
+- name: Generate X25519 keys using xray command
+  command: >
+    docker run --rm {{ marzban_node_image }} xray x25519
+  register: x25519_output
+  when: not reality_inbound_exists
+  delegate_to: localhost
+  become: no
+  run_once: yes
+  changed_when: true
+
+- name: Parse X25519 private key
+  set_fact:
+    reality_private_key: "{{ x25519_output.stdout | regex_search('Private key: ([^\\s]+)', '\\1') | first }}"
+  when: x25519_output.stdout is defined and not reality_inbound_exists
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
+- name: Parse X25519 public key
+  set_fact:
+    reality_public_key: "{{ x25519_output.stdout | regex_search('Public key: ([^\\s]+)', '\\1') | first }}"
+  when: x25519_output.stdout is defined and not reality_inbound_exists
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
+- name: Generate random SHORT_ID (8 hex chars)
+  set_fact:
+    reality_short_id: "{{ '%08x' | format(65535 | random(seed=inventory_hostname) + (65535 | random(seed=now()) * 65536)) }}"
+  when: not reality_inbound_exists
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
+- name: Display generated keys
+  debug:
+    msg:
+      - "Generated Private Key: {{ reality_private_key | default('N/A') }}"
+      - "Generated Public Key: {{ reality_public_key | default('N/A') }}"
+      - "Generated Short ID: {{ reality_short_id | default('N/A') }}"
+  when: not reality_inbound_exists
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
+- name: Use existing keys from environment if inbound exists
+  set_fact:
+    reality_private_key: "{{ REALITY_PRIVATE_KEY | default(lookup('env', 'REALITY_PRIVATE_KEY'), true) }}"
+    reality_public_key: "{{ REALITY_PUBLIC_KEY | default(lookup('env', 'REALITY_PUBLIC_KEY'), true) }}"
+    reality_short_id: "{{ REALITY_SHORT_ID | default(lookup('env', 'REALITY_SHORT_ID'), true) | default('abcd1234') }}"
+  when: reality_inbound_exists
+  delegate_to: localhost
+  become: no
+  run_once: yes

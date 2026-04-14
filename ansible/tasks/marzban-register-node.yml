@@ -1,0 +1,72 @@
+---
+# Node Registration in Marzban Core API
+# Waits for Inbound to be ready before registering node
+
+- name: Wait for Inbound to be ready before node registration
+  uri:
+    url: "{{ computed_api_url }}/inbounds"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ auth_response.json.access_token }}"
+    return_content: yes
+    status_code: [200]
+    timeout: 30
+  register: inbounds_ready_check
+  until: inbounds_ready_check.json is defined and (inbounds_ready_check.json | selectattr('tag', 'equalto', 'VLESS_REALITY') | list | length > 0)
+  retries: 10
+  delay: 3
+  delegate_to: localhost
+  become: no
+  run_once: yes
+  ignore_errors: yes
+
+- name: Get existing nodes from Core API
+  uri:
+    url: "{{ computed_api_url }}/nodes"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ auth_response.json.access_token }}"
+    return_content: yes
+    status_code: [200]
+    timeout: 30
+  register: existing_nodes
+  delegate_to: localhost
+  become: no
+  run_once: yes
+  ignore_errors: yes
+
+- name: Check if current node already registered
+  set_fact:
+    node_already_registered: >-
+      {{ existing_nodes.json is defined and
+         existing_nodes.json | selectattr('address', 'equalto', inventory_hostname) | list | length > 0 }}
+  delegate_to: localhost
+  become: no
+
+- name: Register node in Core API
+  uri:
+    url: "{{ computed_api_url }}/node"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ auth_response.json.access_token }}"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      name: "{{ inventory_hostname | replace('.', '-') }}"
+      address: "{{ inventory_hostname }}"
+      port: 62050
+      certificate: "{{ new_certificate | default(cert_response.json.certificate) }}"
+      id: "{{ inventory_hostname | hash('sha1') }}"
+    status_code: [201, 200, 409]
+    timeout: 30
+  when: not node_already_registered | default(true)
+  register: node_registration
+  delegate_to: localhost
+  become: no
+  ignore_errors: yes
+
+- name: Display node registration status
+  debug:
+    msg: "Node {{ inventory_hostname }} registered or already exists. Status: {{ node_registration.status | default('skipped') }}"
+  delegate_to: localhost
+  become: no

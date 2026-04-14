@@ -1,0 +1,54 @@
+---
+# Marzban Inbound Creation - VLESS + Reality
+# Creates default inbound with subscription support
+
+- name: Create default VLESS + Reality Inbound
+  uri:
+    url: "{{ computed_api_url }}/inbounds"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ auth_response.json.access_token }}"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      tag: "VLESS_REALITY"
+      protocol: "vless"
+      listen: "0.0.0.0"
+      port: 443
+      settings:
+        clients: []
+        decryption: "none"
+      stream_settings:
+        network: "tcp"
+        security: "reality"
+        realitySettings:
+          dest: "{{ domain_name }}:443"
+          serverNames:
+            - "{{ domain_name }}"
+          privateKey: "{{ reality_private_key }}"
+          publicKey: "{{ reality_public_key }}"
+          shortIds:
+            - "{{ reality_short_id }}"
+        tcpSettings:
+          acceptProxyProtocol: false
+      sniffing:
+        enabled: true
+        destOverride:
+          - "http"
+          - "tls"
+    status_code: [201, 200, 409]
+    timeout: 30
+  when: not reality_inbound_exists and reality_private_key is defined
+  register: inbound_create_result
+  delegate_to: localhost
+  become: no
+  run_once: yes
+  ignore_errors: yes
+
+- name: Display inbound creation status
+  debug:
+    msg: "VLESS_REALITY inbound created or already exists. Status: {{ inbound_create_result.status | default('skipped') }}"
+  when: inbound_create_result is defined
+  delegate_to: localhost
+  become: no
+  run_once: yes

@@ -9,8 +9,6 @@ import { MarzbanApiClient } from './marzban-api-client.service';
 export class MarzbanUserService {
   private readonly logger = new Logger(MarzbanUserService.name);
   private readonly domainName: string | undefined;
-  private readonly realityPublicKey: string | undefined;
-  private readonly realityShortId: string | undefined;
 
   constructor(
     private readonly configService: ConfigService,
@@ -18,10 +16,6 @@ export class MarzbanUserService {
   ) {
     this.domainName =
       this.configService.get<AppConfig['domainName']>('app.domainName');
-    this.realityPublicKey =
-      this.configService.get<AppConfig['realityPublicKey']>('app.realityPublicKey');
-    this.realityShortId =
-      this.configService.get<AppConfig['realityShortId']>('app.realityShortId') || 'abcd1234';
   }
 
   /**
@@ -82,14 +76,14 @@ export class MarzbanUserService {
         .post<MarzbanUserResponse>('/user', requestBody);
 
       if (response.data.subscription_url || response.data.username) {
-        // Build VLESS Reality connection URL with public key
-        const subscriptionUrl = this.buildVlessRealityUrl(
+        // Use subscription URL from Marzban API
+        const subscriptionUrl = this.getSubscriptionUrl(
+          response.data.subscription_url,
           response.data.username,
-          response.data.uuid || this.generateUUID(),
         );
 
         this.logger.log(
-          `User ${response.data.username} created successfully with VLESS Reality URL`,
+          `User ${response.data.username} created successfully with subscription URL`,
         );
 
         return {
@@ -113,7 +107,7 @@ export class MarzbanUserService {
         );
         return {
           success: true,
-          subscriptionUrl: this.buildVlessRealityUrl(userNameForError, this.generateUUID()),
+          subscriptionUrl: this.getSubscriptionUrl(null, userNameForError),
           username: userNameForError,
         };
       }
@@ -137,42 +131,53 @@ export class MarzbanUserService {
   }
 
   /**
-   * Build VLESS Reality connection URL
-   * Format: vless://uuid@domain:443?security=reality&flow=xtls-rprx-vision&...
+   * Build full subscription URL from Marzban API response
+   * If subscription_url is relative, prepend domain name
    */
-  private buildVlessRealityUrl(username: string, uuid: string): string {
+  private getSubscriptionUrl(
+    subscriptionPath: string | null | undefined,
+    username: string,
+  ): string {
     if (!this.domainName) {
       this.logger.warn('DOMAIN_NAME not set, subscription URL may be invalid');
-      return `vless://${uuid}@unknown:443`;
+      return subscriptionPath || `/${username}`;
     }
 
-    if (!this.realityPublicKey) {
-      this.logger.warn('REALITY_PUBLIC_KEY not set, using subscription path only');
-      return `https://${this.domainName}/${username}`;
+    // If subscription_path is provided by API, use it
+    if (subscriptionPath) {
+      // Check if it's already a full URL
+      if (subscriptionPath.startsWith('http://') || subscriptionPath.startsWith('https://')) {
+        return subscriptionPath;
+      }
+      // Prepend domain to relative path
+      return `https://${this.domainName}${subscriptionPath}`;
     }
 
-    // Build VLESS Reality URL with all required parameters
-    const params = new URLSearchParams({
-      type: 'tcp',
-      security: 'reality',
-      pbk: this.realityPublicKey,
-      sid: this.realityShortId || 'abcd1234',
-      fp: 'chrome',
-      flow: 'xtls-rprx-vision',
-      sni: this.domainName,
-    });
-
-    return `vless://${uuid}@${this.domainName}:443?${params.toString()}#${username}`;
+    // Fallback to default subscription path
+    return `https://${this.domainName}/sub/${username}`;
   }
 
   /**
-   * Generate UUID v4 for VLESS user
+   * Get subscription URL for existing user
+   * Used for retrieving subscription URL for already created users
    */
-  private generateUUID(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
+  async getUserSubscriptionUrl(username: string): Promise<string | null> {
+    try {
+      const response = await this.apiClient
+        .getAxiosInstance()
+        .get<MarzbanUserResponse>(`/user/${username}`);
+
+      if (response.data.subscription_url) {
+        return this.getSubscriptionUrl(response.data.subscription_url, username);
+      }
+
+      return null;
+    } catch (error) {
+      this.logger.error(
+        `Failed to get subscription URL for ${username}:`,
+        error instanceof Error ? error.message : 'Unknown error',
+      );
+      return null;
+    }
   }
 }
