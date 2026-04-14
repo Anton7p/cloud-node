@@ -11,15 +11,6 @@ import {
 // ============================================================================
 
 /**
- * Кнопка "Старт" для первого экрана (до показа главного меню)
- */
-export const startButtonKeyboard = () => {
-  return Markup.inlineKeyboard([
-    [Markup.button.callback('▶️ Старт', ACTIONS.SHOW_MAIN_MENU)],
-  ]);
-};
-
-/**
  * Главное меню (/start):
  * Сетка 1-2-2:
  * 🚀 Быстрый старт

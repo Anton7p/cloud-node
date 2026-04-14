@@ -4,7 +4,6 @@
 
 export {
   mainKeyboard,
-  startButtonKeyboard,
   durationKeyboard,
   backKeyboard,
   platformKeyboard,

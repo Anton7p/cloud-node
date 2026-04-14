@@ -128,8 +128,9 @@ export class MarzbanUserService {
     }
 
     // Заменяем placeholder домен на реальный DOMAIN_NAME
+    // Учитываем варианты: cloudnode-host, cloudnode-host.ru, cloudnode-host.com и т.д.
     if (url.includes('cloudnode-host')) {
-      return url.replace(/cloudnode-host/, this.domainName);
+      return url.replace(/cloudnode-host(?:\.\w+)?/, this.domainName);
     }
 
     return url;

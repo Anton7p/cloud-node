@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import * as path from 'path';
 import { BaseAction, CommandContext, safeDeleteMessage } from '../base.action';
-import { MESSAGES, mainKeyboard, startButtonKeyboard } from '../../ui';
+import { MESSAGES, mainKeyboard } from '../../ui';
 import { UsersService } from '../../../users/users.service';
 
 @Injectable()
@@ -37,19 +37,14 @@ export class StartCommand extends BaseAction {
     // Режим одного окна: всегда удаляем старое сообщение и отправляем новое
     await safeDeleteMessage(ctx);
 
-    // Если это первый запуск (команда /start с или без параметра), показываем приветственный экран
-    // Если нажата кнопка "Старт" (callback), показываем главное меню
-    if (context.data === 'start' || context.data.startsWith('start ')) {
-      await this.sendWelcomeScreen(ctx);
-    } else {
-      await this.sendMainMenu(ctx);
-    }
+    // Отправляем главное меню с фото
+    await this.sendMainMenu(ctx);
   }
 
   /**
-   * Отправляет первый экран с фото и кнопкой "Старт"
+   * Отправляет главное меню с фото и inline-клавиатурой
    */
-  private async sendWelcomeScreen(ctx: CommandContext['ctx']): Promise<void> {
+  private async sendMainMenu(ctx: CommandContext['ctx']): Promise<void> {
     const imagePath = path.join(
       process.cwd(),
       'assets',
@@ -60,18 +55,10 @@ export class StartCommand extends BaseAction {
     await ctx.replyWithPhoto(
       { source: imagePath },
       {
-        caption: MESSAGES.WELCOME_FIRST,
-        reply_markup: startButtonKeyboard().reply_markup,
+        caption: MESSAGES.MAIN_TITLE,
+        reply_markup: mainKeyboard().reply_markup,
+        parse_mode: 'HTML',
       },
     );
-  }
-
-  /**
-   * Отправляет главное меню с текстом и inline-клавиатурой
-   */
-  private async sendMainMenu(ctx: CommandContext['ctx']): Promise<void> {
-    await ctx.reply(MESSAGES.MAIN_TITLE, {
-      reply_markup: mainKeyboard().reply_markup,
-    });
   }
 }
