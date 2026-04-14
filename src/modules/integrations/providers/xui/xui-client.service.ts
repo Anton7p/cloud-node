@@ -1,9 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { HttpService } from '@nestjs/axios';
 import { randomUUID } from 'crypto';
 import { XuiAddClientResponse, XuiClientData } from './types/xui.types';
-import { AppConfig } from '../../../../shared/config/configuration';
+import { XuiApiService } from './xui-api.service';
 
 @Injectable()
 export class XuiClientService {
@@ -11,34 +10,42 @@ export class XuiClientService {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly httpService: HttpService,
+    private readonly xuiApiService: XuiApiService,
   ) {}
-
-  private getBaseUrl(): string {
-    // Use VPN_PANEL_URL with fallback to internal Docker URL
-    return (
-      this.configService.get<AppConfig['vpnPanelUrl']>('app.vpnPanelUrl') ||
-      'http://cloudnode-marzban:8000'
-    );
-  }
-
-  private getApiPath(): string {
-    return '/xui';
-  }
 
   private getDefaultIpLimit(): number {
     // Default IP limit for XUI clients
     return 2;
   }
 
-  private getDefaultDataLimit(): number {
-    // Default data limit in bytes (0 = unlimited)
+  private getDefaultTotalGB(): number {
+    // Default totalGB in GB (0 = unlimited)
     return 0;
   }
 
   private getDefaultExpireDays(): number {
     // Default expiration days for XUI clients
     return 30;
+  }
+
+  /**
+   * Convert GB to bytes for XUI API
+   * XUI expects totalGB in bytes
+   */
+  private convertGBToBytes(gb: number): number {
+    if (gb <= 0) return 0;
+    return gb * 1024 * 1024 * 1024;
+  }
+
+  /**
+   * Convert expire days to Unix timestamp in milliseconds
+   * XUI expects exp as timestamp (ms since epoch)
+   */
+  private convertExpireDaysToTimestamp(expireDays: number): number {
+    if (expireDays <= 0) return 0;
+    const now = Date.now();
+    const daysInMs = expireDays * 24 * 60 * 60 * 1000;
+    return now + daysInMs;
   }
 
   /**
@@ -53,6 +60,14 @@ export class XuiClientService {
         `Adding client ${clientData.email} to inbound ${inboundId}...`,
       );
 
+      // Convert expireDays to timestamp and totalGB to bytes for XUI API
+      const expireTimestamp = this.convertExpireDaysToTimestamp(
+        clientData.expireDays ?? this.getDefaultExpireDays(),
+      );
+      const totalBytes = this.convertGBToBytes(
+        clientData.totalGB ?? this.getDefaultTotalGB(),
+      );
+
       const settings = {
         clients: [
           {
@@ -60,8 +75,8 @@ export class XuiClientService {
             flow: clientData.flow || 'xtls-rprx-vision',
             email: clientData.email,
             limitIp: clientData.limitIp ?? this.getDefaultIpLimit(),
-            totalGB: clientData.totalGB ?? this.getDefaultDataLimit(),
-            expireDays: clientData.expireDays ?? this.getDefaultExpireDays(),
+            totalGB: totalBytes,
+            exp: expireTimestamp,
             enable: true,
           },
         ],
@@ -71,12 +86,10 @@ export class XuiClientService {
       formData.append('id', inboundId.toString());
       formData.append('settings', JSON.stringify(settings));
 
-      const baseUrl = this.getBaseUrl();
-      const apiPath = this.getApiPath();
-
-      const response =
-        await this.httpService.axiosRef.post<XuiAddClientResponse>(
-          `${baseUrl}${apiPath}/inbound/addClient/${inboundId}`,
+      const response = await this.xuiApiService
+        .getAxiosInstance()
+        .post<XuiAddClientResponse>(
+          `/inbound/addClient/${inboundId}`,
           formData.toString(),
           {
             headers: {
@@ -115,6 +128,14 @@ export class XuiClientService {
         `Updating client ${clientData.email} in inbound ${inboundId}...`,
       );
 
+      // Convert expireDays to timestamp and totalGB to bytes for XUI API
+      const expireTimestamp = this.convertExpireDaysToTimestamp(
+        clientData.expireDays ?? this.getDefaultExpireDays(),
+      );
+      const totalBytes = this.convertGBToBytes(
+        clientData.totalGB ?? this.getDefaultTotalGB(),
+      );
+
       const settings = {
         clients: [
           {
@@ -122,8 +143,8 @@ export class XuiClientService {
             flow: clientData.flow || 'xtls-rprx-vision',
             email: clientData.email,
             limitIp: clientData.limitIp ?? this.getDefaultIpLimit(),
-            totalGB: clientData.totalGB ?? this.getDefaultDataLimit(),
-            expireDays: clientData.expireDays ?? this.getDefaultExpireDays(),
+            totalGB: totalBytes,
+            exp: expireTimestamp,
             enable: true,
           },
         ],
@@ -133,12 +154,10 @@ export class XuiClientService {
       formData.append('id', inboundId.toString());
       formData.append('settings', JSON.stringify(settings));
 
-      const baseUrl = this.getBaseUrl();
-      const apiPath = this.getApiPath();
-
-      const response =
-        await this.httpService.axiosRef.post<XuiAddClientResponse>(
-          `${baseUrl}${apiPath}/inbound/updateClient/${inboundId}`,
+      const response = await this.xuiApiService
+        .getAxiosInstance()
+        .post<XuiAddClientResponse>(
+          `/inbound/updateClient/${inboundId}`,
           formData.toString(),
           {
             headers: {
@@ -176,12 +195,10 @@ export class XuiClientService {
       formData.append('id', inboundId.toString());
       formData.append('email', email);
 
-      const baseUrl = this.getBaseUrl();
-      const apiPath = this.getApiPath();
-
-      const response =
-        await this.httpService.axiosRef.post<XuiAddClientResponse>(
-          `${baseUrl}${apiPath}/inbound/delClient/${inboundId}`,
+      const response = await this.xuiApiService
+        .getAxiosInstance()
+        .post<XuiAddClientResponse>(
+          `/inbound/delClient/${inboundId}`,
           formData.toString(),
           {
             headers: {

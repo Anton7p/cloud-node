@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
+import axios, { AxiosInstance } from 'axios';
 import { AppConfig } from '../../../../shared/config/configuration';
 import { MarzbanAuthService } from './marzban-auth.service';
 import { MarzbanCertificateService } from './marzban-certificate.service';
@@ -13,6 +14,7 @@ export class MarzbanService implements OnModuleInit {
   private readonly logger = new Logger(MarzbanService.name);
   private readonly domainName: string | undefined;
   private readonly internalBaseUrl: string;
+  private readonly axiosInstance: AxiosInstance;
 
   constructor(
     private readonly configService: ConfigService,
@@ -31,15 +33,18 @@ export class MarzbanService implements OnModuleInit {
     this.domainName =
       this.configService.get<AppConfig['domainName']>('app.domainName');
 
-    // Configure shared HTTP client with authorization interceptor
-    const httpClient = this.httpService.axiosRef;
-    httpClient.defaults.baseURL = `${this.internalBaseUrl}/api`;
-    httpClient.defaults.timeout = 30000;
-    httpClient.defaults.headers.common['Content-Type'] = 'application/json';
-    httpClient.defaults.headers.common['Accept'] = 'application/json';
+    // Create isolated axios instance for Marzban API
+    this.axiosInstance = axios.create({
+      baseURL: `${this.internalBaseUrl}/api`,
+      timeout: 30000,
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+    });
 
     // Add authorization interceptor
-    httpClient.interceptors.request.use(
+    this.axiosInstance.interceptors.request.use(
       (config) => {
         const token = this.authService.getAccessToken();
         if (token) {
@@ -51,9 +56,23 @@ export class MarzbanService implements OnModuleInit {
     );
   }
 
+  /**
+   * Get isolated axios instance for Marzban API
+   */
+  getAxiosInstance(): AxiosInstance {
+    return this.axiosInstance;
+  }
+
   async onModuleInit(): Promise<void> {
     try {
-      await this.login();
+      const loggedIn = await this.login();
+      if (!loggedIn) {
+        this.logger.error(
+          'Failed to login to Marzban API, skipping initialization',
+        );
+        return;
+      }
+      // Only proceed with cert fetch and node registration after successful login
       await this.fetchAndSaveCert();
       await this.registerInfrastructureNodes();
     } catch (error) {

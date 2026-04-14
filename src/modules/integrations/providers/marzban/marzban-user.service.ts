@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { HttpService } from '@nestjs/axios';
 import axios from 'axios';
 import { CreateUserResult, MarzbanUserResponse } from './types/marzban.types';
 import { AppConfig } from '../../../../shared/config/configuration';
+import { MarzbanService } from './marzban.service';
 
 @Injectable()
 export class MarzbanUserService {
@@ -12,7 +12,7 @@ export class MarzbanUserService {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly httpService: HttpService,
+    private readonly marzbanService: MarzbanService,
   ) {
     this.domainName =
       this.configService.get<AppConfig['domainName']>('app.domainName');
@@ -60,11 +60,9 @@ export class MarzbanUserService {
         requestBody.limitIp = limitIp;
       }
 
-      const response =
-        await this.httpService.axiosRef.post<MarzbanUserResponse>(
-          '/user',
-          requestBody,
-        );
+      const response = await this.marzbanService
+        .getAxiosInstance()
+        .post<MarzbanUserResponse>('/user', requestBody);
 
       if (response.data.subscription_url || response.data.username) {
         // Use subscription_url from Marzban API, or build manually if not provided
@@ -89,6 +87,19 @@ export class MarzbanUserService {
         error: 'No subscription URL returned from Marzban',
       };
     } catch (error) {
+      const userNameForError = `user_${telegramId}`;
+      // Handle 409 Conflict - user already exists, treat as success
+      if (axios.isAxiosError(error) && error.response?.status === 409) {
+        this.logger.log(
+          `User ${userNameForError} already exists, returning existing user data`,
+        );
+        return {
+          success: true,
+          subscriptionUrl: this.buildSubscriptionUrl(userNameForError),
+          username: userNameForError,
+        };
+      }
+
       if (axios.isAxiosError(error) && error.response?.status === 401) {
         // Token expired, try to re-login and retry once
         this.logger.log('Token expired, re-authenticating...');

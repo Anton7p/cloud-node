@@ -1,8 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { HttpService } from '@nestjs/axios';
 import { XuiInboundsResponse, XuiInbound } from './types/xui.types';
-import { AppConfig } from '../../../../shared/config/configuration';
+import { XuiApiService } from './xui-api.service';
 
 interface CachedInbounds {
   data: XuiInbound[];
@@ -16,7 +15,7 @@ export class XuiInboundService {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly httpService: HttpService,
+    private readonly xuiApiService: XuiApiService,
   ) {}
 
   private getCacheTtl(): number {
@@ -28,18 +27,6 @@ export class XuiInboundService {
     if (!this.cache) return false;
     const ttl = this.getCacheTtl();
     return Date.now() - this.cache.timestamp < ttl;
-  }
-
-  private getBaseUrl(): string {
-    // Use VPN_PANEL_URL with fallback to internal Docker URL
-    return (
-      this.configService.get<AppConfig['vpnPanelUrl']>('app.vpnPanelUrl') ||
-      'http://cloudnode-marzban:8000'
-    );
-  }
-
-  private getApiPath(): string {
-    return '/xui';
   }
 
   /**
@@ -56,12 +43,9 @@ export class XuiInboundService {
     try {
       this.logger.log('Fetching inbounds list from XUI...');
 
-      const baseUrl = this.getBaseUrl();
-      const apiPath = this.getApiPath();
-
-      const response = await this.httpService.axiosRef.get<XuiInboundsResponse>(
-        `${baseUrl}${apiPath}/inbound/list`,
-      );
+      const response = await this.xuiApiService
+        .getAxiosInstance()
+        .get<XuiInboundsResponse>('/inbound/list');
 
       if (response.data.success && response.data.obj) {
         this.logger.log(`Retrieved ${response.data.obj.length} inbounds`);

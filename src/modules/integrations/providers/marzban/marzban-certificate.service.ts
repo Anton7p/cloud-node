@@ -1,10 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { HttpService } from '@nestjs/axios';
 import { MarzbanNodeSettings } from './types/marzban.types';
 import { AppConfig } from '../../../../shared/config/configuration';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { MarzbanService } from './marzban.service';
 
 @Injectable()
 export class MarzbanCertificateService {
@@ -13,7 +13,7 @@ export class MarzbanCertificateService {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly httpService: HttpService,
+    private readonly marzbanService: MarzbanService,
   ) {
     const certDir =
       this.configService.get<AppConfig['marzbanNodeCertDir']>(
@@ -29,10 +29,9 @@ export class MarzbanCertificateService {
     try {
       this.logger.log('Fetching SSL certificate from Marzban Master...');
 
-      const response =
-        await this.httpService.axiosRef.get<MarzbanNodeSettings>(
-          '/node/settings',
-        );
+      const response = await this.marzbanService
+        .getAxiosInstance()
+        .get<MarzbanNodeSettings>('/node/settings');
 
       if (!response.data?.certificate) {
         this.logger.warn('No certificate returned from Marzban API');

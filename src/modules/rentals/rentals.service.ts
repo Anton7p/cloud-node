@@ -94,9 +94,13 @@ export class RentalsService {
       ) {
         const newTerm = activeRental.term + pendingRental.term;
         // Для коротких сроков используем дни, иначе месяцы
-        const newEndDate = pendingRental.term < 1
-          ? dayjs(activeRental.endDate).add(Math.round(pendingRental.term * 30), 'day')
-          : dayjs(activeRental.endDate).add(pendingRental.term, 'month');
+        const newEndDate =
+          pendingRental.term < 1
+            ? dayjs(activeRental.endDate).add(
+                Math.round(pendingRental.term * 30),
+                'day',
+              )
+            : dayjs(activeRental.endDate).add(pendingRental.term, 'month');
 
         // Помечаем pending как COMPLETED (не удаляем для истории)
         await tx.rental.update({
@@ -122,9 +126,10 @@ export class RentalsService {
 
       // Если активной нет или просрочена - активируем pending
       // Для коротких сроков (trial < 1 месяц) используем дни, иначе месяцы
-      const endDate = pendingRental.term < 1
-        ? now.add(Math.round(pendingRental.term * 30), 'day')
-        : now.add(pendingRental.term, 'month');
+      const endDate =
+        pendingRental.term < 1
+          ? now.add(Math.round(pendingRental.term * 30), 'day')
+          : now.add(pendingRental.term, 'month');
 
       const updated = await tx.rental.update({
         where: { id: pendingRental.id },

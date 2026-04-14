@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { HttpService } from '@nestjs/axios';
 import { MarzbanNode, NODE_SERVICE_PORT } from './types/marzban.types';
 import { AppConfig } from '../../../../shared/config/configuration';
+import { MarzbanService } from './marzban.service';
 
 @Injectable()
 export class MarzbanNodeService {
@@ -10,7 +10,7 @@ export class MarzbanNodeService {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly httpService: HttpService,
+    private readonly marzbanService: MarzbanService,
   ) {}
 
   /**
@@ -65,8 +65,9 @@ export class MarzbanNodeService {
    */
   async getExistingNodes(): Promise<MarzbanNode[]> {
     try {
-      const response =
-        await this.httpService.axiosRef.get<MarzbanNode[]>('/nodes');
+      const response = await this.marzbanService
+        .getAxiosInstance()
+        .get<MarzbanNode[]>('/nodes');
       return response.data || [];
     } catch (error) {
       this.logger.error(
@@ -87,7 +88,7 @@ export class MarzbanNodeService {
       port: NODE_SERVICE_PORT,
     };
 
-    await this.httpService.axiosRef.post('/node', nodeData);
+    await this.marzbanService.getAxiosInstance().post('/node', nodeData);
   }
 
   /**

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { HttpService } from '@nestjs/axios';
+import axios from 'axios';
 import { XuiLoginResponse, XuiCredentials } from './types/xui.types';
 import { AppConfig } from '../../../../shared/config/configuration';
 
@@ -9,25 +9,7 @@ export class XuiAuthService {
   private readonly logger = new Logger(XuiAuthService.name);
   private sessionCookie: string | null = null;
 
-  constructor(
-    private readonly configService: ConfigService,
-    private readonly httpService: HttpService,
-  ) {
-    this.setupRequestInterceptor();
-  }
-
-  private setupRequestInterceptor(): void {
-    // Add session cookie to all requests via defaults
-    this.httpService.axiosRef.interceptors.request.use(
-      (config) => {
-        if (this.sessionCookie) {
-          config.headers['Cookie'] = this.sessionCookie;
-        }
-        return config;
-      },
-      (error) => Promise.reject(error),
-    );
-  }
+  constructor(private readonly configService: ConfigService) {}
 
   private getBaseUrl(): string {
     // Use VPN_PANEL_URL with fallback to internal Docker URL
@@ -60,7 +42,8 @@ export class XuiAuthService {
       const baseUrl = this.getBaseUrl();
       const apiPath = this.getApiPath();
 
-      const response = await this.httpService.axiosRef.post<XuiLoginResponse>(
+      // Use isolated axios instance for login to avoid modifying global defaults
+      const response = await axios.post<XuiLoginResponse>(
         `${baseUrl}${apiPath}/login`,
         formData.toString(),
         {
@@ -68,6 +51,7 @@ export class XuiAuthService {
             'Content-Type': 'application/x-www-form-urlencoded',
           },
           maxRedirects: 0,
+          timeout: 30000,
         },
       );
 

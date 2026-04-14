@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
+import axios, { AxiosInstance } from 'axios';
 import { AppConfig } from '../../../../shared/config/configuration';
 import { XuiAuthService } from './xui-auth.service';
 import { XuiInboundService } from './xui-inbound.service';
@@ -11,6 +12,7 @@ import { XuiInbound, XuiClientData } from './types/xui.types';
 @Injectable()
 export class XuiApiService {
   private readonly logger = new Logger(XuiApiService.name);
+  private readonly axiosInstance: AxiosInstance;
 
   constructor(
     private readonly configService: ConfigService,
@@ -26,16 +28,18 @@ export class XuiApiService {
       'http://cloudnode-marzban:8000';
     const apiPath = '/xui';
 
-    // Configure shared HTTP client
-    const httpClient = this.httpService.axiosRef;
-    httpClient.defaults.baseURL = `${baseUrl}${apiPath}`;
-    httpClient.defaults.timeout = 30000;
-    httpClient.defaults.headers.common['Content-Type'] =
-      'application/x-www-form-urlencoded';
-    httpClient.defaults.maxRedirects = 0;
+    // Create isolated axios instance for XUI API
+    this.axiosInstance = axios.create({
+      baseURL: `${baseUrl}${apiPath}`,
+      timeout: 30000,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      maxRedirects: 0,
+    });
 
     // Add session cookie interceptor
-    httpClient.interceptors.request.use(
+    this.axiosInstance.interceptors.request.use(
       (config) => {
         const sessionCookie = this.authService.getSessionCookie();
         if (sessionCookie) {
@@ -45,6 +49,13 @@ export class XuiApiService {
       },
       (error) => Promise.reject(error),
     );
+  }
+
+  /**
+   * Get isolated axios instance for XUI API
+   */
+  getAxiosInstance(): AxiosInstance {
+    return this.axiosInstance;
   }
 
   /**
