@@ -9,10 +9,17 @@ services:
     restart: always
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-postgres}@db:5432/cloudnode?schema=public
-      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@db:5432/cloudnode?schema=public
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      MARZBAN_URL: ${MARZBAN_URL}
+      MARZBAN_ADMIN_USERNAME: ${MARZBAN_ADMIN_USERNAME}
+      MARZBAN_ADMIN_PASSWORD: ${MARZBAN_ADMIN_PASSWORD}
+      INFRASTRUCTURE_IP_LIST: ${INFRASTRUCTURE_IP_LIST}
+      REDIS_URL: redis://redis:6379
     env_file:
       - .env
     command: sh -c "npx prisma migrate deploy && node dist/main.js"
@@ -46,11 +53,11 @@ services:
     networks:
       - cloudnode-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d cloudnode"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
       timeout: 5s
-      retries: 5
-      start_period: 10s
+      retries: 10
+      start_period: 30s
     logging:
       driver: "json-file"
       options:
