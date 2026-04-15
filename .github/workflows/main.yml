@@ -11,10 +11,6 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-
 jobs:
   # ==========================================
   # Stage 1: Build Docker Image
@@ -27,7 +23,7 @@ jobs:
       packages: write
     outputs:
       image_tag: ${{ github.sha }}
-      image_name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+      image_name: ghcr.io/${{ github.repository }}
 
     steps:
       - name: Checkout repository
@@ -39,7 +35,7 @@ jobs:
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -47,7 +43,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ghcr.io/${{ github.repository }}
           tags: |
             type=sha,prefix=,suffix=,format=short
             type=raw,value=latest,enable={{is_default_branch}}
@@ -143,7 +139,7 @@ jobs:
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       SERVER_IP: ${{ secrets.SERVER_IP }}
       SERVER_USER: ${{ secrets.SERVER_USER || 'root' }}
-      IMAGE_NAME: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+      IMAGE_NAME: ghcr.io/${{ github.repository }}
       IMAGE_TAG: ${{ github.sha }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
