@@ -14,19 +14,12 @@
     state: directory
     mode: '0755'
 
-- name: Copy docker-compose.yml to server
-  copy:
+- name: Generate docker-compose.yml from template
+  template:
     src: "../docker-compose.yml"
     dest: "{{ deploy_dir }}/docker-compose.yml"
     mode: '0644'
   register: compose_copy
-
-- name: Update image reference in docker-compose.yml
-  replace:
-    path: "{{ deploy_dir }}/docker-compose.yml"
-    regexp: '\$\{DOCKER_IMAGE_NAME:-\$CI_REGISTRY_IMAGE\}:latest'
-    replace: "{{ image_name }}:{{ image_tag }}"
-  when: compose_copy.changed
 
 - name: Generate environment file from template
   template:
@@ -35,6 +28,8 @@
     mode: '0600'
     owner: root
     group: root
+  vars:
+    redis_password: "{{ redis_password | default('redis123') }}"
   register: env_generation
 
 - name: Display .env generation status

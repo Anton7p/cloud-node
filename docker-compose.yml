@@ -72,13 +72,13 @@ services:
     image: redis:alpine
     container_name: cloudnode-redis
     restart: always
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
+    command: redis-server --appendonly yes --requirepass {{ redis_password | default('redis123') }}
     volumes:
       - redis-data:/data
     networks:
       - cloudnode-network
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis123}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "{{ redis_password | default('redis123') }}", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
