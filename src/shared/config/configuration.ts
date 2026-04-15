@@ -116,7 +116,7 @@ export const validationSchema = Joi.object({
   // Redis configuration - allow empty string to trigger warning instead of crash
   REDIS_HOST: Joi.string().allow('').default('redis'),
   REDIS_PORT: Joi.number().port().default(6379),
-  REDIS_PASSWORD: Joi.string().optional(),
+  REDIS_PASSWORD: Joi.string().allow('', null).optional(),
   // VPN Panel configuration (shared for Marzban & XUI) - optional, warns only
   VPN_PANEL_URL: Joi.string().uri().optional(),
   VPN_ADMIN_USERNAME: Joi.string().optional(),
