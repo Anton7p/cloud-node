@@ -11,11 +11,10 @@
     xray_api_port: 62051
     marzban_node_image: gozargah/marzban-node:latest
     compose_project_name: "marzban-node"
-    # Credentials - supports both extra-vars (-e) and env variables
-    # GitHub Actions passes vars via -e, also supports local env fallback
-    marzban_username: "{{ vpn_admin_username | default(VPN_ADMIN_USERNAME | default(lookup('env', 'VPN_ADMIN_USERNAME'), true), true) }}"
-    marzban_password: "{{ vpn_admin_password | default(VPN_ADMIN_PASSWORD | default(lookup('env', 'VPN_ADMIN_PASSWORD'), true), true) }}"
-    domain_name: "{{ domain_name | default(DOMAIN_NAME | default(lookup('env', 'DOMAIN_NAME'), true), true) }}"
+    # Credentials - read from environment variables (GitHub Actions sets these)
+    marzban_username: "{{ lookup('env', 'VPN_ADMIN_USERNAME') }}"
+    marzban_password: "{{ lookup('env', 'VPN_ADMIN_PASSWORD') }}"
+    domain_name: "{{ lookup('env', 'DOMAIN_NAME') }}"
 
   pre_tasks:
     - name: Compute Marzban API URL
