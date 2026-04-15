@@ -1,0 +1,37 @@
+---
+# Application Deployment: Stack Deployment
+# ==========================================
+
+- name: Stop existing containers gracefully
+  command: docker compose down --timeout 30
+  args:
+    chdir: "{{ deploy_dir }}"
+  register: compose_down
+  changed_when: compose_down.rc == 0
+  ignore_errors: yes
+
+- name: Start application stack
+  command: docker compose up -d
+  args:
+    chdir: "{{ deploy_dir }}"
+  environment:
+    DB_PASSWORD: "{{ db_password }}"
+    TELEGRAM_BOT_TOKEN: "{{ telegram_bot_token }}"
+    ENCRYPTION_KEY: "{{ encryption_key }}"
+    DOCKER_IMAGE_NAME: "{{ image_name }}:{{ image_tag }}"
+    REDIS_HOST: "{{ redis_host | default('redis') }}"
+    REDIS_PORT: "{{ redis_port | default('6379') }}"
+    REDIS_PASSWORD: "{{ redis_password | default('') }}"
+    MARZBAN_URL: "http://marzban:8000"
+    VPN_ADMIN_USERNAME: "{{ vpn_admin_username }}"
+    VPN_ADMIN_PASSWORD: "{{ vpn_admin_password }}"
+    INFRASTRUCTURE_IP_LIST: "{{ infrastructure_ip_list | default('') }}"
+    DOMAIN_NAME: "{{ domain_name }}"
+  register: compose_up
+  retries: 2
+  delay: 5
+  until: compose_up.rc == 0
+
+- name: Display compose up output
+  debug:
+    msg: "{{ compose_up.stdout_lines }}"

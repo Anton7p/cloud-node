@@ -1,0 +1,13 @@
+---
+# Use Existing Reality Keys from Environment
+# ==========================================
+
+- name: Use existing keys from environment if inbound exists
+  set_fact:
+    reality_private_key: "{{ REALITY_PRIVATE_KEY | default(lookup('env', 'REALITY_PRIVATE_KEY'), true) }}"
+    reality_public_key: "{{ REALITY_PUBLIC_KEY | default(lookup('env', 'REALITY_PUBLIC_KEY'), true) }}"
+    reality_short_id: "{{ REALITY_SHORT_ID | default(lookup('env', 'REALITY_SHORT_ID'), true) | default('abcd1234') }}"
+  when: reality_inbound_exists
+  delegate_to: localhost
+  become: no
+  run_once: yes

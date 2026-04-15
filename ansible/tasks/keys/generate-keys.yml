@@ -1,0 +1,48 @@
+---
+# Generate X25519 Reality Keys Tasks
+# ==========================================
+
+- name: Generate X25519 keys using xray command
+  command: >
+    docker run --rm {{ marzban_node_image }} xray x25519
+  register: x25519_output
+  when: not reality_inbound_exists
+  delegate_to: localhost
+  become: no
+  run_once: yes
+  changed_when: true
+
+- name: Parse X25519 private key
+  set_fact:
+    reality_private_key: "{{ x25519_output.stdout | regex_search('Private key: ([^\\s]+)', '\\1') | first }}"
+  when: x25519_output.stdout is defined and not reality_inbound_exists
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
+- name: Parse X25519 public key
+  set_fact:
+    reality_public_key: "{{ x25519_output.stdout | regex_search('Public key: ([^\\s]+)', '\\1') | first }}"
+  when: x25519_output.stdout is defined and not reality_inbound_exists
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
+- name: Generate random SHORT_ID (8 hex chars)
+  set_fact:
+    reality_short_id: "{{ '%08x' | format(65535 | random(seed=inventory_hostname) + (65535 | random(seed=now()) * 65536)) }}"
+  when: not reality_inbound_exists
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
+- name: Display generated keys
+  debug:
+    msg:
+      - "Generated Private Key: {{ reality_private_key | default('N/A') }}"
+      - "Generated Public Key: {{ reality_public_key | default('N/A') }}"
+      - "Generated Short ID: {{ reality_short_id | default('N/A') }}"
+  when: not reality_inbound_exists
+  delegate_to: localhost
+  become: no
+  run_once: yes

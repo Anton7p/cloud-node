@@ -1,0 +1,42 @@
+---
+# Application Deployment: Health Checks
+# ==========================================
+
+- name: Wait for containers to initialize
+  pause:
+    seconds: 10
+
+- name: Check running containers
+  command: docker ps --format "table {% raw %}{{.Names}}\t{{.Status}}\t{{.Ports}}{% endraw %}"
+  register: container_status
+  changed_when: false
+
+- name: Display container status
+  debug:
+    msg: "Container Status:\n{{ container_status.stdout }}"
+
+- name: Verify critical services are running
+  command: docker ps --filter "name={{ item }}" --filter "status=running" --format "{% raw %}{{.Names}}{% endraw %}"
+  register: service_check
+  changed_when: false
+  loop:
+    - cloudnode-bot
+    - cloudnode-db
+    - cloudnode-redis
+    - cloudnode-marzban
+
+- name: Fail if critical services not running
+  fail:
+    msg: "Critical service {{ item.item }} is not running!"
+  when: item.stdout | length == 0
+  loop: "{{ service_check.results }}"
+
+- name: Verify bot health endpoint (if available)
+  uri:
+    url: "http://localhost:3000/health"
+    method: GET
+    status_code: [200, 404]
+  register: health_check
+  ignore_errors: yes
+  retries: 5
+  delay: 10

@@ -1,0 +1,57 @@
+---
+# Certificate Fetching Tasks
+# ==========================================
+
+- name: Fetch SSL certificate from Master API
+  uri:
+    url: "{{ computed_api_url }}/node/settings"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ auth_response.json.access_token }}"
+    return_content: yes
+    status_code: [200, 404]
+    timeout: 30
+  register: cert_response
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
+- name: Debug certificate response
+  debug:
+    msg: "Certificate fetch status: {{ cert_response.status }}. Certificate defined: {{ cert_response.json.certificate is defined }}"
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
+- name: Fail if certificate endpoint returned 404
+  fail:
+    msg: "Certificate endpoint /node/settings not found (404)."
+  when: cert_response.status == 404
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
+- name: Fail if certificate not found in response
+  fail:
+    msg: "Certificate not found in API response."
+  when: cert_response.status == 200 and (cert_response.json.certificate is not defined or cert_response.json.certificate == "")
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
+- name: Save certificate locally on Runner
+  copy:
+    content: "{{ cert_response.json.certificate }}"
+    dest: "/tmp/ssl_client_cert.pem"
+    mode: '0644'
+  when: cert_response.json.certificate is defined
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
+- name: Store certificate content as fact
+  set_fact:
+    new_certificate: "{{ cert_response.json.certificate }}"
+  delegate_to: localhost
+  become: no
+  run_once: yes

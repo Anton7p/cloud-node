@@ -1,0 +1,69 @@
+---
+# Marzban Node Container Setup Tasks
+# ==========================================
+
+- name: Check if marzban-node container is running
+  command: docker ps -q -f name=marzban-node
+  register: container_check
+  changed_when: false
+  ignore_errors: yes
+
+- name: Set fresh install fact
+  set_fact:
+    is_fresh_install: "{{ container_check.stdout == '' }}"
+
+- name: Set restart required fact
+  set_fact:
+    restart_required: "{{ is_fresh_install or hostvars['localhost'].cert_changed | default(false) }}"
+
+- name: Copy SSL certificate from Runner to node
+  copy:
+    src: "/tmp/ssl_client_cert.pem"
+    dest: "{{ cert_file }}"
+    mode: '0644'
+    owner: "{{ ansible_user | default(ansible_ssh_user) }}"
+    group: "{{ ansible_user | default(ansible_ssh_user) }}"
+  when: hostvars['localhost'].cert_changed | default(false)
+
+- name: Verify certificate file exists on node
+  stat:
+    path: "{{ cert_file }}"
+  register: cert_file_check
+
+- name: Fail if certificate file not found
+  fail:
+    msg: "Certificate file not found at {{ cert_file }}"
+  when: hostvars['localhost'].cert_changed | default(false) and not cert_file_check.stat.exists
+
+- name: Create Docker Compose file for Marzban Node
+  copy:
+    dest: "{{ node_dir }}/docker-compose.yml"
+    content: |
+      services:
+        marzban-node:
+          image: {{ marzban_node_image }}
+          container_name: marzban-node
+          restart: always
+          network_mode: host
+          environment:
+            - SERVICE_PORT={{ service_port }}
+            - XRAY_API_PORT={{ xray_api_port }}
+            - SSL_CLIENT_CERT_FILE=/var/lib/marzban-node/ssl_client_cert.pem
+          volumes:
+            - {{ node_var_dir }}:/var/lib/marzban-node:ro
+          logging:
+            driver: "json-file"
+            options:
+              max-size: "10m"
+              max-file: "3"
+    mode: '0644'
+    owner: "{{ ansible_user | default(ansible_ssh_user) }}"
+    group: "{{ ansible_user | default(ansible_ssh_user) }}"
+  register: compose_file
+
+- name: Validate Docker Compose configuration
+  command: docker compose config
+  args:
+    chdir: "{{ node_dir }}"
+  register: compose_config
+  changed_when: false

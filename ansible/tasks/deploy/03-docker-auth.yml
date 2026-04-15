@@ -1,0 +1,19 @@
+---
+# Application Deployment: Docker Registry Authentication
+# ==========================================
+
+- name: Create Docker config directory
+  file:
+    path: /root/.docker
+    state: directory
+    mode: '0700'
+
+- name: Login to GitHub Container Registry
+  shell: |
+    echo "{{ ghcr_token }}" | docker login {{ registry_url }} -u "{{ ghcr_username }}" --password-stdin
+  no_log: yes
+  when: ghcr_token is defined and ghcr_username is defined
+  register: docker_login
+  retries: 3
+  delay: 5
+  until: docker_login.rc == 0

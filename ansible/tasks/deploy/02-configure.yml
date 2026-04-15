@@ -1,0 +1,42 @@
+---
+# Application Deployment: Configuration Tasks
+# ==========================================
+
+- name: Ensure deployment directory exists
+  file:
+    path: "{{ deploy_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Create backup directory
+  file:
+    path: "{{ backup_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Copy docker-compose.yml to server
+  copy:
+    src: "../docker-compose.yml"
+    dest: "{{ deploy_dir }}/docker-compose.yml"
+    mode: '0644'
+  register: compose_copy
+
+- name: Update image reference in docker-compose.yml
+  replace:
+    path: "{{ deploy_dir }}/docker-compose.yml"
+    regexp: '\$\{DOCKER_IMAGE_NAME:-\$CI_REGISTRY_IMAGE\}:latest'
+    replace: "{{ image_name }}:{{ image_tag }}"
+  when: compose_copy.changed
+
+- name: Generate environment file from template
+  template:
+    src: templates/.env.j2
+    dest: "{{ deploy_dir }}/.env"
+    mode: '0600'
+    owner: root
+    group: root
+  register: env_generation
+
+- name: Display .env generation status
+  debug:
+    msg: "Environment file generated at {{ deploy_dir }}/.env (changed: {{ env_generation.changed }})"
