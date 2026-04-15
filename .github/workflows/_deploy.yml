@@ -79,10 +79,8 @@ jobs:
           SERVER_IP: ${{ secrets.SERVER_IP }}
           SERVER_USER: ${{ secrets.SERVER_USER || 'root' }}
         run: |
-          cat > inventory_deploy.ini << EOF
-[master]
-$SERVER_IP ansible_user=$SERVER_USER ansible_ssh_private_key_file=~/.ssh/id_rsa
-EOF
+          echo "[master]" > inventory_deploy.ini
+          echo "$SERVER_IP ansible_user=$SERVER_USER ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory_deploy.ini
           echo "=== Deploy Inventory ==="
           cat inventory_deploy.ini
 

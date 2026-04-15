@@ -61,24 +61,20 @@ jobs:
           INFRASTRUCTURE_IP_LIST: ${{ secrets.INFRASTRUCTURE_IP_LIST }}
           DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
         run: |
-          cat > inventory_dynamic.ini << EOF
-[master]
-$SERVER_IP ansible_user=$SERVER_USER ansible_ssh_private_key_file=~/.ssh/id_rsa
-
-[nodes]
-EOF
+          echo "[master]" > inventory_dynamic.ini
+          echo "$SERVER_IP ansible_user=$SERVER_USER ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory_dynamic.ini
+          echo "" >> inventory_dynamic.ini
+          echo "[nodes]" >> inventory_dynamic.ini
           if [ -n "$INFRASTRUCTURE_IP_LIST" ]; then
             IFS=',' read -ra IPS <<< "$INFRASTRUCTURE_IP_LIST"
             for ip in "${IPS[@]}"; do
               echo "$ip ansible_user=$SERVER_USER ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory_dynamic.ini
             done
           fi
-          cat >> inventory_dynamic.ini << EOF
-
-[nodes:vars]
-ansible_python_interpreter=/usr/bin/python3
-domain_name=$DOMAIN_NAME
-EOF
+          echo "" >> inventory_dynamic.ini
+          echo "[nodes:vars]" >> inventory_dynamic.ini
+          echo "ansible_python_interpreter=/usr/bin/python3" >> inventory_dynamic.ini
+          echo "domain_name=$DOMAIN_NAME" >> inventory_dynamic.ini
           echo "=== Generated Inventory ==="
           cat inventory_dynamic.ini
 
