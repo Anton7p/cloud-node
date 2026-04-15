@@ -19,8 +19,6 @@
     db_password: "{{ lookup('env', 'DB_PASSWORD') }}"
     telegram_bot_token: "{{ lookup('env', 'TELEGRAM_BOT_TOKEN') }}"
     encryption_key: "{{ lookup('env', 'ENCRYPTION_KEY') }}"
-    redis_host: "{{ lookup('env', 'REDIS_HOST') | default('redis', true) }}"
-    redis_port: "{{ lookup('env', 'REDIS_PORT') | default('6379', true) }}"
     redis_password: "{{ lookup('env', 'REDIS_PASSWORD') | default('', true) }}"
     vpn_admin_username: "{{ lookup('env', 'VPN_ADMIN_USERNAME') }}"
     vpn_admin_password: "{{ lookup('env', 'VPN_ADMIN_PASSWORD') }}"

@@ -32,8 +32,6 @@ jobs:
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
-      REDIS_HOST: ${{ secrets.REDIS_HOST }}
-      REDIS_PORT: ${{ secrets.REDIS_PORT || '6379' }}
       REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
       VPN_ADMIN_USERNAME: ${{ secrets.VPN_ADMIN_USERNAME }}
       VPN_ADMIN_PASSWORD: ${{ secrets.VPN_ADMIN_PASSWORD }}
