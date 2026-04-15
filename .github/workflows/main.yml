@@ -27,20 +27,20 @@ jobs:
     secrets: inherit
 
   # ==========================================
-  # Stage 2: Infrastructure Setup
-  # ==========================================
-  infrastructure:
-    needs: build
-    uses: ./.github/workflows/infrastructure.yml
-    secrets: inherit
-
-  # ==========================================
-  # Stage 3: Application Deploy
+  # Stage 2: Application Deploy
   # ==========================================
   deploy:
-    needs: [build, infrastructure]
+    needs: build
     uses: ./.github/workflows/deploy.yml
     with:
       image_tag: ${{ needs.build.outputs.image_tag }}
       image_name: ${{ needs.build.outputs.image_name }}
+    secrets: inherit
+
+  # ==========================================
+  # Stage 3: Infrastructure Setup (after app is ready)
+  # ==========================================
+  infrastructure:
+    needs: [build, deploy]
+    uses: ./.github/workflows/infrastructure.yml
     secrets: inherit
