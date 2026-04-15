@@ -54,6 +54,64 @@
         - vpn_admin_password
         - domain_name
 
+    - name: Generate Reality keys if not provided
+      block:
+        - name: Check if keys need generation
+          set_fact:
+            needs_key_generation: "{{ reality_public_key | length == 0 }}"
+
+        - name: Generate X25519 keys using xray
+          command: docker run --rm gozargah/marzban-node:latest xray x25519
+          register: x25519_output
+          when: needs_key_generation | bool
+          delegate_to: localhost
+          become: no
+          run_once: yes
+          changed_when: true
+
+        - name: Parse generated public key
+          set_fact:
+            reality_public_key: "{{ x25519_output.stdout | regex_search('Public key: ([^\\s]+)', '\\1') | first }}"
+          when: x25519_output.stdout is defined and needs_key_generation | bool
+          delegate_to: localhost
+          become: no
+          run_once: yes
+
+        - name: Parse generated private key
+          set_fact:
+            reality_private_key: "{{ x25519_output.stdout | regex_search('Private key: ([^\\s]+)', '\\1') | first }}"
+          when: x25519_output.stdout is defined and needs_key_generation | bool
+          delegate_to: localhost
+          become: no
+          run_once: yes
+
+        - name: Generate random SHORT_ID
+          shell: openssl rand -hex 4
+          register: openssl_short_id
+          when: needs_key_generation | bool
+          delegate_to: localhost
+          become: no
+          run_once: yes
+
+        - name: Set reality_short_id fact
+          set_fact:
+            reality_short_id: "{{ openssl_short_id.stdout }}"
+          when: openssl_short_id.stdout is defined and needs_key_generation | bool
+          delegate_to: localhost
+          become: no
+          run_once: yes
+
+        - name: Display generated keys
+          debug:
+            msg:
+              - "Generated Public Key: {{ reality_public_key | default('N/A') }}"
+              - "Generated Short ID: {{ reality_short_id | default('N/A') }}"
+          when: needs_key_generation | bool
+          delegate_to: localhost
+          become: no
+          run_once: yes
+      when: reality_public_key | length == 0
+
   tasks:
     - name: Include backup tasks
       include_tasks: tasks/deploy/01-backup.yml

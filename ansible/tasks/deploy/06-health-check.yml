@@ -4,7 +4,7 @@
 
 - name: Wait for containers to initialize
   pause:
-    seconds: 10
+    seconds: 30
 
 - name: Check running containers
   command: docker ps --format "table {% raw %}{{.Names}}\t{{.Status}}\t{{.Ports}}{% endraw %}"
@@ -25,9 +25,22 @@
     - cloudnode-redis
     - cloudnode-marzban
 
+- name: Get bot container logs for debugging
+  command: docker compose logs bot --tail 50
+  args:
+    chdir: "{{ deploy_dir }}"
+  register: bot_logs
+  changed_when: false
+  ignore_errors: yes
+
+- name: Display bot logs on failure
+  debug:
+    msg: "Bot Container Logs:\n{{ bot_logs.stdout | default('No logs available') }}"
+  when: bot_logs.stdout is defined and bot_logs.stdout | length > 0
+
 - name: Fail if critical services not running
   fail:
-    msg: "Critical service {{ item.item }} is not running!"
+    msg: "Critical service {{ item.item }} is not running! Check logs above."
   when: item.stdout | length == 0
   loop: "{{ service_check.results }}"
 
