@@ -28,9 +28,17 @@
   become: no
   run_once: yes
 
-- name: Generate random SHORT_ID (8 hex chars)
+- name: Generate random SHORT_ID via openssl
+  shell: openssl rand -hex 4
+  register: openssl_short_id
+  when: not reality_inbound_exists
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
+- name: Set reality_short_id fact
   set_fact:
-    reality_short_id: "{{ '%08x' | format(65535 | random(seed=inventory_hostname) + (65535 | random(seed=now()) * 65536)) }}"
+    reality_short_id: "{{ openssl_short_id.stdout }}"
   when: not reality_inbound_exists
   delegate_to: localhost
   become: no
