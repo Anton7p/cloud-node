@@ -1,5 +1,141 @@
 ---
-# System optimization tasks for BBR and network tuning
+# System hardening and optimization tasks
+# ==========================================
+
+# ==========================================
+# 1. SSH Key Setup from GitHub Secrets
+# ==========================================
+- name: Ensure .ssh directory exists for root
+  file:
+    path: /root/.ssh
+    state: directory
+    mode: '0700'
+    owner: root
+    group: root
+
+- name: Add SSH public key from GitHub Secrets
+  authorized_key:
+    user: root
+    key: "{{ lookup('env', 'SSH_PUBLIC_KEY') | default(lookup('pipe', 'echo ' ~ lookup('env', 'SSH_PRIVATE_KEY') | quote ~ ' | ssh-keygen -y -f /dev/stdin 2>/dev/null || true'), true) }}"
+    state: present
+  ignore_errors: yes
+  no_log: true
+
+- name: Ensure authorized_keys has correct permissions
+  file:
+    path: /root/.ssh/authorized_keys
+    mode: '0600'
+    owner: root
+    group: root
+  ignore_errors: yes
+
+# ==========================================
+# 2. SSH Hardening - Disable password auth
+# ==========================================
+- name: Disable password authentication in SSH
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PasswordAuthentication'
+    line: 'PasswordAuthentication no'
+    validate: '/usr/sbin/sshd -t -f %s'
+  notify: restart sshd
+
+- name: Enable public key authentication
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PubkeyAuthentication'
+    line: 'PubkeyAuthentication yes'
+    validate: '/usr/sbin/sshd -t -f %s'
+  notify: restart sshd
+
+- name: Set PermitRootLogin to prohibit-password
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PermitRootLogin'
+    line: 'PermitRootLogin prohibit-password'
+    validate: '/usr/sbin/sshd -t -f %s'
+  notify: restart sshd
+
+- name: Disable ChallengeResponseAuthentication
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?ChallengeResponseAuthentication'
+    line: 'ChallengeResponseAuthentication no'
+    validate: '/usr/sbin/sshd -t -f %s'
+  notify: restart sshd
+
+# ==========================================
+# 3. UFW Firewall Configuration
+# ==========================================
+- name: Install UFW
+  apt:
+    name: ufw
+    state: present
+    update_cache: yes
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Reset UFW to clean state
+  ufw:
+    state: reset
+  ignore_errors: yes
+
+- name: Set UFW default incoming policy to deny
+  ufw:
+    direction: incoming
+    policy: deny
+
+- name: Set UFW default outgoing policy to allow
+  ufw:
+    direction: outgoing
+    policy: allow
+
+- name: Allow SSH (port 22) from anywhere
+  ufw:
+    rule: allow
+    port: '22'
+    proto: tcp
+
+- name: Allow HTTPS (port 443) for VLESS Reality
+  ufw:
+    rule: allow
+    port: '443'
+    proto: tcp
+  when: "'nodes' in group_names or inventory_hostname in groups['nodes']"
+
+- name: Allow Marzban Node API (port 62050) from master only
+  ufw:
+    rule: allow
+    port: '62050'
+    proto: tcp
+    src: "{{ hostvars[groups['master'][0]]['ansible_host'] | default(groups['master'][0]) }}"
+  when: "'nodes' in group_names or inventory_hostname in groups['nodes']"
+  ignore_errors: yes
+
+- name: Allow 3x-ui ports (temporary)
+  ufw:
+    rule: allow
+    port: '{{ item }}'
+    proto: tcp
+  loop:
+    - '2053'
+    - '2096'
+
+- name: Allow Marzban API (port 8000) from infrastructure nodes only
+  ufw:
+    rule: allow
+    port: '8000'
+    proto: tcp
+    src: "{{ infrastructure_ip_list | default('0.0.0.0/0') }}"
+  when: "'master' in group_names or inventory_hostname in groups['master']"
+  ignore_errors: yes
+
+- name: Enable UFW
+  ufw:
+    state: enabled
+
+# ==========================================
+# 4. TCP BBR Congestion Control
+# ==========================================
 - name: Enable TCP BBR congestion control
   sysctl:
     name: net.ipv4.tcp_congestion_control
@@ -20,3 +156,37 @@
     state: present
   when: bbr_available.rc == 0
   ignore_errors: yes
+
+# ==========================================
+# 5. Fail2Ban Installation
+# ==========================================
+- name: Install Fail2Ban
+  apt:
+    name: fail2ban
+    state: present
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Configure Fail2Ban for SSH protection
+  copy:
+    dest: /etc/fail2ban/jail.local
+    content: |
+      [DEFAULT]
+      bantime = 3600
+      findtime = 600
+      maxretry = 3
+      backend = systemd
+
+      [sshd]
+      enabled = true
+      port = ssh
+      filter = sshd
+      logpath = /var/log/auth.log
+      maxretry = 3
+  notify: restart fail2ban
+
+- name: Enable and start Fail2Ban
+  systemd:
+    name: fail2ban
+    enabled: yes
+    state: started
+

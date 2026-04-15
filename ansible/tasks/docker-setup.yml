@@ -70,3 +70,34 @@
     state: link
     force: yes
   ignore_errors: yes
+
+- name: Ensure Docker daemon.json exists
+  copy:
+    content: |
+      {
+        "iptables": true,
+        "ip-forward": true
+      }
+    dest: /etc/docker/daemon.json
+    mode: '0644'
+  ignore_errors: yes
+  notify: restart docker
+
+- name: Configure DOCKER-USER chain to respect UFW
+  shell: |
+    iptables -N DOCKER-USER 2>/dev/null || true
+    iptables -F DOCKER-USER 2>/dev/null || true
+    iptables -I DOCKER-USER -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+    iptables -I DOCKER-USER -i docker0 -j ACCEPT
+    iptables -I DOCKER-USER -i br-+ -j ACCEPT
+    iptables -A DOCKER-USER -j RETURN
+  ignore_errors: yes
+
+# ==========================================
+# Handlers for Docker
+# ==========================================
+- name: Restart Docker service
+  systemd:
+    name: docker
+    state: restarted
+  listen: restart docker

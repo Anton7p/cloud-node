@@ -11,3 +11,4 @@
   delegate_to: localhost
   become: no
   run_once: yes
+  no_log: true
