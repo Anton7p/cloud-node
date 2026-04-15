@@ -12,9 +12,10 @@
     marzban_node_image: gozargah/marzban-node:latest
     compose_project_name: "marzban-node"
     # Credentials - supports both extra-vars (-e) and env variables
-    marzban_username: "{{ VPN_ADMIN_USERNAME | default(lookup('env', 'VPN_ADMIN_USERNAME'), true) }}"
-    marzban_password: "{{ VPN_ADMIN_PASSWORD | default(lookup('env', 'VPN_ADMIN_PASSWORD'), true) }}"
-    domain_name: "{{ DOMAIN_NAME | default(lookup('env', 'DOMAIN_NAME'), true) }}"
+    # GitHub Actions passes vars via -e, also supports local env fallback
+    marzban_username: "{{ vpn_admin_username | default(VPN_ADMIN_USERNAME | default(lookup('env', 'VPN_ADMIN_USERNAME'), true), true) }}"
+    marzban_password: "{{ vpn_admin_password | default(VPN_ADMIN_PASSWORD | default(lookup('env', 'VPN_ADMIN_PASSWORD'), true), true) }}"
+    domain_name: "{{ domain_name | default(DOMAIN_NAME | default(lookup('env', 'DOMAIN_NAME'), true), true) }}"
 
   pre_tasks:
     - name: Compute Marzban API URL
@@ -31,9 +32,9 @@
       become: no
       run_once: yes
 
-    - name: Validate required GitLab variables
+    - name: Validate required CI/CD variables
       fail:
-        msg: "Missing required GitLab CI/CD variable: {{ item.var }}. Please set it in GitLab Settings > CI/CD > Variables."
+        msg: "Missing required CI/CD variable: {{ item.var }}. Please set it in GitHub Settings > Secrets and variables."
       when: item.value | length == 0
       loop:
         - { var: "VPN_ADMIN_USERNAME", value: "{{ marzban_username }}" }

@@ -4,7 +4,7 @@
 
 ## Production Ready
 
-- **GitOps деплой** через GitLab CI/CD
+- **GitOps деплой** через GitHub Actions
 - **Мультинодная инфраструктура** с атомарным деплоем
 - **VLESS + Reality** протокол через Marzban
 - **BullMQ** для асинхронных задач
@@ -78,41 +78,89 @@ registerHandler(handler: BaseAction): void {
 
 ## GitOps Деплой (Production)
 
-### Требуемые переменные GitLab CI/CD
+### CI/CD Pipeline
+
+Проект использует **GitHub Actions** для автоматического деплоя:
+
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│    Build    │ → │Infrastructure│ → │   Deploy    │
+│ Docker Image│    │  Ansible    │    │  Ansible    │
+└─────────────┘    └─────────────┘    └─────────────┘
+      ↓                   ↓                  ↓
+  GHCR Registry      Node Setup          App Stack
+```
+
+### Требуемые Secrets в GitHub
+
+Настройте в **Settings → Secrets and variables → Actions**:
 
 ```env
 # Обязательные
-TELEGRAM_BOT_TOKEN=
-DB_PASSWORD=
-REDIS_PASSWORD=
-ENCRYPTION_KEY=
+TELEGRAM_BOT_TOKEN=           # Токен Telegram бота
+DB_PASSWORD=                  # Пароль PostgreSQL
+REDIS_PASSWORD=               # Пароль Redis
+ENCRYPTION_KEY=               # Ключ шифрования
 
 # Инфраструктура
-SERVER_IP=                    # Master node
+SERVER_IP=                    # Master node IP
 INFRASTRUCTURE_IP_LIST=       # Node1,Node2 (через запятую)
-SSH_PRIVATE_KEY=              # Доступ к нодам
-SERVER_USER=                  # root (default)
+SSH_PRIVATE_KEY=              # SSH ключ для доступа к нодам
+SERVER_USER=                  # Пользователь SSH (default: root)
 
 # Marzban VPN
-VPN_ADMIN_USERNAME=
-VPN_ADMIN_PASSWORD=
-DOMAIN_NAME=
+VPN_ADMIN_USERNAME=           # Админ логин Marzban
+VPN_ADMIN_PASSWORD=           # Админ пароль Marzban
+DOMAIN_NAME=                  # Домен для VPN
 
-# VLESS + Reality Inbound
-REALITY_PRIVATE_KEY=          # Приватный ключ Reality (генерируется автоматически)
-REALITY_PUBLIC_KEY=           # Публичный ключ Reality (генерируется автоматически)
-REALITY_SHORT_ID=             # Short ID для Reality (генерируется автоматически, 8 hex)
-MARZBAN_INBOUND_TAG=          # Тег инбаунда (по умолчанию: VLESS_REALITY)
-
-# Docker Registry
-CI_REGISTRY_USER=
-CI_REGISTRY_PASSWORD=
+# VLESS + Reality
+REALITY_PRIVATE_KEY=          # Приватный ключ (генерируется автоматически)
+REALITY_PUBLIC_KEY=           # Публичный ключ (генерируется автоматически)
+REALITY_SHORT_ID=             # Short ID (генерируется автоматически, 8 hex)
+MARZBAN_INBOUND_TAG=          # Тег инбаунда (default: VLESS_REALITY)
 ```
+
+> **Note:** `GITHUB_TOKEN` выдаётся автоматически для пуша в GHCR.
 
 ### Деплой
 
 ```bash
-git push origin main  # Автоматический деплой на все ноды
+# Push в main запускает полный CI/CD pipeline
+git push origin main
+
+# Pipeline включает:
+# 1. Сборка Docker образа с кэшированием (gha)
+# 2. Пуш в GitHub Container Registry (ghcr.io)
+# 3. Настройка инфраструктурных нод (Ansible)
+# 4. Деплой приложения на master ноду (Ansible)
+```
+
+### Архитектура деплоя
+
+| Компонент | Описание |
+|-----------|----------|
+| `.github/workflows/main.yml` | GitHub Actions workflow |
+| `ansible/deploy_node.yml` | Настройка Marzban нод |
+| `ansible/deploy_app.yml` | Деплой приложения и Docker Compose |
+| `ansible/templates/.env.j2` | Шаблон конфигурации |
+| `ghcr.io` | Docker Registry |
+
+### Ручной запуск Ansible (для отладки)
+
+```bash
+# Настройка инфраструктурных нод
+cd ansible
+ansible-playbook -i inventory.ini deploy_node.yml \
+  -e "domain_name=your.domain.com" \
+  -e "VPN_ADMIN_USERNAME=admin" \
+  -e "VPN_ADMIN_PASSWORD=secret"
+
+# Деплой приложения
+ansible-playbook -i inventory.ini deploy_app.yml \
+  -e "image_name=ghcr.io/username/repo" \
+  -e "image_tag=latest" \
+  -e "db_password=secret" \
+  -e "telegram_bot_token=xxx"
 ```
 
 ## Health Check

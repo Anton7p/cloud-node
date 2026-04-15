@@ -1,0 +1,198 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ==========================================
+  # Stage 1: Build Docker Image
+  # ==========================================
+  build:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+      image_digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=,suffix=,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+  # ==========================================
+  # Stage 2: Infrastructure Setup
+  # ==========================================
+  infrastructure:
+    name: Configure Infrastructure Nodes
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup SSH keys
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null || true
+          # Add node IPs to known_hosts
+          if [ -n "${{ secrets.INFRASTRUCTURE_IP_LIST }}" ]; then
+            IFS=',' read -ra IPS <<< "${{ secrets.INFRASTRUCTURE_IP_LIST }}"
+            for ip in "${IPS[@]}"; do
+              ssh-keyscan -H "$ip" >> ~/.ssh/known_hosts 2>/dev/null || true
+            done
+          fi
+
+      - name: Install Ansible
+        run: |
+          pip install ansible requests urllib3
+
+      - name: Generate dynamic inventory
+        working-directory: ./ansible
+        run: |
+          cat > inventory_dynamic.ini << 'EOF'
+          [master]
+          ${{ secrets.SERVER_IP }} ansible_user=${{ secrets.SERVER_USER || 'root' }} ansible_ssh_private_key_file=~/.ssh/id_rsa
+
+          [nodes]
+          EOF
+          
+          if [ -n "${{ secrets.INFRASTRUCTURE_IP_LIST }}" ]; then
+            IFS=',' read -ra IPS <<< "${{ secrets.INFRASTRUCTURE_IP_LIST }}"
+            for ip in "${IPS[@]}"; do
+              echo "${ip} ansible_user=${{ secrets.SERVER_USER || 'root' }} ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory_dynamic.ini
+            done
+          fi
+          
+          cat >> inventory_dynamic.ini << 'EOF'
+
+          [nodes:vars]
+          ansible_python_interpreter=/usr/bin/python3
+          domain_name=${{ secrets.DOMAIN_NAME }}
+          EOF
+          
+          echo "=== Generated Inventory ==="
+          cat inventory_dynamic.ini
+
+      - name: Run Ansible playbook for infrastructure
+        working-directory: ./ansible
+        run: |
+          ansible-playbook -i inventory_dynamic.ini deploy_node.yml -f 10 \
+            --extra-vars "domain_name=${{ secrets.DOMAIN_NAME }}" \
+            -e "VPN_ADMIN_USERNAME=${{ secrets.VPN_ADMIN_USERNAME }}" \
+            -e "VPN_ADMIN_PASSWORD=${{ secrets.VPN_ADMIN_PASSWORD }}" \
+            -e "SERVER_IP=${{ secrets.SERVER_IP }}" \
+            -e "REALITY_PRIVATE_KEY=${{ secrets.REALITY_PRIVATE_KEY }}" \
+            -e "REALITY_PUBLIC_KEY=${{ secrets.REALITY_PUBLIC_KEY }}" \
+            -e "REALITY_SHORT_ID=${{ secrets.REALITY_SHORT_ID }}"
+
+  # ==========================================
+  # Stage 3: Application Deploy
+  # ==========================================
+  deploy:
+    name: Deploy Application
+    runs-on: ubuntu-latest
+    needs: [build, infrastructure]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    environment:
+      name: production
+      url: http://${{ secrets.SERVER_IP }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup SSH keys
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+
+      - name: Install Ansible
+        run: |
+          pip install ansible
+
+      - name: Generate deployment inventory
+        working-directory: ./ansible
+        run: |
+          cat > inventory_deploy.ini << 'EOF'
+          [master]
+          ${{ secrets.SERVER_IP }} ansible_user=${{ secrets.SERVER_USER || 'root' }} ansible_ssh_private_key_file=~/.ssh/id_rsa
+          EOF
+          
+          echo "=== Deploy Inventory ==="
+          cat inventory_deploy.ini
+
+      - name: Deploy application via Ansible
+        working-directory: ./ansible
+        run: |
+          ansible-playbook -i inventory_deploy.ini deploy_app.yml \
+            --extra-vars "server_ip=${{ secrets.SERVER_IP }}" \
+            -e "server_user=${{ secrets.SERVER_USER || 'root' }}" \
+            -e "image_name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" \
+            -e "image_tag=${{ github.sha }}" \
+            -e "db_password=${{ secrets.DB_PASSWORD }}" \
+            -e "telegram_bot_token=${{ secrets.TELEGRAM_BOT_TOKEN }}" \
+            -e "encryption_key=${{ secrets.ENCRYPTION_KEY }}" \
+            -e "redis_host=${{ secrets.REDIS_HOST }}" \
+            -e "redis_port=${{ secrets.REDIS_PORT || '6379' }}" \
+            -e "redis_password=${{ secrets.REDIS_PASSWORD }}" \
+            -e "vpn_admin_username=${{ secrets.VPN_ADMIN_USERNAME }}" \
+            -e "vpn_admin_password=${{ secrets.VPN_ADMIN_PASSWORD }}" \
+            -e "infrastructure_ip_list=${{ secrets.INFRASTRUCTURE_IP_LIST }}" \
+            -e "domain_name=${{ secrets.DOMAIN_NAME }}" \
+            -e "reality_public_key=${{ secrets.REALITY_PUBLIC_KEY }}" \
+            -e "reality_short_id=${{ secrets.REALITY_SHORT_ID }}" \
+            -e "marzban_inbound_tag=${{ secrets.MARZBAN_INBOUND_TAG || 'VLESS_REALITY' }}" \
+            -e "ghcr_username=${{ github.actor }}" \
+            -e "ghcr_token=${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Verify deployment
+        run: |
+          sleep 10
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ secrets.SERVER_USER || 'root' }}@${{ secrets.SERVER_IP }} "docker ps --format 'table {{.Names}}\t{{.Status}}' | grep -E '(cloudnode|marzban)'" || true

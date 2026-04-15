@@ -1,0 +1,276 @@
+---
+# Ansible Playbook: Application Deployment
+# Description: Deploys CloudNode application stack to master server
+# Triggered by: GitHub Actions workflow
+# Target: master node (Marzban Core + Bot)
+
+- name: Deploy CloudNode Application Stack
+  hosts: master
+  become: yes
+  strategy: linear
+
+  vars:
+    # Deployment directories
+    deploy_dir: /var/www/cloudnode
+    backup_dir: /var/backups/cloudnode
+
+    # Container registry
+    registry_url: "ghcr.io"
+
+    # Default values (override via -e extra-vars)
+    server_ip: "{{ lookup('env', 'SERVER_IP') | default(inventory_hostname, true) }}"
+    server_user: "{{ lookup('env', 'SERVER_USER') | default('root', true) }}"
+
+  pre_tasks:
+    - name: Display deployment information
+      debug:
+        msg: |
+          ==========================================
+          Deploying CloudNode Application
+          Target: {{ inventory_hostname }}
+          Image: {{ image_name | default('NOT SET') }}:{{ image_tag | default('NOT SET') }}
+          Registry: {{ registry_url }}
+          ==========================================
+
+    - name: Validate required variables
+      fail:
+        msg: "Missing required variable: {{ item }}"
+      when: vars[item] is not defined or vars[item] | length == 0
+      loop:
+        - image_name
+        - image_tag
+        - db_password
+        - telegram_bot_token
+        - encryption_key
+        - vpn_admin_username
+        - vpn_admin_password
+        - domain_name
+
+    - name: Ensure deployment directory exists
+      file:
+        path: "{{ deploy_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Create backup directory
+      file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: '0755'
+
+  tasks:
+    # ==========================================
+    # 1. Backup existing configuration
+    # ==========================================
+    - name: Backup existing .env if present
+      copy:
+        src: "{{ deploy_dir }}/.env"
+        dest: "{{ backup_dir }}/.env.{{ ansible_date_time.epoch }}"
+        remote_src: yes
+        mode: '0600'
+      ignore_errors: yes
+
+    - name: Backup existing docker-compose.yml if present
+      copy:
+        src: "{{ deploy_dir }}/docker-compose.yml"
+        dest: "{{ backup_dir }}/docker-compose.yml.{{ ansible_date_time.epoch }}"
+        remote_src: yes
+        mode: '0644'
+      ignore_errors: yes
+
+    # ==========================================
+    # 2. Copy docker-compose.yml from repository
+    # ==========================================
+    - name: Copy docker-compose.yml to server
+      copy:
+        src: "../docker-compose.yml"
+        dest: "{{ deploy_dir }}/docker-compose.yml"
+        mode: '0644'
+      register: compose_copy
+
+    - name: Update image reference in docker-compose.yml
+      replace:
+        path: "{{ deploy_dir }}/docker-compose.yml"
+        regexp: '\$\{DOCKER_IMAGE_NAME:-\$CI_REGISTRY_IMAGE\}:latest'
+        replace: "{{ image_name }}:{{ image_tag }}"
+      when: compose_copy.changed
+
+    # ==========================================
+    # 3. Generate .env file from template
+    # ==========================================
+    - name: Generate environment file from template
+      template:
+        src: templates/.env.j2
+        dest: "{{ deploy_dir }}/.env"
+        mode: '0600'
+        owner: root
+        group: root
+      vars:
+        # These are passed via -e extra-vars from GitHub Actions
+        # Template uses these variables automatically
+      register: env_generation
+
+    - name: Display .env generation status
+      debug:
+        msg: "Environment file generated at {{ deploy_dir }}/.env (changed: {{ env_generation.changed }})"
+
+    # ==========================================
+    # 4. Docker Registry Authentication
+    # ==========================================
+    - name: Create Docker config directory
+      file:
+        path: /root/.docker
+        state: directory
+        mode: '0700'
+
+    - name: Login to GitHub Container Registry
+      shell: |
+        echo "{{ ghcr_token }}" | docker login {{ registry_url }} -u "{{ ghcr_username }}" --password-stdin
+      no_log: yes
+      when: ghcr_token is defined and ghcr_username is defined
+      register: docker_login
+      retries: 3
+      delay: 5
+      until: docker_login.rc == 0
+
+    # ==========================================
+    # 5. Pull latest Docker image
+    # ==========================================
+    - name: Pull latest application image
+      docker_image:
+        name: "{{ image_name }}"
+        tag: "{{ image_tag }}"
+        source: pull
+        force_source: yes
+      register: image_pull
+      retries: 3
+      delay: 10
+      until: image_pull is succeeded
+
+    - name: Verify image pulled successfully
+      command: docker images "{{ image_name }}:{{ image_tag }}" --format "{% raw %}{{.Repository}}:{{.Tag}}{% endraw %}"
+      register: image_verify
+      changed_when: false
+
+    - name: Display pulled image
+      debug:
+        msg: "Successfully pulled image: {{ image_verify.stdout }}"
+
+    # ==========================================
+    # 6. Deploy application stack
+    # ==========================================
+    - name: Stop existing containers gracefully
+      command: docker compose down --timeout 30
+      args:
+        chdir: "{{ deploy_dir }}"
+      register: compose_down
+      changed_when: compose_down.rc == 0
+      ignore_errors: yes
+
+    - name: Start application stack
+      command: docker compose up -d
+      args:
+        chdir: "{{ deploy_dir }}"
+      environment:
+        DB_PASSWORD: "{{ db_password }}"
+        TELEGRAM_BOT_TOKEN: "{{ telegram_bot_token }}"
+        ENCRYPTION_KEY: "{{ encryption_key }}"
+        DOCKER_IMAGE_NAME: "{{ image_name }}:{{ image_tag }}"
+        REDIS_HOST: "{{ redis_host | default('redis') }}"
+        REDIS_PORT: "{{ redis_port | default('6379') }}"
+        REDIS_PASSWORD: "{{ redis_password | default('') }}"
+        MARZBAN_URL: "http://marzban:8000"
+        VPN_ADMIN_USERNAME: "{{ vpn_admin_username }}"
+        VPN_ADMIN_PASSWORD: "{{ vpn_admin_password }}"
+        INFRASTRUCTURE_IP_LIST: "{{ infrastructure_ip_list | default('') }}"
+        DOMAIN_NAME: "{{ domain_name }}"
+      register: compose_up
+      retries: 2
+      delay: 5
+      until: compose_up.rc == 0
+
+    - name: Display compose up output
+      debug:
+        msg: "{{ compose_up.stdout_lines }}"
+
+    # ==========================================
+    # 7. Health checks
+    # ==========================================
+    - name: Wait for containers to initialize
+      pause:
+        seconds: 10
+
+    - name: Check running containers
+      command: docker ps --format "table {% raw %}{{.Names}}\t{{.Status}}\t{{.Ports}}{% endraw %}"
+      register: container_status
+      changed_when: false
+
+    - name: Display container status
+      debug:
+        msg: "Container Status:\n{{ container_status.stdout }}"
+
+    - name: Verify critical services are running
+      command: docker ps --filter "name={{ item }}" --filter "status=running" --format "{% raw %}{{.Names}}{% endraw %}"
+      register: service_check
+      changed_when: false
+      loop:
+        - cloudnode-bot
+        - cloudnode-db
+        - cloudnode-redis
+        - cloudnode-marzban
+
+    - name: Fail if critical services not running
+      fail:
+        msg: "Critical service {{ item.item }} is not running!"
+      when: item.stdout | length == 0
+      loop: "{{ service_check.results }}"
+
+    # ==========================================
+    # 8. Cleanup
+    # ==========================================
+    - name: Remove old Docker images
+      shell: |
+        docker image prune -af --filter "until=168h" || true
+      register: image_prune
+      changed_when: "'Total reclaimed space' in image_prune.stderr"
+
+    - name: Display cleanup results
+      debug:
+        msg: "{{ image_prune.stderr | default('No images to prune') }}"
+
+    # ==========================================
+    # 9. Deployment verification
+    # ==========================================
+    - name: Verify bot health endpoint (if available)
+      uri:
+        url: "http://localhost:3000/health"
+        method: GET
+        status_code: [200, 404]
+      register: health_check
+      ignore_errors: yes
+      retries: 5
+      delay: 10
+
+    - name: Display deployment summary
+      debug:
+        msg: |
+          ==========================================
+          DEPLOYMENT SUCCESSFUL
+          ==========================================
+          Target Server: {{ inventory_hostname }}
+          Image: {{ image_name }}:{{ image_tag }}
+          Deployed At: {{ ansible_date_time.iso8601 }}
+          Containers Running: {{ container_status.stdout_lines | length - 1 }}
+          ==========================================
+
+  post_tasks:
+    - name: Logout from Docker registry
+      command: docker logout {{ registry_url }}
+      ignore_errors: yes
+      when: docker_login is succeeded
+
+  handlers:
+    - name: Restart bot container
+      command: docker compose restart bot
+      args:
+        chdir: "{{ deploy_dir }}"
