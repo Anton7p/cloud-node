@@ -33,7 +33,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Lowercase repository name
-        run: echo "IMAGE_NAME_LOWER=ghcr.io/${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+        run: |
+          echo "IMAGE_NAME_LOWER=ghcr.io/${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+          echo "IMAGE TO BE BUILT: ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_SHA}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -51,7 +53,7 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME_LOWER }}
           tags: |
-            type=sha,prefix=,suffix=,format=short
+            type=sha,prefix=,suffix=,format=long
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Docker image
@@ -65,3 +67,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
+
+      - name: Debug - Show built image
+        run: |
+          echo "=== IMAGE BUILT ==="
+          echo "Image: ${{ env.IMAGE_NAME_LOWER }}"
+          echo "Tag: ${{ github.sha }}"
+          echo "Full: ${{ env.IMAGE_NAME_LOWER }}:${{ github.sha }}"

@@ -50,6 +50,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Debug - Show image to deploy
+        run: |
+          echo "=== IMAGE TO DEPLOY ==="
+          echo "Image: ${{ inputs.image_name }}"
+          echo "Tag: ${{ inputs.image_tag }}"
+          echo "Full: ${{ inputs.image_name }}:${{ inputs.image_tag }}"
+
       - name: Setup SSH keys
         run: |
           mkdir -p ~/.ssh
