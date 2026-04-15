@@ -17,9 +17,26 @@
     # Container registry
     registry_url: "ghcr.io"
 
-    # Default values (override via -e extra-vars)
+    # All values read from environment variables (passed by GitHub Actions)
     server_ip: "{{ lookup('env', 'SERVER_IP') | default(inventory_hostname, true) }}"
     server_user: "{{ lookup('env', 'SERVER_USER') | default('root', true) }}"
+    image_name: "{{ lookup('env', 'IMAGE_NAME') }}"
+    image_tag: "{{ lookup('env', 'IMAGE_TAG') }}"
+    db_password: "{{ lookup('env', 'DB_PASSWORD') }}"
+    telegram_bot_token: "{{ lookup('env', 'TELEGRAM_BOT_TOKEN') }}"
+    encryption_key: "{{ lookup('env', 'ENCRYPTION_KEY') }}"
+    redis_host: "{{ lookup('env', 'REDIS_HOST') | default('redis', true) }}"
+    redis_port: "{{ lookup('env', 'REDIS_PORT') | default('6379', true) }}"
+    redis_password: "{{ lookup('env', 'REDIS_PASSWORD') | default('', true) }}"
+    vpn_admin_username: "{{ lookup('env', 'VPN_ADMIN_USERNAME') }}"
+    vpn_admin_password: "{{ lookup('env', 'VPN_ADMIN_PASSWORD') }}"
+    infrastructure_ip_list: "{{ lookup('env', 'INFRASTRUCTURE_IP_LIST') | default('', true) }}"
+    domain_name: "{{ lookup('env', 'DOMAIN_NAME') }}"
+    reality_public_key: "{{ lookup('env', 'REALITY_PUBLIC_KEY') | default('', true) }}"
+    reality_short_id: "{{ lookup('env', 'REALITY_SHORT_ID') | default('abcd1234', true) }}"
+    marzban_inbound_tag: "{{ lookup('env', 'MARZBAN_INBOUND_TAG') | default('VLESS_REALITY', true) }}"
+    ghcr_username: "{{ lookup('env', 'GHCR_USERNAME') }}"
+    ghcr_token: "{{ lookup('env', 'GHCR_TOKEN') }}"
 
   pre_tasks:
     - name: Display deployment information
