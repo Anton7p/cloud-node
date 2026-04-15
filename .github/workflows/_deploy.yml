@@ -1,0 +1,121 @@
+name: Reusable - Deploy Application
+
+on:
+  workflow_call:
+    inputs:
+      image_tag:
+        required: true
+        type: string
+      registry:
+        required: true
+        type: string
+        default: ghcr.io
+    secrets:
+      SSH_PRIVATE_KEY:
+        required: true
+      SERVER_IP:
+        required: true
+      SERVER_USER:
+        required: false
+      DB_PASSWORD:
+        required: true
+      TELEGRAM_BOT_TOKEN:
+        required: true
+      ENCRYPTION_KEY:
+        required: true
+      REDIS_HOST:
+        required: false
+      REDIS_PORT:
+        required: false
+      REDIS_PASSWORD:
+        required: false
+      VPN_ADMIN_USERNAME:
+        required: true
+      VPN_ADMIN_PASSWORD:
+        required: true
+      INFRASTRUCTURE_IP_LIST:
+        required: false
+      DOMAIN_NAME:
+        required: true
+      REALITY_PUBLIC_KEY:
+        required: false
+      REALITY_SHORT_ID:
+        required: false
+      MARZBAN_INBOUND_TAG:
+        required: false
+
+env:
+  IMAGE_NAME: ${{ inputs.registry }}/${{ github.repository }}
+  IMAGE_TAG: ${{ inputs.image_tag }}
+
+jobs:
+  deploy:
+    name: Deploy Application
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: http://${{ secrets.SERVER_IP || 'localhost' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup SSH keys
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H $SERVER_IP >> ~/.ssh/known_hosts
+
+      - name: Install Ansible
+        run: pip install ansible
+
+      - name: Generate deployment inventory
+        working-directory: ./ansible
+        env:
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SERVER_USER: ${{ secrets.SERVER_USER || 'root' }}
+        run: |
+          cat > inventory_deploy.ini << EOF
+[master]
+$SERVER_IP ansible_user=$SERVER_USER ansible_ssh_private_key_file=~/.ssh/id_rsa
+EOF
+          echo "=== Deploy Inventory ==="
+          cat inventory_deploy.ini
+
+      - name: Deploy application via Ansible
+        working-directory: ./ansible
+        env:
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SERVER_USER: ${{ secrets.SERVER_USER || 'root' }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          REDIS_HOST: ${{ secrets.REDIS_HOST }}
+          REDIS_PORT: ${{ secrets.REDIS_PORT || '6379' }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          VPN_ADMIN_USERNAME: ${{ secrets.VPN_ADMIN_USERNAME }}
+          VPN_ADMIN_PASSWORD: ${{ secrets.VPN_ADMIN_PASSWORD }}
+          INFRASTRUCTURE_IP_LIST: ${{ secrets.INFRASTRUCTURE_IP_LIST }}
+          DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
+          REALITY_PUBLIC_KEY: ${{ secrets.REALITY_PUBLIC_KEY }}
+          REALITY_SHORT_ID: ${{ secrets.REALITY_SHORT_ID }}
+          MARZBAN_INBOUND_TAG: ${{ secrets.MARZBAN_INBOUND_TAG || 'VLESS_REALITY' }}
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ansible-playbook -i inventory_deploy.ini deploy_app.yml
+
+      - name: Verify deployment
+        env:
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SERVER_USER: ${{ secrets.SERVER_USER || 'root' }}
+        run: |
+          sleep 10
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa $SERVER_USER@$SERVER_IP \
+            "docker ps --format 'table {{.Names}}\t{{.Status}}' | grep -E '(cloudnode|marzban)'" || true
