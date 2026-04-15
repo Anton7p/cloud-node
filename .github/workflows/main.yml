@@ -23,11 +23,14 @@ jobs:
       packages: write
     outputs:
       image_tag: ${{ github.sha }}
-      image_name: ghcr.io/${{ github.repository }}
+      image_name: ${{ env.IMAGE_NAME_LOWER }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Lowercase repository name
+        run: echo "IMAGE_NAME_LOWER=ghcr.io/${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -43,7 +46,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ${{ env.IMAGE_NAME_LOWER }}
           tags: |
             type=sha,prefix=,suffix=,format=short
             type=raw,value=latest,enable={{is_default_branch}}
@@ -139,7 +142,7 @@ jobs:
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       SERVER_IP: ${{ secrets.SERVER_IP }}
       SERVER_USER: ${{ secrets.SERVER_USER || 'root' }}
-      IMAGE_NAME: ghcr.io/${{ github.repository }}
+      IMAGE_NAME: ${{ needs.build.outputs.image_name }}
       IMAGE_TAG: ${{ github.sha }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
