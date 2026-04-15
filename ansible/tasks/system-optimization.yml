@@ -16,10 +16,11 @@
 - name: Add SSH public key from GitHub Secrets
   authorized_key:
     user: root
-    key: "{{ lookup('env', 'SSH_PUBLIC_KEY') | default(lookup('pipe', 'echo ' ~ lookup('env', 'SSH_PRIVATE_KEY') | quote ~ ' | ssh-keygen -y -f /dev/stdin 2>/dev/null || true'), true) }}"
+    key: "{{ lookup('env', 'SSH_PUBLIC_KEY') }}"
     state: present
   ignore_errors: yes
   no_log: true
+  when: lookup('env', 'SSH_PUBLIC_KEY') | length > 0
 
 - name: Ensure authorized_keys has correct permissions
   file:
@@ -102,13 +103,21 @@
     proto: tcp
   when: "'nodes' in group_names or inventory_hostname in groups['nodes']"
 
+- name: Set master server IP fact for nodes
+  set_fact:
+    master_server_ip: "{{ hostvars[groups['master'][0]]['ansible_host'] | default(hostvars[groups['master'][0]]['inventory_hostname'] | default(groups['master'][0])) }}"
+  when: "'nodes' in group_names or inventory_hostname in groups['nodes']"
+
 - name: Allow Marzban Node API (port 62050) from master only
   ufw:
     rule: allow
     port: '62050'
     proto: tcp
-    src: "{{ hostvars[groups['master'][0]]['ansible_host'] | default(groups['master'][0]) }}"
-  when: "'nodes' in group_names or inventory_hostname in groups['nodes']"
+    src: "{{ master_server_ip }}"
+  when:
+    - "'nodes' in group_names or inventory_hostname in groups['nodes']"
+    - master_server_ip is defined
+    - master_server_ip | length > 0
   ignore_errors: yes
 
 - name: Allow 3x-ui ports (temporary)
@@ -125,8 +134,31 @@
     rule: allow
     port: '8000'
     proto: tcp
-    src: "{{ infrastructure_ip_list | default('0.0.0.0/0') }}"
+    src: "{{ item | trim }}"
+  loop: "{{ infrastructure_ip_list.split(',') | default(['0.0.0.0/0'], true) }}"
+  when:
+    - "'master' in group_names or inventory_hostname in groups['master']"
+    - infrastructure_ip_list | length > 0
+  ignore_errors: yes
+
+# ==========================================
+# 6. Docker Firewall Protection (DOCKER-USER chain)
+# ==========================================
+- name: Drop all traffic to port 8000 in DOCKER-USER chain (master only)
+  shell: |
+    iptables -C DOCKER-USER -p tcp --dport 8000 -j DROP 2>/dev/null || \
+    iptables -I DOCKER-USER -p tcp --dport 8000 -j DROP
   when: "'master' in group_names or inventory_hostname in groups['master']"
+  ignore_errors: yes
+
+- name: Allow infrastructure IPs to port 8000 in DOCKER-USER chain (master only)
+  shell: |
+    iptables -C DOCKER-USER -p tcp -s {{ item | trim }} --dport 8000 -j ACCEPT 2>/dev/null || \
+    iptables -I DOCKER-USER -p tcp -s {{ item | trim }} --dport 8000 -j ACCEPT
+  loop: "{{ infrastructure_ip_list.split(',') | default([]) }}"
+  when:
+    - "'master' in group_names or inventory_hostname in groups['master']"
+    - infrastructure_ip_list | length > 0
   ignore_errors: yes
 
 - name: Enable UFW
@@ -180,7 +212,6 @@
       enabled = true
       port = ssh
       filter = sshd
-      logpath = /var/log/auth.log
       maxretry = 3
   notify: restart fail2ban
 
