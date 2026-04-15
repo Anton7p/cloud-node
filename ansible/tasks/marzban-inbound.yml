@@ -18,7 +18,7 @@
 
 - name: Create default VLESS + Reality Inbound
   uri:
-    url: "{{ computed_api_url }}/inbounds"
+    url: "{{ computed_api_url }}/inbound"
     method: POST
     headers:
       Authorization: "Bearer {{ auth_response.json.access_token }}"

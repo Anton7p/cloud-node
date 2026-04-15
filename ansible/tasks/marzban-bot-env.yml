@@ -17,6 +17,7 @@
   delegate_to: "{{ groups['master'][0] | default('localhost') }}"
   become: yes
   ignore_errors: yes
+  no_log: true
 
 - name: Restart bot container to apply new env vars
   command: docker compose restart bot

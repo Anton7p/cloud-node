@@ -12,7 +12,7 @@
     status_code: [200]
     timeout: 30
   register: inbounds_ready_check
-  until: inbounds_ready_check.json is defined and (inbounds_ready_check.json | selectattr('tag', 'equalto', 'VLESS_REALITY') | list | length > 0)
+  until: inbounds_ready_check.json is defined and inbounds_ready_check.json | type_debug == 'list' and (inbounds_ready_check.json | map(attribute='tag') | list | select('equalto', 'VLESS_REALITY') | list | length > 0)
   retries: 10
   delay: 3
   delegate_to: localhost

@@ -19,6 +19,7 @@
   delegate_to: localhost
   become: no
   run_once: yes
+  no_log: true
 
 - name: Parse X25519 public key
   set_fact:
@@ -27,6 +28,7 @@
   delegate_to: localhost
   become: no
   run_once: yes
+  no_log: true
 
 - name: Generate random SHORT_ID via openssl
   shell: openssl rand -hex 4
@@ -43,6 +45,7 @@
   delegate_to: localhost
   become: no
   run_once: yes
+  no_log: true
 
 - name: Display generated keys
   debug:

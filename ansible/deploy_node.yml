@@ -67,7 +67,7 @@
   handlers:
     - name: restart sshd
       systemd:
-        name: sshd
+        name: ssh
         state: restarted
 
     - name: restart fail2ban
