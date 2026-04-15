@@ -31,29 +31,6 @@
     ghcr_token: "{{ lookup('env', 'GHCR_TOKEN') }}"
 
   pre_tasks:
-    - name: Display deployment information
-      debug:
-        msg: |
-          ==========================================
-          Deploying CloudNode Application
-          Target: {{ inventory_hostname }}
-          Image: {{ image_name | default('NOT SET') }}:{{ image_tag | default('NOT SET') }}
-          ==========================================
-
-    - name: Validate required variables
-      fail:
-        msg: "Missing required variable: {{ item }}"
-      when: vars[item] is not defined or vars[item] | length == 0
-      loop:
-        - image_name
-        - image_tag
-        - db_password
-        - telegram_bot_token
-        - encryption_key
-        - vpn_admin_username
-        - vpn_admin_password
-        - domain_name
-
     - name: Generate Reality keys if not provided
       block:
         - name: Check if keys need generation
@@ -111,6 +88,30 @@
           become: no
           run_once: yes
       when: reality_public_key | length == 0
+
+    - name: Display deployment information
+      debug:
+        msg: |
+          ==========================================
+          Deploying CloudNode Application
+          Target: {{ inventory_hostname }}
+          Image: {{ image_name | default('NOT SET') }}:{{ image_tag | default('NOT SET') }}
+          Reality Key: {{ reality_public_key | default('NOT SET') }}
+          ==========================================
+
+    - name: Validate required variables
+      fail:
+        msg: "Missing required variable: {{ item }}"
+      when: vars[item] is not defined or vars[item] | length == 0
+      loop:
+        - image_name
+        - image_tag
+        - db_password
+        - telegram_bot_token
+        - encryption_key
+        - vpn_admin_username
+        - vpn_admin_password
+        - domain_name
 
   tasks:
     - name: Include backup tasks

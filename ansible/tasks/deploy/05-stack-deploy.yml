@@ -25,7 +25,7 @@
     VPN_ADMIN_PASSWORD: "{{ vpn_admin_password }}"
     INFRASTRUCTURE_IP_LIST: "{{ infrastructure_ip_list | default('') }}"
     DOMAIN_NAME: "{{ domain_name }}"
-    REALITY_PUBLIC_KEY: "{{ reality_public_key | default('PLACEHOLDER_PUBLIC_KEY') }}"
+    REALITY_PUBLIC_KEY: "{{ reality_public_key | default('initial_placeholder_key_change_me') }}"
     REALITY_SHORT_ID: "{{ reality_short_id | default('abcd1234') }}"
   register: compose_up
   retries: 2

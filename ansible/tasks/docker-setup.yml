@@ -93,11 +93,4 @@
     iptables -A DOCKER-USER -j RETURN
   ignore_errors: yes
 
-# ==========================================
-# Handlers for Docker
-# ==========================================
-- name: Restart Docker service
-  systemd:
-    name: docker
-    state: restarted
-  listen: restart docker
+# Note: Handler 'restart docker' is defined in deploy_node.yml handlers section

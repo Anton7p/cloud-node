@@ -74,3 +74,8 @@
       systemd:
         name: fail2ban
         state: restarted
+
+    - name: restart docker
+      systemd:
+        name: docker
+        state: restarted
