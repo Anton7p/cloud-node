@@ -35,7 +35,35 @@
     msg: "Certificate file not found at {{ cert_file }}"
   when: hostvars['localhost'].cert_changed | default(false) and not cert_file_check.stat.exists
 
-- name: Create Docker Compose file for Marzban Node
+- name: Determine if master uses HTTPS
+  set_fact:
+    master_uses_https: "{{ computed_api_url | regex_search('^https://') | length > 0 }}"
+
+- name: Create Docker Compose file for Marzban Node (HTTP mode)
+  copy:
+    dest: "{{ node_dir }}/docker-compose.yml"
+    content: |
+      services:
+        marzban-node:
+          image: {{ marzban_node_image }}
+          container_name: marzban-node
+          restart: always
+          network_mode: host
+          environment:
+            - SERVICE_PORT={{ service_port }}
+            - XRAY_API_PORT={{ xray_api_port }}
+          logging:
+            driver: "json-file"
+            options:
+              max-size: "10m"
+              max-file: "3"
+    mode: '0644'
+    owner: "{{ ansible_user | default(ansible_ssh_user) }}"
+    group: "{{ ansible_user | default(ansible_ssh_user) }}"
+  register: compose_file
+  when: not master_uses_https | bool
+
+- name: Create Docker Compose file for Marzban Node (HTTPS mode with SSL)
   copy:
     dest: "{{ node_dir }}/docker-compose.yml"
     content: |
@@ -60,6 +88,7 @@
     owner: "{{ ansible_user | default(ansible_ssh_user) }}"
     group: "{{ ansible_user | default(ansible_ssh_user) }}"
   register: compose_file
+  when: master_uses_https | bool
 
 - name: Validate Docker Compose configuration
   command: docker compose config
