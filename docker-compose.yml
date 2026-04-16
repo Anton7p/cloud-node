@@ -43,7 +43,7 @@ services:
 
   # Database service - PostgreSQL 16
   db:
-    image: postgres:16-alpine
+    image: postgres:latest
     container_name: cloudnode-db
     restart: always
     environment:
@@ -69,7 +69,7 @@ services:
 
   # Redis service - for BullMQ queues (password protected)
   redis:
-    image: redis:alpine
+    image: redis:latest
     container_name: cloudnode-redis
     restart: always
     command: redis-server --appendonly yes --requirepass ${VPN_ADMIN_PASSWORD:-redis123}
@@ -90,7 +90,7 @@ services:
 
   # Marzban Core - VPN Panel (HTTP mode)
   marzban:
-    image: gozargah/marzban:stable
+    image: gozargah/marzban:latest
     container_name: cloudnode-marzban
     restart: always
     command: bash -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000"
