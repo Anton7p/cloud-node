@@ -10,7 +10,44 @@
   changed_when: compose_down.rc == 0
   ignore_errors: yes
 
-- name: Start application stack
+- name: Start database and Redis first (for DB initialization)
+  command: docker compose up -d db redis
+  args:
+    chdir: "{{ deploy_dir }}"
+  environment:
+    DB_PASSWORD: "{{ db_password }}"
+  register: db_start
+  retries: 3
+  delay: 3
+  until: db_start.rc == 0
+
+- name: Wait for PostgreSQL to be ready
+  command: docker compose exec -T db pg_isready -U postgres
+  args:
+    chdir: "{{ deploy_dir }}"
+  register: pg_ready
+  retries: 10
+  delay: 3
+  until: pg_ready.rc == 0
+  changed_when: false
+
+- name: Create database if not exists
+  shell: |
+    docker compose exec -T db psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'cloudnode'" | grep -q 1 || \
+    docker compose exec -T db psql -U postgres -c "CREATE DATABASE cloudnode;"
+  args:
+    chdir: "{{ deploy_dir }}"
+  environment:
+    DB_PASSWORD: "{{ db_password }}"
+  register: db_create
+  changed_when: "'CREATE DATABASE' in db_create.stdout | default('')"
+  ignore_errors: yes
+
+- name: Display database creation status
+  debug:
+    msg: "Database 'cloudnode' status: {{ 'CREATED' if db_create.changed else 'EXISTS or FAILED' }}"
+
+- name: Start application stack (all services)
   command: docker compose up -d
   args:
     chdir: "{{ deploy_dir }}"
@@ -35,6 +72,38 @@
 - name: Display compose up output
   debug:
     msg: "{{ compose_up.stdout_lines }}"
+
+- name: Wait for bot container to be ready
+  command: docker compose ps -q bot
+  args:
+    chdir: "{{ deploy_dir }}"
+  register: bot_container
+  retries: 10
+  delay: 5
+  until: bot_container.stdout | length > 0
+  changed_when: false
+
+- name: Run Prisma migrations manually (if auto-migrate failed)
+  shell: |
+    docker compose exec -T bot npx prisma migrate deploy 2>&1
+  args:
+    chdir: "{{ deploy_dir }}"
+  register: prisma_migrate
+  retries: 2
+  delay: 5
+  until: prisma_migrate.rc == 0
+  changed_when: "'already in sync' not in prisma_migrate.stdout | default('')"
+  ignore_errors: yes
+
+- name: Display migration status
+  debug:
+    msg: "Prisma migrations: {{ 'SUCCESS' if prisma_migrate.rc == 0 else 'FAILED - ' + prisma_migrate.stderr | default('unknown') }}"
+
+- name: Restart bot if migrations were applied
+  command: docker compose restart bot
+  args:
+    chdir: "{{ deploy_dir }}"
+  when: prisma_migrate.changed and prisma_migrate.rc == 0
 
 - name: Prune unused Docker images to free disk space
   command: docker image prune -f
