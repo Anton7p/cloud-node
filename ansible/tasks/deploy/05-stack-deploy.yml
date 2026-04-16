@@ -83,27 +83,27 @@
   until: bot_container.stdout | length > 0
   changed_when: false
 
-- name: Run Prisma migrations manually (if auto-migrate failed)
+- name: Run Prisma db push to create tables from schema
   shell: |
-    docker compose exec -T bot npx prisma migrate deploy 2>&1
+    docker compose exec -T bot npx prisma db push --accept-data-loss 2>&1
   args:
     chdir: "{{ deploy_dir }}"
-  register: prisma_migrate
-  retries: 2
+  register: prisma_db_push
+  retries: 3
   delay: 5
-  until: prisma_migrate.rc == 0
-  changed_when: "'already in sync' not in prisma_migrate.stdout | default('')"
+  until: prisma_db_push.rc == 0
+  changed_when: true
   ignore_errors: yes
 
 - name: Display migration status
   debug:
-    msg: "Prisma migrations: {{ 'SUCCESS' if prisma_migrate.rc == 0 else 'FAILED - ' + prisma_migrate.stderr | default('unknown') }}"
+    msg: "Prisma DB push: {{ 'SUCCESS' if prisma_db_push.rc == 0 else 'FAILED - ' + prisma_db_push.stderr | default('unknown') }}"
 
-- name: Restart bot if migrations were applied
+- name: Restart bot if db push was applied
   command: docker compose restart bot
   args:
     chdir: "{{ deploy_dir }}"
-  when: prisma_migrate.changed and prisma_migrate.rc == 0
+  when: prisma_db_push.rc == 0
 
 - name: Prune unused Docker images to free disk space
   command: docker image prune -f
