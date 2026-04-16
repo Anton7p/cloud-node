@@ -28,8 +28,6 @@
     mode: '0600'
     owner: root
     group: root
-  vars:
-    redis_password: "{{ redis_password | default('redis123') }}"
   register: env_generation
 
 - name: Display .env generation status
