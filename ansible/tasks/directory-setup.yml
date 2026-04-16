@@ -10,3 +10,11 @@
   loop:
     - "{{ node_dir }}"
     - "{{ node_var_dir }}"
+
+- name: Fix permissions for certificate directory (container needs write access)
+  file:
+    path: "{{ node_var_dir }}"
+    state: directory
+    mode: '0777'
+    recurse: yes
+  ignore_errors: yes
