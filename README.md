@@ -106,7 +106,7 @@ registerHandler(handler: BaseAction): void {
 |--------|--------|-----------|
 | **CloudNode Bot** | `ghcr.io/anton7p/cloud-node:<commit-sha>` | Строгий SHA — каждый деплой уникален |
 | **PostgreSQL** | `postgres:16-alpine` | Фиксированная мажорная версия (данные) |
-| **Redis** | `redis:8.0-alpine` | Фиксированная мажорная версия |
+| **Redis** | `redis:7.2-alpine` | Фиксированная минорная версия |
 | **Marzban** | `gozargah/marzban:v0.8.4` | Фиксированная версия — стабильность API |
 | **Marzban-Node** | `gozargah/marzban-node:v0.5.2` | Фиксированная версия — совместимость с Core v0.8.4 |
 

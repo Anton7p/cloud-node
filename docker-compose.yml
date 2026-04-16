@@ -69,7 +69,7 @@ services:
 
   # Redis service - for BullMQ queues (password protected)
   redis:
-    image: redis:8.0-alpine
+    image: redis:7.2-alpine
     container_name: cloudnode-redis
     restart: always
     command: redis-server --appendonly yes --requirepass ${VPN_ADMIN_PASSWORD:-redis123}
