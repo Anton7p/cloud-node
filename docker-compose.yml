@@ -1,7 +1,7 @@
 services:
   # Bot service - NestJS Telegram Bot application
   bot:
-    image: ${DOCKER_IMAGE_NAME:-$CI_REGISTRY_IMAGE}:latest
+    image: ${DOCKER_IMAGE_NAME}
     container_name: cloudnode-bot
     restart: always
     environment:
@@ -90,7 +90,7 @@ services:
 
   # Marzban Core - VPN Panel (HTTP mode)
   marzban:
-    image: gozargah/marzban:latest
+    image: gozargah/marzban:stable
     container_name: cloudnode-marzban
     restart: always
     command: bash -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000"

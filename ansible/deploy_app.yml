@@ -14,7 +14,7 @@
     registry_url: "ghcr.io"
     server_ip: "{{ lookup('env', 'SERVER_IP') | default(inventory_hostname, true) }}"
     server_user: "root"
-    image_name: "{{ lookup('env', 'IMAGE_NAME') }}"
+    image_name: "{{ lookup('env', 'IMAGE_NAME') }}:{{ lookup('env', 'IMAGE_TAG') }}"
     image_tag: "{{ lookup('env', 'IMAGE_TAG') }}"
     db_password: "{{ lookup('env', 'DB_PASSWORD') }}"
     telegram_bot_token: "{{ lookup('env', 'TELEGRAM_BOT_TOKEN') }}"

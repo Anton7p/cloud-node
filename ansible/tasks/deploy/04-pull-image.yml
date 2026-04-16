@@ -2,19 +2,15 @@
 # Application Deployment: Docker Image Pull
 # ==========================================
 
-- name: Pull latest application image
-  docker_image:
-    name: "{{ image_name }}"
-    tag: "{{ image_tag }}"
-    source: pull
-    force_source: yes
+- name: Pull application image with SHA tag
+  command: docker pull "{{ image_name }}"
   register: image_pull
   retries: 3
   delay: 10
-  until: image_pull is succeeded
+  until: image_pull.rc == 0
 
 - name: Verify image pulled successfully
-  command: docker images "{{ image_name }}:{{ image_tag }}" --format "{% raw %}{{.Repository}}:{{.Tag}}{% endraw %}"
+  command: docker images "{{ image_name }}" --format "{% raw %}{{.Repository}}:{{.Tag}}{% endraw %}"
   register: image_verify
   changed_when: false
 
