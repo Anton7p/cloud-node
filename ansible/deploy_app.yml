@@ -139,6 +139,11 @@
       include_tasks: tasks/deploy/07-cleanup.yml
 
   handlers:
+    - name: restart docker
+      systemd:
+        name: docker
+        state: restarted
+
     - name: Restart bot container
       command: docker compose restart bot
       args:
