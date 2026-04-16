@@ -21,6 +21,11 @@
     mode: '0644'
   register: compose_copy
 
+- name: Remove old .env file to ensure clean generation
+  file:
+    path: "{{ deploy_dir }}/.env"
+    state: absent
+
 - name: Generate environment file from template
   template:
     src: templates/.env.j2
