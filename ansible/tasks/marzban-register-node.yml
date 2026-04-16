@@ -35,11 +35,30 @@
   run_once: yes
   ignore_errors: yes
 
+- name: Find nodes with same address to clean up
+  set_fact:
+    nodes_to_cleanup: >-
+      {{ existing_nodes.json | default([]) | selectattr('address', 'equalto', inventory_hostname) | list }}
+  delegate_to: localhost
+  become: no
+
+- name: Delete existing nodes with same address (cleanup garbage entries)
+  uri:
+    url: "{{ computed_api_url }}/node/{{ item.id }}"
+    method: DELETE
+    headers:
+      Authorization: "Bearer {{ auth_response.json.access_token }}"
+    status_code: [200, 204, 404]
+    timeout: 30
+  loop: "{{ nodes_to_cleanup }}"
+  when: nodes_to_cleanup | length > 0
+  delegate_to: localhost
+  become: no
+  ignore_errors: yes
+
 - name: Check if current node already registered
   set_fact:
-    node_already_registered: >-
-      {{ existing_nodes.json is defined and
-         existing_nodes.json | selectattr('address', 'equalto', inventory_hostname) | list | length > 0 }}
+    node_already_registered: false
   delegate_to: localhost
   become: no
 
