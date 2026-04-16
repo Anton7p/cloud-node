@@ -18,7 +18,7 @@
     DB_PASSWORD: "{{ db_password }}"
     TELEGRAM_BOT_TOKEN: "{{ telegram_bot_token }}"
     ENCRYPTION_KEY: "{{ encryption_key }}"
-    DOCKER_IMAGE_NAME: "{{ image_name }}:{{ image_tag }}"
+    DOCKER_IMAGE_NAME: "{{ image_name }}"
     REDIS_PASSWORD: "{{ redis_password | default('') }}"
     MARZBAN_URL: "http://marzban:8000"
     VPN_ADMIN_USERNAME: "{{ vpn_admin_username }}"
