@@ -43,7 +43,22 @@
   delegate_to: localhost
   become: no
 
-- name: Register node in Core API
+- name: Generate API prefix for node
+  set_fact:
+    node_api_prefix: "{{ inventory_hostname | hash('sha1') | regex_replace('^(.{8}).*$', '\1') }}"
+  delegate_to: localhost
+  run_once: no
+
+- name: DEBUG - Show node registration data
+  debug:
+    msg:
+      - "Registering node: {{ inventory_hostname }}"
+      - "API prefix: {{ node_api_prefix }}"
+      - "Certificate defined: {{ new_certificate is defined or cert_response.json.certificate is defined }}"
+  delegate_to: localhost
+  run_once: no
+
+- name: Register node in Core API (v0.8.4 format)
   uri:
     url: "{{ computed_api_url }}/node"
     method: POST
@@ -55,8 +70,8 @@
       name: "{{ inventory_hostname | replace('.', '-') }}"
       address: "{{ inventory_hostname }}"
       port: 62050
-      certificate: "{{ new_certificate | default(cert_response.json.certificate) }}"
-      id: "{{ inventory_hostname | hash('sha1') }}"
+      api_prefix: "{{ node_api_prefix }}"
+      certificate: "{{ new_certificate | default(cert_response.json.certificate | default('')) }}"
     status_code: [201, 200, 409]
     timeout: 30
   when: not node_already_registered | default(true)
