@@ -1,24 +1,7 @@
 ---
 # Node Registration in Marzban Core API
-# Waits for Inbound to be ready before registering node
-
-- name: Wait for Inbound to be ready before node registration
-  uri:
-    url: "{{ computed_api_url }}/inbounds"
-    method: GET
-    headers:
-      Authorization: "Bearer {{ auth_response.json.access_token }}"
-    return_content: yes
-    status_code: [200]
-    timeout: 30
-  register: inbounds_ready_check
-  until: inbounds_ready_check.json is defined and inbounds_ready_check.json | type_debug == 'list' and (inbounds_ready_check.json | map(attribute='tag') | list | select('equalto', 'VLESS_REALITY') | list | length > 0)
-  retries: 10
-  delay: 3
-  delegate_to: localhost
-  become: no
-  run_once: yes
-  ignore_errors: yes
+# Note: Inbound VLESS_REALITY is not required for node registration
+# Node connects to master independently of client inbounds
 
 - name: Get existing nodes from Core API
   uri:
