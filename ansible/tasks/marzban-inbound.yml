@@ -16,6 +16,24 @@
   delegate_to: localhost
   run_once: yes
 
+- name: Set fact - force create if inbound definitely missing
+  set_fact:
+    must_create_inbound: >-
+      {{ reality_inbound_exists is not defined or
+         not reality_inbound_exists or
+         reality_private_key is not defined }}
+  delegate_to: localhost
+  run_once: yes
+
+- name: DEBUG - Force create decision
+  debug:
+    msg:
+      - "reality_inbound_exists: {{ reality_inbound_exists | default('UNDEFINED') }}"
+      - "reality_private_key defined: {{ reality_private_key is defined }}"
+      - "must_create_inbound: {{ must_create_inbound }}"
+  delegate_to: localhost
+  run_once: yes
+
 - name: Create default VLESS + Reality Inbound
   uri:
     url: "{{ computed_api_url }}/inbounds"
@@ -52,7 +70,7 @@
           - "tls"
     status_code: [201, 200, 409]
     timeout: 30
-  when: not reality_inbound_exists and reality_private_key is defined
+  when: must_create_inbound | bool
   register: inbound_create_result
   delegate_to: localhost
   become: no
