@@ -37,7 +37,7 @@
 
 - name: Determine if master uses HTTPS
   set_fact:
-    master_uses_https: "{{ computed_api_url | regex_search('^https://') | length > 0 }}"
+    master_uses_https: "{{ computed_api_url is search('^https://') }}"
 
 - name: Create Docker Compose file for Marzban Node (HTTP mode)
   copy:
