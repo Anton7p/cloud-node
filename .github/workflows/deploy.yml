@@ -76,6 +76,11 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
 
           SERVER_ADDRESS="${{ steps.parse_config.outputs.server_address }}"
+
+          # Clean old host keys (server might have been reinstalled)
+          ssh-keygen -R "$SERVER_ADDRESS" 2>/dev/null || true
+
+          # Add new host key
           ssh-keyscan -H "$SERVER_ADDRESS" >> ~/.ssh/known_hosts
 
       - name: Generate deployment inventory

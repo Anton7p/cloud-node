@@ -57,11 +57,15 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
 
           SERVER_ADDRESS="${{ steps.parse_config.outputs.server_address }}"
+
+          # Clean old host keys (servers might have been reinstalled)
+          ssh-keygen -R "$SERVER_ADDRESS" 2>/dev/null || true
           ssh-keyscan -H "$SERVER_ADDRESS" >> ~/.ssh/known_hosts 2>/dev/null || true
 
-          # Scan node addresses from JSON
+          # Clean and scan node addresses from JSON
           echo "$INFRASTRUCTURE_IP_LIST_JSON" | jq -r '.[].address // empty' | while read node_addr; do
             if [ -n "$node_addr" ]; then
+              ssh-keygen -R "$node_addr" 2>/dev/null || true
               ssh-keyscan -H "$node_addr" >> ~/.ssh/known_hosts 2>/dev/null || true
             fi
           done
