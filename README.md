@@ -78,18 +78,37 @@ registerHandler(handler: BaseAction): void {
 
 ## GitOps Деплой (Production)
 
-### CI/CD Pipeline
-
-Проект использует **GitHub Actions** для автоматического деплоя:
+### CI/CD Pipeline Architecture
 
 ```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│    Build    │ → │Infrastructure│ → │   Deploy    │
-│ Docker Image│    │  Ansible    │    │  Ansible    │
-└─────────────┘    └─────────────┘    └─────────────┘
-      ↓                   ↓                  ↓
-  GHCR Registry      Node Setup          App Stack
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         ТРИГГЕРЫ (Triggers)                              │
+├─────────────────────────────────────────────────────────────────────────┤
+│  push: [main, master]  │  pull_request  │  workflow_dispatch (manual)   │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     ORCHESTRATOR: .github/workflows/main.yml            │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────────────┐  │
+│  │   Stage 1   │ →  │   Stage 2   │ →  │          Stage 3            │  │
+│  │    Build    │    │   Deploy    │    │    Infrastructure           │  │
+│  │ Docker Image│    │   App Stack │    │    (Nodes Setup)            │  │
+│  └─────────────┘    └─────────────┘    └─────────────────────────────┘  │
+│       outputs              needs: build         needs: [build, deploy]   │
+│    image_tag               to: master                to: nodes         │
+│    image_name                                                            │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
+
+### Версионирование Docker Images
+
+| Сервис | Версия | Стратегия |
+|--------|--------|-----------|
+| **CloudNode Bot** | `ghcr.io/anton7p/cloud-node:<commit-sha>` | Строгий SHA — каждый деплой уникален |
+| **PostgreSQL** | `postgres:16-alpine` | Фиксированная мажорная версия (данные) |
+| **Redis** | `redis:7-alpine` | Фиксированная мажорная версия |
+| **Marzban** | `gozargah/marzban:v0.6.0` | Фиксированная версия — стабильность API |
+| **Marzban-Node** | `gozargah/marzban-node:v0.4.2` | Фиксированная версия — совместимость с Core |
 
 ### Требуемые Secrets в GitHub
 
@@ -98,65 +117,142 @@ registerHandler(handler: BaseAction): void {
 ```env
 # Обязательные
 TELEGRAM_BOT_TOKEN=           # Токен Telegram бота
-ENCRYPTION_KEY=               # Ключ шифрования
+ENCRYPTION_KEY=               # Ключ шифрования (32 bytes)
 
 # Инфраструктура (SSH root + ключевая аутентификация)
 # Формат SERVER_IP: {"address": "1.2.3.4", "password": "temp_password"}
 SERVER_IP=
 # Формат INFRASTRUCTURE_IP_LIST: [{"address": "1.2.3.5", "password": "temp_password"}]
 INFRASTRUCTURE_IP_LIST=
-SSH_PRIVATE_KEY=              # SSH приватный ключ
-SSH_PUBLIC_KEY=               # SSH публичный ключ
+SSH_PRIVATE_KEY=              # SSH приватный ключ (PEM format)
+SSH_PUBLIC_KEY=               # SSH публичный ключ (для authorized_keys)
 
 # Marzban VPN
 VPN_ADMIN_USERNAME=           # Админ логин Marzban
-VPN_ADMIN_PASSWORD=           # Админ пароль Marzban
-DOMAIN_NAME=                  # Домен для VPN
+VPN_ADMIN_PASSWORD=           # Админ пароль Marzban (используется для DB, Redis)
+DOMAIN_NAME=                  # Домен для VPN (для TLS сертификатов)
 
-# VLESS + Reality
-REALITY_PRIVATE_KEY=          # Приватный ключ (генерируется автоматически)
-REALITY_PUBLIC_KEY=           # Публичный ключ (генерируется автоматически)
-REALITY_SHORT_ID=             # Short ID (генерируется автоматически, 8 hex)
+# VLESS + Reality (генерируются автоматически если не указаны)
+REALITY_PRIVATE_KEY=          # Приватный ключ X25519
+REALITY_PUBLIC_KEY=           # Публичный ключ X25519
+REALITY_SHORT_ID=             # Short ID (8 hex символов)
 MARZBAN_INBOUND_TAG=          # Тег инбаунда (default: VLESS_REALITY)
 ```
 
 > **Note:** `GITHUB_TOKEN` выдаётся автоматически для пуша в GHCR.
 
-### Первичная настройка серверов (Bootstrap)
+### Stage 1: Build (`.github/workflows/build.yml`)
 
-Для новых серверов сначала выполните bootstrap для установки SSH ключей:
+**Что делает:**
+1. Собирает Docker образ NestJS приложения
+2. Генерирует уникальный тег из Git commit SHA (например `a81813f`)
+3. Пушит в GitHub Container Registry: `ghcr.io/anton7p/cloud-node:<sha>`
 
-```bash
-# Запустите workflow вручную через GitHub Actions
-# Actions → Bootstrap Servers → Run workflow
-#
-# Параметры:
-# server_ip_json: {"address":"1.2.3.4","password":"root_password"}
-# infrastructure_ips_json: [{"address":"1.2.3.5","password":"root_password"}]
+**Выход:**
+```yaml
+image_name: ghcr.io/anton7p/cloud-node
+image_tag: a81813f...  # Git commit SHA
 ```
 
-### Деплой
+### Stage 2: Deploy (`.github/workflows/deploy.yml`)
+
+**Цель:** Master сервер (из SERVER_IP)
+
+**Порядок выполнения Ansible:**
+```
+deploy_app.yml
+├── 01-backup.yml        # Резервное копирование .env
+├── 02-configure.yml     # Генерация .env и docker-compose.yml
+├── docker-setup.yml     # Установка Docker (если отсутствует)
+├── 03-docker-auth.yml   # Логин в GHCR
+├── 04-pull-image.yml    # docker pull ghcr.io/...:<sha>
+├── 05-stack-deploy.yml  # docker compose up -d
+│                         └── docker image prune -f  # Очистка старых SHA
+├── 06-health-check.yml  # Проверка контейнеров
+└── 07-cleanup.yml       # Ротация логов
+```
+
+**Стек на Master:**
+- `cloudnode-bot` — Telegram бот (NestJS)
+- `cloudnode-db` — PostgreSQL 16
+- `cloudnode-redis` — Redis 7
+- `cloudnode-marzban` — VPN панель (v0.6.0)
+
+### Stage 3: Infrastructure (`.github/workflows/infrastructure.yml`)
+
+**Цель:** Ноды из INFRASTRUCTURE_IP_LIST
+
+**Порядок выполнения Ansible:**
+```
+deploy_node.yml
+├── directory-setup.yml       # /var/www/marzban_node
+├── docker-setup.yml          # Docker CE + Compose V2
+├── system-optimization.yml   # SSH hardening, UFW, Fail2Ban
+├── auth-certificate.yml      # Получение SSL сертификата от Master
+├── marzban-setup.yml         # Регистрация ноды в Core API
+└── marzban-node.yml          # Запуск gozargah/marzban-node:v0.4.2
+```
+
+### Manual Workflow: Bootstrap (`.github/workflows/bootstrap.yml`)
+
+**Когда использовать:**
+- Новый сервер (чистая Ubuntu 24.04)
+- Переустановка ОС (новые SSH host keys)
+- Потеря SSH доступа
+
+**Флоу:**
+```
+Input: {"address":"1.2.3.4","password":"root_pass"}
+       ↓
+1. ssh-keygen -R <IP>          # Очистка старых host keys
+2. SSH по паролю (единственный раз!)
+3. Установка SSH_PUBLIC_KEY в /root/.ssh/authorized_keys
+4. chmod 700 .ssh / 600 authorized_keys  # Ubuntu 24.04 strict mode
+5. Disable PasswordAuthentication
+6. Enable PubkeyAuthentication
+7. Restart SSH service
+8. Verify: вход по ключу работает
+       ↓
+Output: Сервер готов для Deploy/Infrastructure (только ключи)
+```
+
+### Поток данных CI/CD
+
+```
+Developer push → main ─────┐
+                           ↓
+                    ┌──────────────┐
+                    │  GitHub      │
+                    │  Actions     │
+                    │  (Runner)    │
+                    └──────┬───────┘
+                           │
+        ┌──────────────────┼──────────────────┐
+        ↓                  ↓                  ↓
+   GHCR Registry      SSH+Ansible        SSH+Ansible
+        │              (Master)            (Nodes)
+        ↓                  ↓                  ↓
+ghcr.io/anton7p    docker-compose      marzban-node
+/cloud-node:sha    bot + db + redis    (VPN nodes)
+                   + marzban:v0.6.0    
+```
+
+### Деплой командами
 
 ```bash
-# Push в main запускает полный CI/CD pipeline
+# Полный автоматический деплой
 git push origin main
 
-# Pipeline включает:
-# 1. Сборка Docker образа с кэшированием (gha)
-# 2. Пуш в GitHub Container Registry (ghcr.io)
-# 3. Настройка инфраструктурных нод (Ansible)
-# 4. Деплой приложения на master ноду (Ansible)
+# Ручной запуск Bootstrap (для новых серверов)
+# Actions → Bootstrap Servers → Run workflow
+# server_ip_json: {"address":"62.60.229.227","password":"root_pass"}
+
+# Ручной запуск Ansible (отладка)
+cd ansible
+ansible-playbook -i inventory.ini deploy_app.yml \
+  -e "image_name=ghcr.io/anton7p/cloud-node" \
+  -e "image_tag=<commit-sha>"
 ```
-
-### Архитектура деплоя
-
-| Компонент | Описание |
-|-----------|----------|
-| `.github/workflows/main.yml` | GitHub Actions workflow |
-| `ansible/deploy_node.yml` | Настройка Marzban нод |
-| `ansible/deploy_app.yml` | Деплой приложения и Docker Compose |
-| `ansible/templates/.env.j2` | Шаблон конфигурации |
-| `ghcr.io` | Docker Registry |
 
 ### Ручной запуск Ansible (для отладки)
 

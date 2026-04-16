@@ -35,3 +35,8 @@
 - name: Display compose up output
   debug:
     msg: "{{ compose_up.stdout_lines }}"
+
+- name: Prune unused Docker images to free disk space
+  command: docker image prune -f
+  changed_when: true
+  ignore_errors: yes

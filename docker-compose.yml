@@ -90,7 +90,7 @@ services:
 
   # Marzban Core - VPN Panel (HTTP mode)
   marzban:
-    image: gozargah/marzban:latest
+    image: gozargah/marzban:v0.6.0
     container_name: cloudnode-marzban
     restart: always
     command: bash -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000"
