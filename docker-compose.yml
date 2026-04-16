@@ -41,9 +41,9 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Database service - PostgreSQL 16
+  # Database service - PostgreSQL 16 (pinned for data compatibility)
   db:
-    image: postgres:latest
+    image: postgres:16-alpine
     container_name: cloudnode-db
     restart: always
     environment:
@@ -57,10 +57,10 @@ services:
       - cloudnode-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d cloudnode"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 5
-      start_period: 10s
+      retries: 10
+      start_period: 30s
     logging:
       driver: "json-file"
       options:
