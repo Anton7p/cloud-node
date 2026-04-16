@@ -58,7 +58,14 @@
   delegate_to: localhost
   run_once: no
 
-- name: Register node in Core API (v0.8.4 format)
+- name: Generate random password for node connection
+  set_fact:
+    node_connection_password: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=16') }}"
+  delegate_to: localhost
+  run_once: no
+  when: not node_already_registered | default(true)
+
+- name: Register node in Core API (v0.8.4 format with address list)
   uri:
     url: "{{ computed_api_url }}/node"
     method: POST
@@ -68,7 +75,10 @@
     body_format: json
     body:
       name: "{{ inventory_hostname | replace('.', '-') }}"
-      address: "{{ inventory_hostname }}"
+      address:
+        - address: "{{ inventory_hostname }}"
+          port: 62050
+          password: "{{ node_connection_password }}"
       port: 62050
       api_prefix: "{{ node_api_prefix }}"
       certificate: "{{ new_certificate | default(cert_response.json.certificate | default('')) }}"
@@ -79,6 +89,7 @@
   delegate_to: localhost
   become: no
   ignore_errors: yes
+  no_log: true
 
 - name: Display node registration status
   debug:
