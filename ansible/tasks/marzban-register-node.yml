@@ -65,7 +65,7 @@
   run_once: no
   when: not node_already_registered | default(true)
 
-- name: Register node in Core API (v0.8.4 format with address list)
+- name: Register node in Core API
   uri:
     url: "{{ computed_api_url }}/node"
     method: POST
@@ -75,10 +75,7 @@
     body_format: json
     body:
       name: "{{ inventory_hostname | replace('.', '-') }}"
-      address:
-        - address: "{{ inventory_hostname }}"
-          port: 62050
-          password: "{{ node_connection_password }}"
+      address: "{{ inventory_hostname }}"
       port: 62050
       api_prefix: "{{ node_api_prefix }}"
       certificate: "{{ new_certificate | default(cert_response.json.certificate | default('')) }}"

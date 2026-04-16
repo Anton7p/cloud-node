@@ -52,6 +52,7 @@
           environment:
             - SERVICE_PORT={{ service_port }}
             - XRAY_API_PORT={{ xray_api_port }}
+            - SSL_CLIENT_CERT_FILE=/var/lib/marzban-node/ssl_client_cert.pem
           volumes:
             - {{ node_var_dir }}:/var/lib/marzban-node:rw
           logging:
