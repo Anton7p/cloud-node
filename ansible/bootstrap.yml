@@ -31,11 +31,19 @@
       when: ssh_public_key | length == 0
 
   tasks:
-    - name: Ensure .ssh directory exists for root
+    - name: Ensure .ssh directory exists for root with correct permissions
       file:
         path: /root/.ssh
         state: directory
         mode: '0700'
+        owner: root
+        group: root
+
+    - name: Ensure authorized_keys file exists with correct permissions
+      file:
+        path: /root/.ssh/authorized_keys
+        state: touch
+        mode: '0600'
         owner: root
         group: root
 
@@ -44,8 +52,16 @@
         user: root
         key: "{{ ssh_public_key }}"
         state: present
-        exclusive: no
+        exclusive: yes
       register: key_install
+
+    - name: Verify authorized_keys permissions
+      file:
+        path: /root/.ssh/authorized_keys
+        state: file
+        mode: '0600'
+        owner: root
+        group: root
 
     - name: Display key installation status
       debug:

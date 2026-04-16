@@ -30,6 +30,16 @@
     group: root
   ignore_errors: yes
 
+- name: Verify SSH service accepts key authentication
+  command: grep -E "^PubkeyAuthentication (yes|no)" /etc/ssh/sshd_config
+  register: pubkey_auth_check
+  changed_when: false
+  ignore_errors: yes
+
+- name: Display SSH key auth status
+  debug:
+    msg: "SSH PubkeyAuthentication setting: {{ pubkey_auth_check.stdout | default('NOT SET') }}"
+
 # ==========================================
 # 2. SSH Hardening - Disable password auth
 # ==========================================
