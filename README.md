@@ -98,15 +98,12 @@ registerHandler(handler: BaseAction): void {
 ```env
 # Обязательные
 TELEGRAM_BOT_TOKEN=           # Токен Telegram бота
-DB_PASSWORD=                  # Пароль PostgreSQL
-REDIS_PASSWORD=               # Пароль Redis
 ENCRYPTION_KEY=               # Ключ шифрования
 
-# Инфраструктура
+# Инфраструктура (используется root для SSH)
 SERVER_IP=                    # Master node IP
 INFRASTRUCTURE_IP_LIST=       # Node1,Node2 (через запятую)
 SSH_PRIVATE_KEY=              # SSH ключ для доступа к нодам
-SERVER_USER=                  # Пользователь SSH (default: root)
 
 # Marzban VPN
 VPN_ADMIN_USERNAME=           # Админ логин Marzban
@@ -155,11 +152,10 @@ ansible-playbook -i inventory.ini deploy_node.yml \
   -e "VPN_ADMIN_USERNAME=admin" \
   -e "VPN_ADMIN_PASSWORD=secret"
 
-# Деплой приложения
+# Деплой приложения (db_password берется из VPN_ADMIN_PASSWORD)
 ansible-playbook -i inventory.ini deploy_app.yml \
   -e "image_name=ghcr.io/username/repo" \
   -e "image_tag=latest" \
-  -e "db_password=secret" \
   -e "telegram_bot_token=xxx"
 ```
 

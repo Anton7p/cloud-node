@@ -13,7 +13,7 @@
     backup_dir: /var/backups/cloudnode
     registry_url: "ghcr.io"
     server_ip: "{{ lookup('env', 'SERVER_IP') | default(inventory_hostname, true) }}"
-    server_user: "{{ lookup('env', 'SERVER_USER') | default('root', true) }}"
+    server_user: "root"
     image_name: "{{ lookup('env', 'IMAGE_NAME') }}"
     image_tag: "{{ lookup('env', 'IMAGE_TAG') }}"
     db_password: "{{ lookup('env', 'DB_PASSWORD') }}"
