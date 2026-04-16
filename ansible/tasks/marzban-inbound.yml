@@ -1,86 +1,110 @@
 ---
-# Marzban Inbound Creation - VLESS + Reality
-# Creates default inbound with subscription support
+# Marzban Inbound Creation - VLESS + Reality via /api/core/config
+# GET current config -> Add VLESS Reality -> PUT updated config
 
-- name: DEBUG - Log inbound creation prerequisites
-  debug:
-    msg:
-      - "=== INBOUND CREATION DEBUG ==="
-      - "reality_inbound_exists: {{ reality_inbound_exists }}"
-      - "reality_private_key defined: {{ reality_private_key is defined }}"
-      - "reality_private_key: {{ reality_private_key | default('N/A') | truncate(20) }}..."
-      - "reality_public_key: {{ reality_public_key | default('N/A') | truncate(20) }}..."
-      - "reality_short_id: {{ reality_short_id | default('N/A') }}"
-      - "domain_name: {{ domain_name }}"
-      - "Will create inbound: {{ not reality_inbound_exists and reality_private_key is defined }}"
-  delegate_to: localhost
-  run_once: yes
-
-- name: Set fact - force create if inbound definitely missing
-  set_fact:
-    must_create_inbound: >-
-      {{ reality_inbound_exists is not defined or
-         not reality_inbound_exists or
-         reality_private_key is not defined }}
-  delegate_to: localhost
-  run_once: yes
-
-- name: DEBUG - Force create decision
-  debug:
-    msg:
-      - "reality_inbound_exists: {{ reality_inbound_exists | default('UNDEFINED') }}"
-      - "reality_private_key defined: {{ reality_private_key is defined }}"
-      - "must_create_inbound: {{ must_create_inbound }}"
-  delegate_to: localhost
-  run_once: yes
-
-- name: Create default VLESS + Reality Inbound
+- name: Get current Xray core config
   uri:
-    url: "{{ computed_api_url }}/inbounds"
-    method: POST
+    url: "{{ computed_api_url }}/core/config"
+    method: GET
     headers:
       Authorization: "Bearer {{ auth_response.json.access_token }}"
-      Content-Type: "application/json"
-    body_format: json
-    body:
-      tag: "VLESS_REALITY"
-      protocol: "vless"
-      listen: "0.0.0.0"
-      port: 443
-      settings:
-        clients: []
-        decryption: "none"
-      stream_settings:
-        network: "tcp"
-        security: "reality"
-        realitySettings:
-          dest: "{{ domain_name }}:443"
-          serverNames:
-            - "{{ domain_name }}"
-          privateKey: "{{ reality_private_key }}"
-          publicKey: "{{ reality_public_key }}"
-          shortIds:
-            - "{{ reality_short_id }}"
-        tcpSettings:
-          acceptProxyProtocol: false
-      sniffing:
-        enabled: true
-        destOverride:
-          - "http"
-          - "tls"
-    status_code: [201, 200, 409]
+    return_content: yes
+    status_code: [200]
     timeout: 30
-  when: must_create_inbound | bool
-  register: inbound_create_result
+  register: core_config
   delegate_to: localhost
   become: no
   run_once: yes
   ignore_errors: yes
 
-- name: Display inbound creation status
+- name: Set fact - VLESS Reality inbound exists check
+  set_fact:
+    vless_reality_exists: >-
+      {{ core_config.json is defined and
+         core_config.json.inbounds is defined and
+         core_config.json.inbounds | selectattr('tag', 'equalto', 'VLESS Reality TCP') | list | length > 0 }}
+  delegate_to: localhost
+  become: no
+
+- name: DEBUG - Config check
   debug:
-    msg: "VLESS_REALITY inbound created or already exists. Status: {{ inbound_create_result.status | default('skipped') }}"
-  when: inbound_create_result is defined
+    msg:
+      - "Current inbounds: {{ core_config.json.inbounds | default([]) | map(attribute='tag') | list }}"
+      - "VLESS Reality exists: {{ vless_reality_exists }}"
+  delegate_to: localhost
+  become: no
+
+- name: Generate Reality keys (x25519)
+  command: docker run --rm ghcr.io/xtls/xray-core x25519
+  register: reality_keys
   delegate_to: localhost
   become: no
   run_once: yes
+  when: not vless_reality_exists | bool
+
+- name: Parse Reality keys
+  set_fact:
+    reality_private_key: "{{ reality_keys.stdout_lines[0] | regex_replace('^Private key: ', '') }}"
+    reality_public_key: "{{ reality_keys.stdout_lines[1] | regex_replace('^Public key: ', '') }}"
+  delegate_to: localhost
+  become: no
+  when: reality_keys is succeeded
+
+- name: Build updated config with VLESS Reality
+  set_fact:
+    updated_config: >-
+      {% set config = core_config.json | default({}) %}
+      {% set vless_inbound = {
+        'tag': 'VLESS Reality TCP',
+        'listen': '0.0.0.0',
+        'port': 443,
+        'protocol': 'vless',
+        'settings': {
+          'clients': [],
+          'decryption': 'none'
+        },
+        'streamSettings': {
+          'network': 'tcp',
+          'security': 'reality',
+          'realitySettings': {
+            'dest': domain_name + ':443',
+            'serverNames': [domain_name],
+            'privateKey': reality_private_key | default(''),
+            'publicKey': reality_public_key | default(''),
+            'shortIds': ['abcd1234']
+          }
+        },
+        'sniffing': {
+          'enabled': true,
+          'destOverride': ['http', 'tls']
+        }
+      } %}
+      {% set _ = config.update({'inbounds': config.inbounds | default([]) + [vless_inbound]}) %}
+      {{ config }}
+  delegate_to: localhost
+  become: no
+  when: not vless_reality_exists | bool
+
+- name: Update Xray core config with VLESS Reality
+  uri:
+    url: "{{ computed_api_url }}/core/config"
+    method: PUT
+    headers:
+      Authorization: "Bearer {{ auth_response.json.access_token }}"
+      Content-Type: "application/json"
+    body_format: json
+    body: "{{ updated_config }}"
+    status_code: [200, 201, 204]
+    timeout: 30
+  when: not vless_reality_exists | bool
+  register: config_update_result
+  delegate_to: localhost
+  become: no
+  run_once: yes
+
+- name: Display config update status
+  debug:
+    msg: "VLESS Reality inbound added. Status: {{ config_update_result.status | default('skipped') }}"
+  when: config_update_result is defined
+  delegate_to: localhost
+  become: no
