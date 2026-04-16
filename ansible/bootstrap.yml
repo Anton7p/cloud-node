@@ -135,14 +135,23 @@
       delegate_to: localhost
       become: no
 
+    - name: Verify PasswordAuthentication is disabled
+      command: grep -E "^PasswordAuthentication no" /etc/ssh/sshd_config
+      changed_when: false
+
+    - name: Verify PubkeyAuthentication is enabled
+      command: grep -E "^PubkeyAuthentication yes" /etc/ssh/sshd_config
+      changed_when: false
+
     - name: Display bootstrap completion
       debug:
         msg: |
           ==========================================
           Bootstrap completed for: {{ inventory_hostname }}
-          - SSH key installed
-          - Password authentication disabled
-          - Key-only authentication enforced
+          - SSH key installed at /root/.ssh/authorized_keys
+          - Password authentication disabled: YES
+          - PubkeyAuthentication enabled: YES
+          - Ready for key-only SSH access
           ==========================================
 
   handlers:

@@ -38,6 +38,27 @@ jobs:
           pip install ansible jq
           sudo apt-get update && sudo apt-get install -y sshpass
 
+      - name: Clean old SSH host keys
+        run: |
+          echo "=== Cleaning Old SSH Host Keys ==="
+
+          # Parse and clean master server key
+          SERVER_ADDRESS=$(echo '${{ inputs.server_ip_json }}' | jq -r '.address')
+          if [ -n "$SERVER_ADDRESS" ]; then
+            echo "Cleaning old key for master: $SERVER_ADDRESS"
+            ssh-keygen -R "$SERVER_ADDRESS" 2>/dev/null || true
+          fi
+
+          # Clean node keys
+          echo '${{ inputs.infrastructure_ips_json }}' | jq -r '.[].address // empty' 2>/dev/null | while read node_addr; do
+            if [ -n "$node_addr" ]; then
+              echo "Cleaning old key for node: $node_addr"
+              ssh-keygen -R "$node_addr" 2>/dev/null || true
+            fi
+          done
+
+          echo "=== Old SSH Host Keys Cleaned ==="
+
       - name: Parse server configurations
         id: parse_servers
         run: |
