@@ -16,6 +16,16 @@
   set_fact:
     restart_required: "{{ is_fresh_install or hostvars['localhost'].cert_changed | default(false) }}"
 
+- name: Remove old certificate file (migration from ssl_cert.pem to ssl_client_cert.pem)
+  file:
+    path: "{{ node_var_dir }}/ssl_cert.pem"
+    state: absent
+
+- name: Check if certificate file exists
+  stat:
+    path: "{{ cert_file }}"
+  register: cert_file_check
+
 - name: Copy SSL certificate from Runner to node
   copy:
     src: "/tmp/ssl_client_cert.pem"
@@ -23,17 +33,12 @@
     mode: '0644'
     owner: "{{ ansible_user | default(ansible_ssh_user) }}"
     group: "{{ ansible_user | default(ansible_ssh_user) }}"
-  when: hostvars['localhost'].cert_changed | default(false)
+  when: not cert_file_check.stat.exists or hostvars['localhost'].cert_changed | default(false)
 
-- name: Verify certificate file exists on node
-  stat:
-    path: "{{ cert_file }}"
-  register: cert_file_check
-
-- name: Fail if certificate file not found
+- name: Fail if certificate file not found after copy
   fail:
     msg: "Certificate file not found at {{ cert_file }}"
-  when: hostvars['localhost'].cert_changed | default(false) and not cert_file_check.stat.exists
+  when: not cert_file_check.stat.exists
 
 - name: Determine if master uses HTTPS
   set_fact:

@@ -146,7 +146,10 @@ export class MarzbanUserService {
     // If subscription_path is provided by API, use it
     if (subscriptionPath) {
       // Check if it's already a full URL
-      if (subscriptionPath.startsWith('http://') || subscriptionPath.startsWith('https://')) {
+      if (
+        subscriptionPath.startsWith('http://') ||
+        subscriptionPath.startsWith('https://')
+      ) {
         return subscriptionPath;
       }
       // Prepend domain to relative path
@@ -168,7 +171,10 @@ export class MarzbanUserService {
         .get<MarzbanUserResponse>(`/user/${username}`);
 
       if (response.data.subscription_url) {
-        return this.getSubscriptionUrl(response.data.subscription_url, username);
+        return this.getSubscriptionUrl(
+          response.data.subscription_url,
+          username,
+        );
       }
 
       return null;
