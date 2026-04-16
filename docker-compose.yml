@@ -69,7 +69,7 @@ services:
 
   # Redis service - for BullMQ queues (password protected)
   redis:
-    image: redis:latest
+    image: redis:7.2-alpine
     container_name: cloudnode-redis
     restart: always
     command: redis-server --appendonly yes --requirepass ${VPN_ADMIN_PASSWORD:-redis123}
@@ -90,7 +90,7 @@ services:
 
   # Marzban Core - VPN Panel (HTTP mode)
   marzban:
-    image: gozargah/marzban:v0.6.0
+    image: gozargah/marzban:v0.7.2
     container_name: cloudnode-marzban
     restart: always
     command: bash -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000"

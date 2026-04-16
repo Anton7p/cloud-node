@@ -9,7 +9,7 @@
     cert_file: "{{ node_var_dir }}/ssl_client_cert.pem"
     service_port: 62050
     xray_api_port: 62051
-    marzban_node_image: gozargah/marzban-node:v0.4.2
+    marzban_node_image: gozargah/marzban-node:v0.5.2
     compose_project_name: "marzban-node"
     # Credentials - read from environment variables (GitHub Actions sets these)
     marzban_username: "{{ lookup('env', 'VPN_ADMIN_USERNAME') }}"
