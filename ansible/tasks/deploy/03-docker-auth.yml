@@ -8,12 +8,35 @@
     state: directory
     mode: '0700'
 
+- name: Check Docker is installed and running
+  command: docker version
+  register: docker_check
+  changed_when: false
+  ignore_errors: yes
+
+- name: Display Docker status
+  debug:
+    msg: "Docker version: {{ docker_check.stdout | default('NOT INSTALLED') }}"
+
+- name: Fail if Docker is not available
+  fail:
+    msg: "Docker is not installed or not running on {{ inventory_hostname }}"
+  when: docker_check.rc != 0
+
+- name: Debug GHCR credentials (without token)
+  debug:
+    msg: "Logging in to {{ registry_url }} as user: {{ ghcr_username }}"
+
 - name: Login to GitHub Container Registry
   shell: |
     echo "{{ ghcr_token }}" | docker login {{ registry_url }} -u "{{ ghcr_username }}" --password-stdin
-  no_log: yes
   when: ghcr_token is defined and ghcr_username is defined
   register: docker_login
   retries: 3
   delay: 5
   until: docker_login.rc == 0
+  ignore_errors: yes
+
+- name: Display Docker login result
+  debug:
+    msg: "Docker login result: {{ 'SUCCESS' if docker_login.rc == 0 else 'FAILED - ' + docker_login.stderr | default('unknown error') }}"

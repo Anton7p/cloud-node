@@ -120,6 +120,9 @@
     - name: Include configuration tasks
       include_tasks: tasks/deploy/02-configure.yml
 
+    - name: Setup Docker and Docker Compose
+      include_tasks: tasks/docker-setup.yml
+
     - name: Include Docker auth tasks
       include_tasks: tasks/deploy/03-docker-auth.yml
 
