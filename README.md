@@ -100,10 +100,13 @@ registerHandler(handler: BaseAction): void {
 TELEGRAM_BOT_TOKEN=           # Токен Telegram бота
 ENCRYPTION_KEY=               # Ключ шифрования
 
-# Инфраструктура (используется root для SSH)
-SERVER_IP=                    # Master node IP
-INFRASTRUCTURE_IP_LIST=       # Node1,Node2 (через запятую)
-SSH_PRIVATE_KEY=              # SSH ключ для доступа к нодам
+# Инфраструктура (SSH root + ключевая аутентификация)
+# Формат SERVER_IP: {"address": "1.2.3.4", "password": "temp_password"}
+SERVER_IP=
+# Формат INFRASTRUCTURE_IP_LIST: [{"address": "1.2.3.5", "password": "temp_password"}]
+INFRASTRUCTURE_IP_LIST=
+SSH_PRIVATE_KEY=              # SSH приватный ключ
+SSH_PUBLIC_KEY=               # SSH публичный ключ
 
 # Marzban VPN
 VPN_ADMIN_USERNAME=           # Админ логин Marzban
@@ -118,6 +121,19 @@ MARZBAN_INBOUND_TAG=          # Тег инбаунда (default: VLESS_REALITY)
 ```
 
 > **Note:** `GITHUB_TOKEN` выдаётся автоматически для пуша в GHCR.
+
+### Первичная настройка серверов (Bootstrap)
+
+Для новых серверов сначала выполните bootstrap для установки SSH ключей:
+
+```bash
+# Запустите workflow вручную через GitHub Actions
+# Actions → Bootstrap Servers → Run workflow
+#
+# Параметры:
+# server_ip_json: {"address":"1.2.3.4","password":"root_password"}
+# infrastructure_ips_json: [{"address":"1.2.3.5","password":"root_password"}]
+```
 
 ### Деплой
 

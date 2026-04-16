@@ -1,0 +1,115 @@
+---
+# Bootstrap Workflow: Initial Server Setup with Password Auth
+# Description: First-time setup - connects via password, installs SSH keys, disables password auth
+# Trigger: Manual only (workflow_dispatch)
+# ==========================================
+
+name: Bootstrap Servers
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  workflow_dispatch:
+    inputs:
+      server_ip_json:
+        description: 'Master server JSON: {"address":"1.2.3.4","password":"secret"}'
+        required: true
+        type: string
+      infrastructure_ips_json:
+        description: 'Nodes JSON array: [{"address":"1.2.3.5","password":"secret"}]'
+        required: false
+        type: string
+        default: '[]'
+
+jobs:
+  bootstrap:
+    name: Bootstrap Servers - SSH Key Setup
+    runs-on: ubuntu-latest
+    env:
+      SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          pip install ansible jq
+          sudo apt-get update && sudo apt-get install -y sshpass
+
+      - name: Parse server configurations
+        id: parse_servers
+        run: |
+          echo "=== Parsing Server Configurations ==="
+
+          # Parse master server
+          SERVER_ADDRESS=$(echo '${{ inputs.server_ip_json }}' | jq -r '.address')
+          SERVER_PASSWORD=$(echo '${{ inputs.server_ip_json }}' | jq -r '.password')
+
+          echo "Master Server: $SERVER_ADDRESS"
+          echo "server_address=$SERVER_ADDRESS" >> $GITHUB_OUTPUT
+          echo "server_password=$SERVER_PASSWORD" >> $GITHUB_OUTPUT
+
+          # Parse infrastructure nodes
+          NODES_JSON='${{ inputs.infrastructure_ips_json }}'
+
+          # Generate inventory with password auth
+          echo "[master]" > ansible/inventory_bootstrap.ini
+          echo "$SERVER_ADDRESS ansible_user=root ansible_ssh_pass=$SERVER_PASSWORD ansible_ssh_extra_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'" >> ansible/inventory_bootstrap.ini
+          echo "" >> ansible/inventory_bootstrap.ini
+
+          echo "[nodes]" >> ansible/inventory_bootstrap.ini
+
+          # Process nodes array
+          echo "$NODES_JSON" | jq -c '.[]' 2>/dev/null | while read node; do
+            NODE_ADDRESS=$(echo "$node" | jq -r '.address')
+            NODE_PASSWORD=$(echo "$node" | jq -r '.password')
+            if [ -n "$NODE_ADDRESS" ] && [ "$NODE_ADDRESS" != "null" ]; then
+              echo "$NODE_ADDRESS ansible_user=root ansible_ssh_pass=$NODE_PASSWORD ansible_ssh_extra_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'" >> ansible/inventory_bootstrap.ini
+              echo "  Added node: $NODE_ADDRESS"
+            fi
+          done
+
+          echo "" >> ansible/inventory_bootstrap.ini
+          echo "[all:vars]" >> ansible/inventory_bootstrap.ini
+          echo "ansible_python_interpreter=/usr/bin/python3" >> ansible/inventory_bootstrap.ini
+          echo "ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'" >> ansible/inventory_bootstrap.ini
+
+          echo "=== Generated Bootstrap Inventory ==="
+          cat ansible/inventory_bootstrap.ini
+
+      - name: Run Bootstrap Playbook - Install SSH Keys
+        working-directory: ./ansible
+        run: |
+          ansible-playbook -i inventory_bootstrap.ini bootstrap.yml \
+            -e "ssh_public_key=$SSH_PUBLIC_KEY" \
+            -e "master_address=${{ steps.parse_servers.outputs.server_address }}"
+
+      - name: Verify SSH Key Access
+        run: |
+          # Setup SSH key for verification
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          MASTER_ADDR="${{ steps.parse_servers.outputs.server_address }}"
+
+          echo "=== Testing SSH Key Access to Master ==="
+          ssh -o StrictHostKeyChecking=no -o PasswordAuthentication=no -i ~/.ssh/id_rsa root@$MASTER_ADDR "echo 'SSH key access successful for master'" || exit 1
+
+          # Test nodes if any
+          echo '${{ inputs.infrastructure_ips_json }}' | jq -r '.[].address' 2>/dev/null | while read node_addr; do
+            if [ -n "$node_addr" ] && [ "$node_addr" != "null" ]; then
+              echo "=== Testing SSH Key Access to Node: $node_addr ==="
+              ssh -o StrictHostKeyChecking=no -o PasswordAuthentication=no -i ~/.ssh/id_rsa root@$node_addr "echo 'SSH key access successful for $node_addr'" || exit 1
+            fi
+          done
+
+          echo "=== All SSH Key Authentication Tests Passed ==="
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f ~/.ssh/id_rsa
+          rm -f ansible/inventory_bootstrap.ini

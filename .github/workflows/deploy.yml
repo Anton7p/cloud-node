@@ -28,8 +28,7 @@ jobs:
       url: http://production-server
     env:
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-      SERVER_IP: ${{ secrets.SERVER_IP }}
-      SERVER_USER: root
+      SERVER_IP_JSON: ${{ secrets.SERVER_IP }}
       IMAGE_NAME: ${{ inputs.image_name }}
       IMAGE_TAG: ${{ inputs.image_tag }}
       DB_PASSWORD: ${{ secrets.VPN_ADMIN_PASSWORD }}
@@ -57,21 +56,35 @@ jobs:
           echo "Tag: ${{ inputs.image_tag }}"
           echo "Full: ${{ inputs.image_name }}:${{ inputs.image_tag }}"
 
+      - name: Install dependencies
+        run: pip install ansible jq
+
+      - name: Parse server configuration
+        id: parse_config
+        run: |
+          echo "=== Parsing Server Configuration ==="
+
+          # Parse master server JSON
+          SERVER_ADDRESS=$(echo "$SERVER_IP_JSON" | jq -r '.address // empty')
+          echo "server_address=$SERVER_ADDRESS" >> $GITHUB_OUTPUT
+          echo "Master Server: $SERVER_ADDRESS"
+
       - name: Setup SSH keys
         run: |
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H $SERVER_IP >> ~/.ssh/known_hosts
 
-      - name: Install Ansible
-        run: pip install ansible
+          SERVER_ADDRESS="${{ steps.parse_config.outputs.server_address }}"
+          ssh-keyscan -H "$SERVER_ADDRESS" >> ~/.ssh/known_hosts
 
       - name: Generate deployment inventory
         working-directory: ./ansible
         run: |
+          SERVER_ADDRESS="${{ steps.parse_config.outputs.server_address }}"
+
           echo "[master]" > inventory_deploy.ini
-          echo "$SERVER_IP ansible_user=root ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory_deploy.ini
+          echo "$SERVER_ADDRESS ansible_user=root ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory_deploy.ini
           echo "=== Deploy Inventory ==="
           cat inventory_deploy.ini
 
@@ -82,5 +95,6 @@ jobs:
       - name: Verify deployment
         run: |
           sleep 10
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa root@$SERVER_IP \
+          SERVER_ADDRESS="${{ steps.parse_config.outputs.server_address }}"
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa root@$SERVER_ADDRESS \
             "docker ps --format 'table {{.Names}}\t{{.Status}}' | grep -E '(cloudnode|marzban)'" || true

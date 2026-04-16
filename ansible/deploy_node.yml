@@ -17,9 +17,13 @@
     domain_name: "{{ lookup('env', 'DOMAIN_NAME') }}"
 
   pre_tasks:
+    - name: Get master server address
+      set_fact:
+        master_server_address: "{{ lookup('env', 'SERVER_IP_ADDRESS') | default(groups['master'][0] | default(''), true) }}"
+
     - name: Compute Marzban API URL
       set_fact:
-        computed_api_url: "{{ 'http://' ~ lookup('env', 'SERVER_IP') ~ ':8000/api' if lookup('env', 'SERVER_IP') | length > 0 else 'https://' ~ domain_name ~ '/api' }}"
+        computed_api_url: "{{ 'http://' ~ master_server_address ~ ':8000/api' if master_server_address | length > 0 else 'https://' ~ domain_name ~ '/api' }}"
       delegate_to: localhost
       become: no
       run_once: yes
