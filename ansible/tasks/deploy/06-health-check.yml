@@ -45,6 +45,25 @@
     msg: "Bot container logs:\n{{ bot_logs.stdout | default('No logs available') }}"
   when: bot_logs is defined and bot_logs.stdout is defined and bot_logs.stdout | length > 0
 
+- name: DEBUG - Get bot logs for diagnostics
+  shell: docker logs cloudnode-bot 2>&1 | tail -100
+  register: diagnostic_logs
+  ignore_errors: yes
+
+- name: DEBUG - Show bot diagnostic logs
+  debug:
+    var: diagnostic_logs.stdout
+  when: diagnostic_logs is defined
+
+- name: DEBUG - Show docker-compose ps output
+  shell: docker ps -a --filter name=cloudnode --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+  register: docker_ps_output
+  ignore_errors: yes
+
+- name: DEBUG - Show container statuses
+  debug:
+    var: docker_ps_output.stdout
+
 - name: Fail if critical services not running
   fail:
     msg: "Deployment failed - critical services are not running: {{ failed_service_names | join(', ') }}. Check logs above."
