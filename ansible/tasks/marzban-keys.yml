@@ -1,15 +1,106 @@
 ---
 # X25519 Key Generation for Reality Protocol
-# Generates keys if VLESS_REALITY inbound doesn't exist yet
+# Consolidated: check-existing, generate-keys, use-existing
 # ==========================================
 
-- name: Include key existence check tasks
-  include_tasks: keys/check-existing.yml
+# --- KEY EXISTENCE CHECK ---
+- name: Check if X25519 keys already exist in Marzban
+  uri:
+    url: "{{ computed_api_url }}/inbounds"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ auth_response.json.access_token }}"
+    return_content: yes
+    status_code: [200]
+    timeout: 30
+  register: existing_inbounds_check
+  delegate_to: localhost
+  become: false
+  run_once: true
 
-- name: Include key generation tasks
-  include_tasks: keys/generate-keys.yml
-  when: not reality_inbound_exists
+- name: Set fact - check if VLESS_REALITY inbound exists
+  set_fact:
+    reality_inbound_exists: >-
+      {{ existing_inbounds_check.json is defined and
+         existing_inbounds_check.json | type_debug == 'list' and
+         'VLESS_REALITY' in (existing_inbounds_check.json | map(attribute='tag') | list) }}
+  delegate_to: localhost
+  become: false
+  run_once: true
 
-- name: Include use existing keys tasks
-  include_tasks: keys/use-existing.yml
+- name: DEBUG - Log reality_inbound_exists fact
+  debug:
+    msg:
+      - "reality_inbound_exists: {{ reality_inbound_exists }}"
+      - "Will generate new keys: {{ not reality_inbound_exists }}"
+  delegate_to: localhost
+  run_once: true
+
+# --- KEY GENERATION (when inbound doesn't exist) ---
+- name: Generate X25519 keys using xray command
+  command: >
+    docker run --rm {{ marzban_node_image }} xray x25519
+  register: x25519_output
+  when: reality_inbound_exists is not defined or not reality_inbound_exists
+  delegate_to: localhost
+  become: false
+  run_once: true
+  changed_when: true
+
+- name: Parse X25519 private key
+  set_fact:
+    reality_private_key: "{{ x25519_output.stdout | regex_search('Private key: ([^\\s]+)', '\\1') | first }}"
+  when: x25519_output.stdout is defined and (reality_inbound_exists is not defined or not reality_inbound_exists)
+  delegate_to: localhost
+  become: false
+  run_once: true
+  no_log: true
+
+- name: Parse X25519 public key
+  set_fact:
+    reality_public_key: "{{ x25519_output.stdout | regex_search('Public key: ([^\\s]+)', '\\1') | first }}"
+  when: x25519_output.stdout is defined and (reality_inbound_exists is not defined or not reality_inbound_exists)
+  delegate_to: localhost
+  become: false
+  run_once: true
+  no_log: true
+
+- name: Generate random SHORT_ID via openssl
+  shell: openssl rand -hex 4
+  register: openssl_short_id
+  when: reality_inbound_exists is not defined or not reality_inbound_exists
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Set reality_short_id fact
+  set_fact:
+    reality_short_id: "{{ openssl_short_id.stdout }}"
+  when: reality_inbound_exists is not defined or not reality_inbound_exists
+  delegate_to: localhost
+  become: false
+  run_once: true
+  no_log: true
+
+- name: Display generated keys
+  debug:
+    msg:
+      - "Generated Private Key: {{ reality_private_key | default('N/A') }}"
+      - "Generated Public Key: {{ reality_public_key | default('N/A') }}"
+      - "Generated Short ID: {{ reality_short_id | default('N/A') }}"
+  when: reality_inbound_exists is not defined or not reality_inbound_exists
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+# --- USE EXISTING KEYS (when inbound exists) ---
+- name: Use existing keys from environment if inbound exists
+  set_fact:
+    reality_private_key: "{{ REALITY_PRIVATE_KEY | default(lookup('env', 'REALITY_PRIVATE_KEY'), true) }}"
+    reality_public_key: "{{ REALITY_PUBLIC_KEY | default(lookup('env', 'REALITY_PUBLIC_KEY'), true) }}"
+    reality_short_id: "{{ REALITY_SHORT_ID | default(lookup('env', 'REALITY_SHORT_ID'), true) | default('abcd1234') }}"
   when: reality_inbound_exists
+  delegate_to: localhost
+  become: false
+  run_once: true
+  no_log: true

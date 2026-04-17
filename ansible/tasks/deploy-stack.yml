@@ -1,0 +1,330 @@
+---
+# Application Deployment Stack
+# Consolidated: backup, configure, docker-auth, pull-image, stack-deploy, health-check, cleanup
+# ==========================================
+
+# --- BACKUP PHASE ---
+- name: Backup existing .env if present
+  copy:
+    src: "{{ deploy_dir }}/.env"
+    dest: "{{ backup_dir }}/.env.{{ ansible_date_time.epoch }}"
+    remote_src: yes
+    mode: '0600'
+
+- name: Backup existing docker-compose.yml if present
+  copy:
+    src: "{{ deploy_dir }}/docker-compose.yml"
+    dest: "{{ backup_dir }}/docker-compose.yml.{{ ansible_date_time.epoch }}"
+    remote_src: yes
+    mode: '0644'
+
+# --- CONFIGURE PHASE ---
+- name: Ensure deployment directory exists
+  file:
+    path: "{{ deploy_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Create backup directory
+  file:
+    path: "{{ backup_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Generate docker-compose.yml from template
+  template:
+    src: "../docker-compose.yml"
+    dest: "{{ deploy_dir }}/docker-compose.yml"
+    mode: '0644'
+  register: compose_copy
+
+- name: Remove old .env file to ensure clean generation
+  file:
+    path: "{{ deploy_dir }}/.env"
+    state: absent
+
+- name: Generate environment file from template
+  template:
+    src: templates/.env.j2
+    dest: "{{ deploy_dir }}/.env"
+    mode: '0600'
+    owner: root
+    group: root
+  register: env_generation
+
+- name: Display .env generation status
+  debug:
+    msg: "Environment file generated at {{ deploy_dir }}/.env (changed: {{ env_generation.changed }})"
+
+# --- DOCKER AUTH PHASE ---
+- name: Create Docker config directory
+  file:
+    path: /root/.docker
+    state: directory
+    mode: '0700'
+
+- name: Check Docker is installed and running
+  command: docker version
+  register: docker_check
+  changed_when: false
+
+- name: Display Docker status
+  debug:
+    msg: "Docker version: {{ docker_check.stdout | default('NOT INSTALLED') }}"
+
+- name: Fail if Docker is not available
+  fail:
+    msg: "Docker is not installed or not running on {{ inventory_hostname }}"
+  when: docker_check.rc != 0
+
+- name: Debug GHCR credentials (without token)
+  debug:
+    msg: "Logging in to {{ registry_url }} as user: {{ ghcr_username }}"
+
+- name: Login to GitHub Container Registry
+  shell: |
+    echo "{{ ghcr_token }}" | docker login {{ registry_url }} -u "{{ ghcr_username }}" --password-stdin
+  when: ghcr_token is defined and ghcr_username is defined
+  register: docker_login
+  retries: 3
+  delay: 5
+  until: docker_login.rc == 0
+
+- name: Display Docker login result
+  debug:
+    msg: "Docker login result: {{ 'SUCCESS' if docker_login.rc == 0 else 'FAILED - ' + docker_login.stderr | default('unknown error') }}"
+
+# --- PULL IMAGE PHASE ---
+- name: Pull application image with SHA tag
+  command: docker pull "{{ image_name }}"
+  register: image_pull
+  retries: 3
+  delay: 10
+  until: image_pull.rc == 0
+
+- name: Verify image pulled successfully
+  command: docker images "{{ image_name }}" --format "{% raw %}{{.Repository}}:{{.Tag}}{% endraw %}"
+  register: image_verify
+  changed_when: false
+
+- name: Display pulled image
+  debug:
+    msg: "Successfully pulled image: {{ image_verify.stdout }}"
+
+# --- STACK DEPLOY PHASE ---
+- name: DEBUG - Starting stack deployment
+  debug:
+    msg:
+      - "=== STACK DEPLOY START ==="
+      - "Directory: {{ deploy_dir }}"
+      - "Database exists check starting"
+
+- name: Stop existing containers gracefully
+  command: docker compose down --timeout 30
+  args:
+    chdir: "{{ deploy_dir }}"
+  register: compose_down
+  changed_when: compose_down.rc == 0
+
+- name: DEBUG - Compose down result
+  debug:
+    msg: "Compose down exit code: {{ compose_down.rc }}"
+
+- name: DEBUG - Starting database and Redis
+  debug:
+    msg: "Starting database initialization..."
+
+- name: Start database and Redis first (for DB initialization)
+  command: docker compose up -d db redis
+  args:
+    chdir: "{{ deploy_dir }}"
+  environment:
+    DB_PASSWORD: "{{ db_password }}"
+  register: db_start
+  retries: 3
+  delay: 3
+  until: db_start.rc == 0
+
+- name: Wait for PostgreSQL to be ready
+  command: docker compose exec -T db pg_isready -U postgres
+  args:
+    chdir: "{{ deploy_dir }}"
+  register: pg_ready
+  retries: 10
+  delay: 3
+  until: pg_ready.rc == 0
+  changed_when: false
+
+- name: Create database if not exists
+  shell: |
+    docker compose exec -T db psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'cloudnode'" | grep -q 1 || \
+    docker compose exec -T db psql -U postgres -c "CREATE DATABASE cloudnode;"
+  args:
+    chdir: "{{ deploy_dir }}"
+  environment:
+    DB_PASSWORD: "{{ db_password }}"
+  register: db_create
+  changed_when: "'CREATE DATABASE' in db_create.stdout | default('')"
+
+- name: Display database creation status
+  debug:
+    msg: "Database 'cloudnode' status: {{ 'CREATED' if db_create.changed else 'EXISTS or FAILED' }}"
+
+- name: Start application stack (all services)
+  command: docker compose up -d
+  args:
+    chdir: "{{ deploy_dir }}"
+  environment:
+    DB_PASSWORD: "{{ db_password }}"
+    TELEGRAM_BOT_TOKEN: "{{ telegram_bot_token }}"
+    ENCRYPTION_KEY: "{{ encryption_key }}"
+    DOCKER_IMAGE_NAME: "{{ image_name }}"
+    REDIS_PASSWORD: "{{ redis_password | default('') }}"
+    MARZBAN_URL: "http://marzban:8000"
+    VPN_ADMIN_USERNAME: "{{ vpn_admin_username }}"
+    VPN_ADMIN_PASSWORD: "{{ vpn_admin_password }}"
+    INFRASTRUCTURE_IP_LIST: "{{ infrastructure_ip_list | default('') }}"
+    DOMAIN_NAME: "{{ domain_name }}"
+    REALITY_PUBLIC_KEY: "{{ reality_public_key | default('initial_placeholder_key_change_me') }}"
+    REALITY_SHORT_ID: "{{ reality_short_id | default('abcd1234') }}"
+  register: compose_up
+  retries: 2
+  delay: 5
+  until: compose_up.rc == 0
+
+- name: Display compose up output
+  debug:
+    msg: "{{ compose_up.stdout_lines }}"
+
+- name: Wait for bot container to be healthy
+  command: docker compose ps bot --format "{{'{{.Health}}'}}"
+  args:
+    chdir: "{{ deploy_dir }}"
+  register: bot_health
+  retries: 30
+  delay: 10
+  until: bot_health.stdout is defined and 'healthy' in bot_health.stdout | lower
+  changed_when: false
+  ignore_errors: false
+
+- name: DEBUG - Show bot health status
+  debug:
+    var: bot_health.stdout
+
+- name: Fail if bot is not healthy
+  fail:
+    msg: "Bot container failed to become healthy. Check logs with: docker compose logs bot"
+  when: bot_health is failed or not ('healthy' in bot_health.stdout | lower)
+
+- name: Prune unused Docker images to free disk space
+  command: docker image prune -f
+  changed_when: true
+
+# --- HEALTH CHECK PHASE ---
+- name: DEBUG - Starting health checks
+  debug:
+    msg:
+      - "=== HEALTH CHECK START ==="
+      - "Waiting 30s for containers to stabilize..."
+
+- name: Wait for containers to initialize
+  pause:
+    seconds: 30
+
+- name: Check running containers
+  command: docker ps --format "table {% raw %}{{.Names}}\t{{.Status}}\t{{.Ports}}{% endraw %}"
+  register: container_status
+  changed_when: false
+
+- name: DEBUG - Display raw container status
+  debug:
+    msg: "Container Status:\n{{ container_status.stdout }}"
+
+- name: Verify critical services are running
+  command: docker ps --filter "name={{ item }}" --filter "status=running" --format "{% raw %}{{.Names}}{% endraw %}"
+  register: service_check
+  changed_when: false
+  loop:
+    - cloudnode-bot
+    - cloudnode-db
+    - cloudnode-redis
+    - cloudnode-marzban
+
+- name: DEBUG - Service check results
+  debug:
+    msg:
+      - "Service check results:"
+      - "{% for result in service_check.results %}  - {{ result.item }}: {{ 'RUNNING' if result.stdout else 'NOT FOUND' }}{% endfor %}"
+
+- name: Identify failed services
+  set_fact:
+    failed_service_names: "{{ failed_service_names | default([]) + [item.item] }}"
+  when: item.stdout | length == 0
+  loop: "{{ service_check.results }}"
+
+- name: DEBUG - Collecting logs for failed services
+  debug:
+    msg: "Failed services: {{ failed_service_names | default([]) | join(', ') }}"
+  when: failed_service_names is defined and failed_service_names | length > 0
+
+- name: Get bot container logs on failure
+  command: docker compose logs bot --tail 50
+  args:
+    chdir: "{{ deploy_dir }}"
+  register: bot_logs
+  changed_when: false
+  when: failed_service_names is defined and 'cloudnode-bot' in failed_service_names
+
+- name: DEBUG - Display bot logs
+  debug:
+    msg: "Bot container logs:\n{{ bot_logs.stdout | default('No logs available') }}"
+  when: bot_logs is defined and bot_logs.stdout is defined and bot_logs.stdout | length > 0
+
+- name: Get Marzban container logs on failure
+  command: docker compose logs marzban --tail 50
+  args:
+    chdir: "{{ deploy_dir }}"
+  register: marzban_logs
+  changed_when: false
+  when: failed_service_names is defined and 'cloudnode-marzban' in failed_service_names
+
+- name: Fail if critical services not running
+  fail:
+    msg: "Deployment failed - critical services are not running: {{ failed_service_names | join(', ') }}. Check logs above."
+  when: failed_service_names is defined and failed_service_names | length > 0
+
+- name: Verify bot health endpoint (if available)
+  uri:
+    url: "http://localhost:3000/health"
+    method: GET
+    status_code: [200, 404]
+  register: health_check
+  retries: 5
+  delay: 10
+
+# --- CLEANUP PHASE ---
+- name: Remove old Docker images
+  shell: |
+    docker image prune -af --filter "until=168h" || true
+  register: image_prune
+  changed_when: "'Total reclaimed space' in image_prune.stderr"
+
+- name: Display cleanup results
+  debug:
+    msg: "{{ image_prune.stderr | default('No images to prune') }}"
+
+- name: Logout from Docker registry
+  command: docker logout {{ registry_url }}
+  when: docker_login is succeeded
+
+- name: Display deployment summary
+  debug:
+    msg: |
+      ==========================================
+      DEPLOYMENT SUCCESSFUL
+      ==========================================
+      Target Server: {{ inventory_hostname }}
+      Image: {{ image_name }}:{{ image_tag }}
+      Deployed At: {{ ansible_date_time.iso8601 }}
+      Containers Running: {{ container_status.stdout_lines | length - 1 }}
+      ==========================================

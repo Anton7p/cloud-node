@@ -16,7 +16,7 @@
     server_user: "root"
     image_name: "{{ lookup('env', 'IMAGE_NAME') }}:{{ lookup('env', 'IMAGE_TAG') }}"
     image_tag: "{{ lookup('env', 'IMAGE_TAG') }}"
-    db_password: "{{ lookup('env', 'DB_PASSWORD') }}"
+    db_password: "{{ lookup('env', 'DB_PASSWORD') | default(lookup('env', 'VPN_ADMIN_PASSWORD'), true) }}"
     telegram_bot_token: "{{ lookup('env', 'TELEGRAM_BOT_TOKEN') }}"
     encryption_key: "{{ lookup('env', 'ENCRYPTION_KEY') }}"
     redis_password: "{{ lookup('env', 'REDIS_PASSWORD') | default('', true) }}"
@@ -25,7 +25,7 @@
     infrastructure_ip_list: "{{ lookup('env', 'INFRASTRUCTURE_IP_LIST') | default('', true) }}"
     domain_name: "{{ lookup('env', 'DOMAIN_NAME') }}"
     reality_public_key: "{{ lookup('env', 'REALITY_PUBLIC_KEY') | default('', true) }}"
-    reality_short_id: "{{ lookup('env', 'REALITY_SHORT_ID') | default('abcd1234', true) }}"
+    reality_short_id: "{{ lookup('env', 'REALITY_SHORT_ID') | default('', true) }}"
     marzban_inbound_tag: "{{ lookup('env', 'MARZBAN_INBOUND_TAG') | default('VLESS_REALITY', true) }}"
     ghcr_username: "{{ lookup('env', 'GHCR_USERNAME') }}"
     ghcr_token: "{{ lookup('env', 'GHCR_TOKEN') }}"
@@ -92,10 +92,21 @@
           become: no
           run_once: yes
 
-        - name: Generate random SHORT_ID
+        - name: Display generated keys
+          debug:
+            msg:
+              - "Generated Public Key: {{ reality_public_key | default('N/A') }}"
+          when: needs_key_generation | bool
+          delegate_to: localhost
+          become: no
+          run_once: yes
+      when: reality_public_key | length == 0
+
+    - name: Generate Reality Short ID if not provided
+      block:
+        - name: Generate random SHORT_ID (8 hex chars)
           shell: openssl rand -hex 4
           register: openssl_short_id
-          when: needs_key_generation | bool
           delegate_to: localhost
           become: no
           run_once: yes
@@ -103,21 +114,18 @@
         - name: Set reality_short_id fact
           set_fact:
             reality_short_id: "{{ openssl_short_id.stdout }}"
-          when: openssl_short_id.stdout is defined and needs_key_generation | bool
+          when: openssl_short_id.stdout is defined
           delegate_to: localhost
           become: no
           run_once: yes
 
-        - name: Display generated keys
+        - name: Display generated Short ID
           debug:
-            msg:
-              - "Generated Public Key: {{ reality_public_key | default('N/A') }}"
-              - "Generated Short ID: {{ reality_short_id | default('N/A') }}"
-          when: needs_key_generation | bool
+            msg: "Generated Short ID: {{ reality_short_id }}"
           delegate_to: localhost
           become: no
           run_once: yes
-      when: reality_public_key | length == 0
+      when: reality_short_id | length == 0
 
     - name: Display deployment information
       debug:
@@ -144,29 +152,11 @@
         - domain_name
 
   tasks:
-    - name: Include backup tasks
-      include_tasks: tasks/deploy/01-backup.yml
-
-    - name: Include configuration tasks
-      include_tasks: tasks/deploy/02-configure.yml
-
     - name: Setup Docker and Docker Compose
       include_tasks: tasks/docker-setup.yml
 
-    - name: Include Docker auth tasks
-      include_tasks: tasks/deploy/03-docker-auth.yml
-
-    - name: Include image pull tasks
-      include_tasks: tasks/deploy/04-pull-image.yml
-
-    - name: Include stack deployment tasks
-      include_tasks: tasks/deploy/05-stack-deploy.yml
-
-    - name: Include health check tasks
-      include_tasks: tasks/deploy/06-health-check.yml
-
-    - name: Include cleanup tasks
-      include_tasks: tasks/deploy/07-cleanup.yml
+    - name: Deploy application stack
+      include_tasks: tasks/deploy-stack.yml
 
   handlers:
     - name: restart docker

@@ -89,43 +89,38 @@ jobs:
         run: |
           echo "=== Verifying Secrets ==="
           errors=0
-          
+
           if [ -z "${{ secrets.SERVER_IP }}" ]; then
             echo "❌ SERVER_IP is not set"
             errors=$((errors + 1))
           else
             echo "✅ SERVER_IP is set"
           fi
-          
+
           if [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
             echo "❌ SSH_PRIVATE_KEY is not set"
             errors=$((errors + 1))
           else
             echo "✅ SSH_PRIVATE_KEY is set"
           fi
-          
-          if [ -z "${{ secrets.DB_PASSWORD }}" ]; then
-            echo "❌ DB_PASSWORD is not set"
-            errors=$((errors + 1))
-          else
-            echo "✅ DB_PASSWORD is set"
-          fi
-          
+
           if [ -z "${{ secrets.DOMAIN_NAME }}" ]; then
             echo "❌ DOMAIN_NAME is not set"
             errors=$((errors + 1))
           else
             echo "✅ DOMAIN_NAME is set"
           fi
-          
+
           echo "========================"
-          
+
           if [ $errors -gt 0 ]; then
             echo "❌ $errors secret(s) missing. Check GitHub Settings > Secrets."
             exit 1
           fi
-          
+
           echo "✅ All required secrets verified"
+          echo ""
+          echo "Note: DB_PASSWORD, VPN_ADMIN_PASSWORD and other vars will be validated by Ansible during deploy"
 
   # ==========================================
   # Stage 3: Deploy Application

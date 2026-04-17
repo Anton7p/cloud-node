@@ -2,11 +2,5 @@
 # Marzban Node deployment and container management tasks
 # ==========================================
 
-- name: Include container setup tasks
-  include_tasks: node/container-setup.yml
-
-- name: Include container deploy tasks
-  include_tasks: node/container-deploy.yml
-
-- name: Include health check tasks
-  include_tasks: node/health-check.yml
+- name: Deploy Marzban Node stack
+  include_tasks: node-stack.yml
