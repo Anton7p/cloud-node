@@ -1,6 +1,0 @@
----
-# Marzban Node deployment and container management tasks
-# ==========================================
-
-- name: Deploy Marzban Node stack
-  include_tasks: node-stack.yml

@@ -85,11 +85,8 @@
     - name: Handle authentication and certificate fetching
       include_tasks: tasks/auth-certificate.yml
 
-    - name: Setup Marzban Core (inbounds and node registration)
-      include_tasks: tasks/marzban-setup.yml
-
-    - name: Deploy and manage Marzban Node container
-      include_tasks: tasks/marzban-node.yml
+    - name: Setup Marzban Core and Node (consolidated)
+      include_tasks: tasks/marzban.yml
 
   handlers:
     - name: restart sshd
