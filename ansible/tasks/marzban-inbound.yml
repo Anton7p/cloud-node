@@ -44,8 +44,8 @@
 
 - name: Parse Reality keys
   set_fact:
-    reality_private_key: "{{ reality_keys.stdout_lines[0] | regex_replace('^Private key: ', '') }}"
-    reality_public_key: "{{ reality_keys.stdout_lines[1] | regex_replace('^Public key: ', '') }}"
+    reality_private_key: "{{ reality_keys.stdout_lines[0] | regex_replace('^PrivateKey:\\s*', '') | regex_replace('^Private key:\\s*', '') }}"
+    reality_public_key: "{{ reality_keys.stdout_lines[1] | regex_replace('^Password \\(PublicKey\\):\\s*', '') | regex_replace('^Public key:\\s*', '') | regex_replace('^PublicKey:\\s*', '') }}"
   delegate_to: localhost
   become: no
   when: reality_keys is succeeded
