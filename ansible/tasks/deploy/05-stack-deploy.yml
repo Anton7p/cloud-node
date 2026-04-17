@@ -86,67 +86,25 @@
   debug:
     msg: "{{ compose_up.stdout_lines }}"
 
-- name: Wait for bot container to be ready
-  command: docker compose ps -q bot
+- name: Wait for bot container to be healthy
+  command: docker compose ps bot --format "{{'{{.Health}}'}}"
   args:
     chdir: "{{ deploy_dir }}"
-  register: bot_container
-  retries: 15
-  delay: 5
-  until: bot_container.stdout | length > 0
+  register: bot_health
+  retries: 30
+  delay: 10
+  until: bot_health.stdout is defined and 'healthy' in bot_health.stdout | lower
   changed_when: false
+  ignore_errors: no
 
-- name: DEBUG - Check bot container state
-  shell: docker compose ps bot --format "{{'{{.Status}}'}}"
-  args:
-    chdir: "{{ deploy_dir }}"
-  register: bot_status
-  retries: 10
-  delay: 5
-  until: bot_status.stdout is defined and 'running' in bot_status.stdout | lower
-  changed_when: false
-
-- name: DEBUG - Show bot container state
+- name: DEBUG - Show bot health status
   debug:
-    var: bot_status.stdout
+    var: bot_health.stdout
 
-- name: Run Prisma db push to create tables from schema
-  shell: |
-    echo "[ANSIBLE] Running Prisma migrate deploy..." &&
-    docker compose exec -T bot npx prisma migrate deploy 2>&1
-  args:
-    chdir: "{{ deploy_dir }}"
-  register: prisma_migrate
-  retries: 3
-  delay: 5
-  until: prisma_migrate.rc == 0
-  changed_when: true
-
-- name: DEBUG - Migration result
-  debug:
-    msg:
-      - "Migration exit code: {{ prisma_migrate.rc }}"
-      - "Migration stdout: {{ prisma_migrate.stdout | default('') | truncate(200) }}"
-      - "Migration stderr: {{ prisma_migrate.stderr | default('') | truncate(200) }}"
-
-- name: Display migration status
-  debug:
-    msg: "Prisma migrate: {{ 'SUCCESS' if prisma_migrate.rc == 0 else 'FAILED - ' + prisma_migrate.stderr | default('unknown') }}"
-
-- name: DEBUG - Container status before restart
-  shell: docker ps -a --format "table {{ '{{.Names}}' }}\t{{ '{{.Status}}' }}\t{{ '{{.Ports}}' }}" | grep cloudnode
-  register: container_status_before
-  changed_when: false
-
-- name: Show container status
-  debug:
-    var: container_status_before.stdout
-
-- name: Restart bot if migration was applied
-  command: docker compose restart bot
-  args:
-    chdir: "{{ deploy_dir }}"
-  when: prisma_migrate.rc == 0
+- name: Fail if bot is not healthy
+  fail:
+    msg: "Bot container failed to become healthy. Check logs with: docker compose logs bot"
+  when: bot_health is failed or not ('healthy' in bot_health.stdout | lower)
 
 - name: Prune unused Docker images to free disk space
   command: docker image prune -f
