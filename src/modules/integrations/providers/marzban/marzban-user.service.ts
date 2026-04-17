@@ -36,12 +36,11 @@ export class MarzbanUserService {
 
     // Trial account detection: months <= 0.1 (approximately 3 days or less)
     const isTrialAccount = months <= 0.1;
-    const trialDays = this.configService.get<AppConfig['trialDays']>(
-      'app.trialDays',
-    ) || 3;
-    const trialIpLimit = this.configService.get<AppConfig['trialIpLimit']>(
-      'app.trialIpLimit',
-    ) || 2;
+    const trialDays =
+      this.configService.get<AppConfig['trialDays']>('app.trialDays') || 3;
+    const trialIpLimit =
+      this.configService.get<AppConfig['trialIpLimit']>('app.trialIpLimit') ||
+      2;
 
     // Calculate expire: use trialDays for trial accounts, otherwise months * daysPerMonth
     const expireDays = isTrialAccount ? trialDays : months * daysPerMonth;
@@ -134,9 +133,7 @@ export class MarzbanUserService {
         this.logger.error(
           `Marzban API validation error (422): ${JSON.stringify(errorDetails)}`,
         );
-        this.logger.error(
-          `Request body was: ${JSON.stringify(requestBody)}`,
-        );
+        this.logger.error(`Request body was: ${JSON.stringify(requestBody)}`);
       }
 
       this.logger.error(
