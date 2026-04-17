@@ -10,7 +10,7 @@
       - "Domain: {{ domain_name }}"
       - "Auth token defined: {{ auth_response.json.access_token is defined }}"
   delegate_to: localhost
-  run_once: yes
+  run_once: true
 
 # 1. Generate X25519 keys for Reality protocol
 - name: Setup X25519 keys

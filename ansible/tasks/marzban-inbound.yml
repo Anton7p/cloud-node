@@ -8,13 +8,13 @@
     method: GET
     headers:
       Authorization: "Bearer {{ auth_response.json.access_token }}"
-    return_content: yes
+    return_content: true
     status_code: [200]
     timeout: 30
   register: core_config
   delegate_to: localhost
-  become: no
-  run_once: yes
+  become: false
+  run_once: true
 
 - name: Set fact - VLESS Reality inbound exists check
   set_fact:
@@ -23,7 +23,7 @@
          core_config.json.inbounds is defined and
          core_config.json.inbounds | selectattr('tag', 'equalto', 'VLESS Reality TCP') | list | length > 0 }}
   delegate_to: localhost
-  become: no
+  become: false
 
 - name: DEBUG - Config check
   debug:
@@ -31,14 +31,14 @@
       - "Current inbounds: {{ core_config.json.inbounds | default([]) | map(attribute='tag') | list }}"
       - "VLESS Reality exists: {{ vless_reality_exists }}"
   delegate_to: localhost
-  become: no
+  become: false
 
 - name: Generate Reality keys (x25519)
   command: docker run --rm ghcr.io/xtls/xray-core x25519
   register: reality_keys
   delegate_to: localhost
-  become: no
-  run_once: yes
+  become: false
+  run_once: true
   when: not vless_reality_exists | bool
 
 - name: Parse Reality keys
@@ -46,7 +46,7 @@
     reality_private_key: "{{ reality_keys.stdout_lines[0] | regex_replace('^PrivateKey:\\s*', '') | regex_replace('^Private key:\\s*', '') }}"
     reality_public_key: "{{ reality_keys.stdout_lines[1] | regex_replace('^Password \\(PublicKey\\):\\s*', '') | regex_replace('^Public key:\\s*', '') | regex_replace('^PublicKey:\\s*', '') }}"
   delegate_to: localhost
-  become: no
+  become: false
   when: reality_keys is succeeded
 
 - name: Ensure jq is installed on runner (for JSON manipulation)
@@ -54,62 +54,54 @@
     name: jq
     state: present
   delegate_to: localhost
-  become: no
-  run_once: yes
+  become: false
+  run_once: true
 
-- name: Create VLESS Reality inbound JSON file
-  copy:
-    content: |
-      {
-        "tag": "VLESS Reality TCP",
-        "listen": "0.0.0.0",
-        "port": 443,
-        "protocol": "vless",
-        "settings": {
-          "clients": [],
-          "decryption": "none"
-        },
-        "streamSettings": {
-          "network": "tcp",
-          "security": "reality",
-          "realitySettings": {
-            "dest": "{{ domain_name }}:443",
-            "serverNames": ["{{ domain_name }}"],
-            "privateKey": "{{ reality_private_key }}",
-            "publicKey": "{{ reality_public_key }}",
-            "shortIds": ["abcd1234"]
-          }
-        },
-        "sniffing": {
-          "enabled": true,
-          "destOverride": ["http", "tls"]
-        }
-      }
-    dest: "/tmp/vless_reality_inbound.json"
-  delegate_to: localhost
-  become: no
-  when:
-    - not vless_reality_exists | bool
-    - reality_private_key is defined
+- name: Prepare and apply VLESS Reality inbound
+  block:
+      - name: Create VLESS Reality inbound JSON file
+        copy:
+          content: |
+            {
+              "tag": "VLESS Reality TCP",
+              "listen": "0.0.0.0",
+              "port": 443,
+              "protocol": "vless",
+              "settings": {
+                "clients": [],
+                "decryption": "none"
+              },
+              "streamSettings": {
+                "network": "tcp",
+                "security": "reality",
+                "realitySettings": {
+                  "dest": "{{ domain_name }}:443",
+                  "serverNames": ["{{ domain_name }}"],
+                  "privateKey": "{{ reality_private_key }}",
+                  "publicKey": "{{ reality_public_key }}",
+                  "shortIds": ["abcd1234"]
+                }
+              },
+              "sniffing": {
+                "enabled": true,
+                "destOverride": ["http", "tls"]
+              }
+            }
+          dest: "/tmp/vless_reality_inbound.json"
 
-- name: Save current core config to file
-  copy:
-    content: "{{ core_config.json | to_nice_json }}"
-    dest: "/tmp/current_core_config.json"
-  delegate_to: localhost
-  become: no
-  when:
-    - not vless_reality_exists | bool
-    - reality_private_key is defined
+      - name: Save current core config to file
+        copy:
+          content: "{{ core_config.json | to_nice_json }}"
+          dest: "/tmp/current_core_config.json"
 
-- name: Build updated core config with new inbound
-  shell: |
-    cat /tmp/current_core_config.json | \
-    jq --slurpfile inbound /tmp/vless_reality_inbound.json \
-    '.inbounds = (.inbounds // []) + $inbound'
-  register: updated_config_json
+      - name: Build updated core config with new inbound
+        shell: |
+          cat /tmp/current_core_config.json | \
+          jq --slurpfile inbound /tmp/vless_reality_inbound.json \
+          '.inbounds = (.inbounds // []) + $inbound'
+        register: updated_config_json
   delegate_to: localhost
-  become: no
+  become: false
   when:
     - not vless_reality_exists | bool
     - reality_private_key is defined
@@ -131,12 +123,12 @@
     - updated_config_json.rc == 0
   register: config_update_result
   delegate_to: localhost
-  become: no
-  run_once: yes
+  become: false
+  run_once: true
 
 - name: Display config update status
   debug:
     msg: "VLESS Reality inbound added. Status: {{ config_update_result.status | default('skipped') }}"
   when: config_update_result is defined
   delegate_to: localhost
-  become: no
+  become: false
