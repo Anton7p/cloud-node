@@ -57,24 +57,40 @@
   - VLESS ссылки: `vless://{uuid}@{DOMAIN}:443`
   - Прописывается в `docker-compose.yml` как env var
 
-## CI/CD Pipeline
+## CI/CD Pipeline (Рефакторинг завершен)
 
-### Workflows
-1. **main.yml** - оркестратор (build → deploy → infrastructure)
-2. **build.yml** - сборка Docker образа
-3. **deploy.yml** - деплой приложения (master)
-4. **infrastructure.yml** - настройка нод
-5. **bootstrap.yml** - первичная настройка SSH
+### Workflows (Упрощено: 2 файла вместо 5)
+1. **ci.yml** - единый pipeline: test → build → verify → deploy → infrastructure
+2. **bootstrap.yml** - первичная настройка SSH ключей (ручной запуск)
+
+### Удалены:
+- ❌ main.yml (оркестратор)
+- ❌ build.yml (встроен в ci.yml)
+- ❌ deploy.yml (встроен в ci.yml)
+- ❌ infrastructure.yml (встроен в ci.yml)
+- ❌ debug job (проверка секретов внутри deploy job)
 
 ### Ansible Playbooks
-- `deploy_app.yml` - мастер сервер (bot + marzban + db + redis)
+- `deploy_app.yml` - мастер сервер (docker compose up + healthcheck)
 - `deploy_node.yml` - ноды (marzban-node)
 - `bootstrap.yml` - первичная настройка SSH ключей
 
+### Упрощения:
+- ❌ Убраны все `docker compose exec` команды из Ansible
+- ❌ Убрана manual миграция Prisma (теперь в entrypoint контейнера)
+- ❌ Убран debug job (лишний runner)
+- ✅ Теперь только `docker compose up` и ожидание healthcheck
+
 ### Последовательность Деплоя
 ```
-Bootstrap (ручной) → Build → Deploy (master) → Infrastructure (nodes)
+Bootstrap (ручной) → CI/CD Pipeline (автоматом на push):
+  test-and-build → verify-secrets → deploy (master) → infrastructure (nodes)
 ```
+
+### Pipeline Features:
+- **Test stage**: lint + unit tests перед build
+- **Verify secrets**: быстрая проверка перед деплоем
+- **Health-based deploy**: ждем healthy статус, не запускаем миграции вручную
 
 ## Порты и Firewall
 
