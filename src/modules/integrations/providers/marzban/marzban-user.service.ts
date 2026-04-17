@@ -26,49 +26,59 @@ export class MarzbanUserService {
     telegramId: string,
     months: number,
   ): Promise<CreateUserResult> {
+    const username = `user_${telegramId}`;
+    const daysPerMonth = this.configService.get<
+      AppConfig['subscriptionDaysPerMonth']
+    >('app.subscriptionDaysPerMonth');
+    const dataLimit = this.configService.get<AppConfig['defaultDataLimit']>(
+      'app.defaultDataLimit',
+    );
+
+    // Trial account detection: months <= 0.1 (approximately 3 days or less)
+    const isTrialAccount = months <= 0.1;
+    const trialDays = this.configService.get<AppConfig['trialDays']>(
+      'app.trialDays',
+    ) || 3;
+    const trialIpLimit = this.configService.get<AppConfig['trialIpLimit']>(
+      'app.trialIpLimit',
+    ) || 2;
+
+    // Calculate expire: use trialDays for trial accounts, otherwise months * daysPerMonth
+    const expireDays = isTrialAccount ? trialDays : months * daysPerMonth;
+    const expireTimestamp = Math.floor(
+      (Date.now() + expireDays * 24 * 60 * 60 * 1000) / 1000,
+    );
+
+    // Get inbound tag from config for VLESS Reality
+    const inboundTag =
+      this.configService.get<AppConfig['marzbanInboundTag']>(
+        'app.marzbanInboundTag',
+      ) || 'VLESS_TCP Reality';
+
+    let requestBody: Record<string, unknown>;
+
     try {
-      const username = `user_${telegramId}`;
-      const daysPerMonth = this.configService.get<
-        AppConfig['subscriptionDaysPerMonth']
-      >('app.subscriptionDaysPerMonth');
-      const expireDays = months * daysPerMonth;
-      const dataLimit = this.configService.get<AppConfig['defaultDataLimit']>(
-        'app.defaultDataLimit',
-      );
-      const expireTimestamp = Math.floor(
-        (Date.now() + expireDays * 24 * 60 * 60 * 1000) / 1000,
-      );
-
-      // Trial account detection: months <= 0.1 (approximately 3 days or less)
-      const isTrialAccount = months <= 0.1;
-      const limitIp = isTrialAccount ? 2 : undefined;
-
       this.logger.log(
-        `Creating Marzban user ${username} with ${months} months subscription` +
-          (isTrialAccount ? ' (TRIAL - limitIp: 2)' : ''),
+        `Creating Marzban user ${username} with ${isTrialAccount ? trialDays + ' days trial' : months + ' months subscription'}` +
+          (isTrialAccount ? ` (limitIp: ${trialIpLimit})` : ''),
       );
 
-      // Get inbound tag from config (default: VLESS_REALITY)
-      const inboundTag =
-        this.configService.get<AppConfig['marzbanInboundTag']>(
-          'app.marzbanInboundTag',
-        ) || 'VLESS_REALITY';
-
-      const requestBody: Record<string, unknown> = {
+      requestBody = {
         username,
         expire: expireTimestamp,
         data_limit: dataLimit,
         status: 'active',
         proxies: {
-          vless: {
-            id: inboundTag,
-          },
+          vless: {},
+        },
+        inbounds: {
+          vless: [inboundTag],
         },
       };
 
       // Add limitIp for trial accounts
-      if (limitIp) {
-        requestBody.limitIp = limitIp;
+      if (isTrialAccount) {
+        requestBody.limitIp = trialIpLimit;
       }
 
       const response = await this.apiClient
@@ -116,6 +126,17 @@ export class MarzbanUserService {
         // Token expired, try to re-login and retry once
         this.logger.log('Token expired, re-authenticating...');
         // This will be handled by the main service
+      }
+
+      // Log detailed error for 422 validation errors
+      if (axios.isAxiosError(error) && error.response?.status === 422) {
+        const errorDetails = error.response?.data;
+        this.logger.error(
+          `Marzban API validation error (422): ${JSON.stringify(errorDetails)}`,
+        );
+        this.logger.error(
+          `Request body was: ${JSON.stringify(requestBody)}`,
+        );
       }
 
       this.logger.error(
