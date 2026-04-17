@@ -15,7 +15,6 @@
   delegate_to: localhost
   become: no
   run_once: yes
-  ignore_errors: yes
 
 - name: Set fact - check if VLESS_REALITY inbound exists
   set_fact:

@@ -21,7 +21,6 @@
   delegate_to: localhost
   become: no
   run_once: yes
-  ignore_errors: yes
 
 - name: Attempt to create first admin (if auth returns 401)
   uri:
@@ -41,7 +40,6 @@
   delegate_to: localhost
   become: no
   run_once: yes
-  ignore_errors: yes
 
 - name: Authenticate with Marzban Master API
   uri:

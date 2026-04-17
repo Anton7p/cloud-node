@@ -12,7 +12,6 @@
   command: docker version
   register: docker_check
   changed_when: false
-  ignore_errors: yes
 
 - name: Display Docker status
   debug:
@@ -35,7 +34,6 @@
   retries: 3
   delay: 5
   until: docker_login.rc == 0
-  ignore_errors: yes
 
 - name: Display Docker login result
   debug:

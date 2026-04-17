@@ -15,7 +15,6 @@
   delegate_to: localhost
   become: no
   run_once: yes
-  ignore_errors: yes
 
 - name: Set fact - VLESS Reality inbound exists check
   set_fact:

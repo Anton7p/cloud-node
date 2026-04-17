@@ -6,7 +6,6 @@
   command: docker ps -q -f name=marzban-node
   register: container_check
   changed_when: false
-  ignore_errors: yes
 
 - name: Set fresh install fact
   set_fact:

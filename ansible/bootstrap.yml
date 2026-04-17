@@ -65,8 +65,7 @@
 
     - name: Restore SELinux context on .ssh directory (if SELinux enabled)
       command: restorecon -R /root/.ssh
-      ignore_errors: yes
-      changed_when: false
+          changed_when: false
 
     - name: Display authorized_keys content for debug
       command: cat /root/.ssh/authorized_keys

@@ -14,7 +14,6 @@
 
 - name: Logout from Docker registry
   command: docker logout {{ registry_url }}
-  ignore_errors: yes
   when: docker_login is succeeded
 
 - name: Display deployment summary

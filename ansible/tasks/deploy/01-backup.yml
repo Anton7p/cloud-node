@@ -8,7 +8,6 @@
     dest: "{{ backup_dir }}/.env.{{ ansible_date_time.epoch }}"
     remote_src: yes
     mode: '0600'
-  ignore_errors: yes
 
 - name: Backup existing docker-compose.yml if present
   copy:
@@ -16,4 +15,3 @@
     dest: "{{ backup_dir }}/docker-compose.yml.{{ ansible_date_time.epoch }}"
     remote_src: yes
     mode: '0644'
-  ignore_errors: yes

@@ -17,4 +17,3 @@
     state: directory
     mode: '0777'
     recurse: yes
-  ignore_errors: yes

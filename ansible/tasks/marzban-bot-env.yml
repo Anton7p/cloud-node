@@ -16,7 +16,6 @@
   when: reality_public_key is defined or REALITY_PUBLIC_KEY is defined
   delegate_to: "{{ groups['master'][0] | default('localhost') }}"
   become: yes
-  ignore_errors: yes
   no_log: true
 
 - name: Restart bot container to apply new env vars
@@ -26,4 +25,3 @@
   when: reality_public_key is defined
   delegate_to: "{{ groups['master'][0] | default('localhost') }}"
   become: yes
-  ignore_errors: yes

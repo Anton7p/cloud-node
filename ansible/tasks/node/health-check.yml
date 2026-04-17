@@ -12,13 +12,11 @@
   retries: 15
   delay: 2
   until: health_check.status == 200
-  ignore_errors: yes
   when: restart_required or compose_file is changed or container_status.stdout != ''
 
 - name: Prune old Docker images
   command: docker image prune -f
   changed_when: true
-  ignore_errors: yes
 
 - name: Display deployment status
   debug:

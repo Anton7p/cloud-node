@@ -37,7 +37,6 @@
     chdir: "{{ deploy_dir }}"
   register: bot_logs
   changed_when: false
-  ignore_errors: yes
   when: failed_service_names is defined and 'cloudnode-bot' in failed_service_names
 
 - name: Display bot logs on failure
@@ -48,7 +47,6 @@
 - name: DEBUG - Get bot logs for diagnostics
   shell: docker logs cloudnode-bot 2>&1 | tail -100
   register: diagnostic_logs
-  ignore_errors: yes
 
 - name: DEBUG - Show bot diagnostic logs
   debug:
@@ -58,7 +56,6 @@
 - name: DEBUG - Show docker-compose ps output
   shell: docker ps -a --filter name=cloudnode --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
   register: docker_ps_output
-  ignore_errors: yes
 
 - name: DEBUG - Show container statuses
   debug:
@@ -75,14 +72,12 @@
     method: GET
     status_code: [200, 404]
   register: health_check
-  ignore_errors: yes
   retries: 5
   delay: 10
 
 - name: Get bot container logs on health check failure
   shell: docker logs cloudnode-bot 2>&1 | tail -50
   register: bot_logs_failure
-  ignore_errors: yes
   when: health_check is failed or health_check.status == -1
 
 - name: DEBUG - Bot container logs on failure
@@ -93,7 +88,6 @@
 - name: Get bot container status
   shell: docker ps -a | grep cloudnode-bot
   register: bot_container_status
-  ignore_errors: yes
 
 - name: DEBUG - Bot container status
   debug:

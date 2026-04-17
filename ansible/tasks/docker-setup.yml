@@ -3,7 +3,6 @@
 - name: Check if Docker is installed
   command: docker --version
   register: docker_check
-  ignore_errors: yes
   changed_when: false
 
 - name: Update apt cache
@@ -22,7 +21,6 @@
     state: absent
     purge: yes
   when: ansible_facts['os_family'] == "Debian"
-  ignore_errors: yes
 
 - name: Install prerequisites for Docker
   apt:
@@ -55,7 +53,6 @@
     name: "{{ ansible_user | default(ansible_ssh_user) }}"
     groups: docker
     append: yes
-  ignore_errors: yes
 
 - name: Ensure Docker Compose V2 plugin directory exists
   file:
@@ -69,7 +66,6 @@
     dest: /usr/local/bin/docker-compose
     state: link
     force: yes
-  ignore_errors: yes
 
 - name: Ensure Docker daemon.json exists
   copy:
@@ -80,7 +76,6 @@
       }
     dest: /etc/docker/daemon.json
     mode: '0644'
-  ignore_errors: yes
   notify: restart docker
 
 - name: Configure DOCKER-USER chain to respect UFW
@@ -91,6 +86,5 @@
     iptables -I DOCKER-USER -i docker0 -j ACCEPT
     iptables -I DOCKER-USER -i br-+ -j ACCEPT
     iptables -A DOCKER-USER -j RETURN
-  ignore_errors: yes
 
 # Note: Handler 'restart docker' is defined in deploy_node.yml handlers section

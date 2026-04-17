@@ -8,7 +8,6 @@
     chdir: "{{ deploy_dir }}"
   register: compose_down
   changed_when: compose_down.rc == 0
-  ignore_errors: yes
 
 - name: Start database and Redis first (for DB initialization)
   command: docker compose up -d db redis
@@ -41,7 +40,6 @@
     DB_PASSWORD: "{{ db_password }}"
   register: db_create
   changed_when: "'CREATE DATABASE' in db_create.stdout | default('')"
-  ignore_errors: yes
 
 - name: Display database creation status
   debug:
@@ -93,7 +91,6 @@
   delay: 5
   until: prisma_db_push.rc == 0
   changed_when: true
-  ignore_errors: yes
 
 - name: Display migration status
   debug:
@@ -108,4 +105,3 @@
 - name: Prune unused Docker images to free disk space
   command: docker image prune -f
   changed_when: true
-  ignore_errors: yes

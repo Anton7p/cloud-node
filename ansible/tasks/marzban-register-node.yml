@@ -15,7 +15,6 @@
   delegate_to: localhost
   become: no
   run_once: yes
-  ignore_errors: yes
 
 - name: DEBUG - Raw inbounds_check result
   debug:
@@ -30,7 +29,6 @@
       - "Keys: {{ inbounds_check.json.keys() | list | default([]) }}"
   delegate_to: localhost
   become: no
-  ignore_errors: yes
 
 - name: Set fact - VLESS inbound exists (object format)
   set_fact:
@@ -41,7 +39,6 @@
          inbounds_check.json.vless | length > 0 }}
   delegate_to: localhost
   become: no
-  ignore_errors: yes
 
 - name: DEBUG - Inbound status
   debug:
@@ -62,7 +59,6 @@
   delegate_to: localhost
   become: no
   run_once: yes
-  ignore_errors: yes
 
 - name: Find malformed nodes to clean up (names containing JSON or special chars)
   set_fact:
@@ -89,7 +85,6 @@
   when: nodes_to_cleanup | length > 0
   delegate_to: localhost
   become: no
-  ignore_errors: yes
 
 - name: Check if current node already registered with correct format
   set_fact:
@@ -141,7 +136,6 @@
   register: node_registration
   delegate_to: localhost
   become: no
-  ignore_errors: yes
   no_log: true
 
 - name: Display node registration status
