@@ -44,7 +44,7 @@
           - "Reality Public Key defined: {{ reality_public_key | length > 0 }}"
 
     - name: DEBUG - Check Docker status
-      shell: docker version && docker info --format "{{.ServerVersion}}"
+      shell: docker version && docker info 2>&1 | head -20
       register: docker_check
       changed_when: false
 
