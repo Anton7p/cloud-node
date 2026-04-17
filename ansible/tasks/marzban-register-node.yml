@@ -23,29 +23,29 @@
   delegate_to: localhost
   become: no
 
-- name: DEBUG - inbounds_check.json type
+- name: DEBUG - inbounds_check.json structure
   debug:
     msg:
       - "Type: {{ inbounds_check.json | type_debug }}"
-      - "Content: {{ inbounds_check.json }}"
+      - "Keys: {{ inbounds_check.json.keys() | list | default([]) }}"
   delegate_to: localhost
   become: no
   ignore_errors: yes
 
-- name: Set fact - VLESS inbound exists
+- name: Set fact - VLESS inbound exists (object format)
   set_fact:
     vless_inbound_exists: >-
       {{ inbounds_check.json is defined and
          inbounds_check.json is mapping and
-         inbounds_check.json.inbounds is defined and
-         inbounds_check.json.inbounds | selectattr('tag', 'equalto', 'VLESS_REALITY') | list | length > 0 }}
+         inbounds_check.json.vless is defined and
+         inbounds_check.json.vless | length > 0 }}
   delegate_to: localhost
   become: no
   ignore_errors: yes
 
 - name: DEBUG - Inbound status
   debug:
-    msg: "VLESS_REALITY inbound exists: {{ vless_inbound_exists | default(false) }}"
+    msg: "VLESS Reality inbound exists: {{ vless_inbound_exists | default(false) }}"
   delegate_to: localhost
   become: no
 
