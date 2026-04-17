@@ -93,11 +93,21 @@
     - not vless_reality_exists | bool
     - reality_private_key is defined
 
+- name: Save current core config to file
+  copy:
+    content: "{{ core_config.json | to_nice_json }}"
+    dest: "/tmp/current_core_config.json"
+  delegate_to: localhost
+  become: no
+  when:
+    - not vless_reality_exists | bool
+    - reality_private_key is defined
+
 - name: Build updated core config with new inbound
   shell: |
-    jq --slurpfile inbound /tmp/vless_reality_inbound.json '
-      .inbounds = (.inbounds // []) + $inbound
-    ' <(echo '{{ core_config.json | to_json }}')
+    cat /tmp/current_core_config.json | \
+    jq --slurpfile inbound /tmp/vless_reality_inbound.json \
+    '.inbounds = (.inbounds // []) + $inbound'
   register: updated_config_json
   delegate_to: localhost
   become: no
@@ -119,7 +129,7 @@
   when:
     - not vless_reality_exists | bool
     - reality_private_key is defined
-    - updated_config_json is succeeded
+    - updated_config_json.rc == 0
   register: config_update_result
   delegate_to: localhost
   become: no
