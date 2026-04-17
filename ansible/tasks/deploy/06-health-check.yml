@@ -59,3 +59,23 @@
   ignore_errors: yes
   retries: 5
   delay: 10
+
+- name: Get bot container logs on health check failure
+  shell: docker logs cloudnode-bot 2>&1 | tail -50
+  register: bot_logs_failure
+  ignore_errors: yes
+  when: health_check is failed or health_check.status == -1
+
+- name: DEBUG - Bot container logs on failure
+  debug:
+    var: bot_logs_failure.stdout
+  when: bot_logs_failure is defined and bot_logs_failure.stdout is defined
+
+- name: Get bot container status
+  shell: docker ps -a | grep cloudnode-bot
+  register: bot_container_status
+  ignore_errors: yes
+
+- name: DEBUG - Bot container status
+  debug:
+    var: bot_container_status.stdout
