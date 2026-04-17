@@ -22,6 +22,8 @@
     # Extra-vars have highest precedence and override these defaults
     redis_password: "{{ redis_password | default(vpn_admin_password) }}"
     marzban_inbound_tag: "{{ marzban_inbound_tag | default('VLESS_REALITY') }}"
+    reality_public_key: "{{ reality_public_key | default('') }}"
+    reality_short_id: "{{ reality_short_id | default('') }}"
 
   pre_tasks:
     - name: DEBUG - Log deployment start

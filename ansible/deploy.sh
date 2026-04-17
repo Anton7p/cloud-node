@@ -45,6 +45,8 @@ ansible-playbook -i inventory.ini deploy_app.yml \
   -e "infrastructure_ip_list=${INFRASTRUCTURE_IP_LIST}" \
   -e "ghcr_username=${GHCR_USERNAME}" \
   -e "ghcr_token=${GHCR_TOKEN}" \
-  -e "redis_password=${REDIS_PASSWORD:-${VPN_ADMIN_PASSWORD}}"
+  -e "redis_password=${REDIS_PASSWORD:-${VPN_ADMIN_PASSWORD}}" \
+  -e "reality_public_key=${REALITY_PUBLIC_KEY:-}" \
+  -e "reality_short_id=${REALITY_SHORT_ID:-}"
 
 echo "Deployment completed!"
