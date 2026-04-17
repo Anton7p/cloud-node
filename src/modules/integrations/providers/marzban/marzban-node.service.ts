@@ -27,10 +27,26 @@ export class MarzbanNodeService {
       return;
     }
 
-    const ips = ipList
-      .split(',')
-      .map((ip) => ip.trim())
-      .filter((ip) => ip);
+    let ips: string[] = [];
+
+    // Try parsing as JSON array of objects with 'address' field
+    try {
+      if (ipList.trim().startsWith('[')) {
+        const parsed = JSON.parse(ipList.replace(/'/g, '"')) as Array<{
+          address?: string;
+          password?: string;
+        }>;
+        ips = parsed
+          .map((item) => item.address)
+          .filter((ip): ip is string => !!ip);
+      }
+    } catch {
+      // Not JSON, fall back to comma-separated list
+      ips = ipList
+        .split(',')
+        .map((ip) => ip.trim())
+        .filter((ip) => ip);
+    }
     if (ips.length === 0) {
       this.logger.log('No infrastructure IPs found');
       return;

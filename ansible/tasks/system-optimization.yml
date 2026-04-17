@@ -134,16 +134,30 @@
     - '2053'
     - '2096'
 
+- name: Parse infrastructure IPs from JSON
+  set_fact:
+    infrastructure_ips: "{{ (infrastructure_ip_list | from_json) | map(attribute='address') | list }}"
+  when:
+    - infrastructure_ip_list | length > 0
+    - infrastructure_ip_list is string
+
+- name: Fallback to split if not JSON
+  set_fact:
+    infrastructure_ips: "{{ infrastructure_ip_list.split(',') | default(['0.0.0.0/0'], true) }}"
+  when:
+    - infrastructure_ip_list | length > 0
+    - infrastructure_ips is not defined
+
 - name: Allow Marzban API (port 8000) from infrastructure nodes only
   ufw:
     rule: allow
     port: '8000'
     proto: tcp
     src: "{{ item | trim }}"
-  loop: "{{ infrastructure_ip_list.split(',') | default(['0.0.0.0/0'], true) }}"
+  loop: "{{ infrastructure_ips | default(['0.0.0.0/0'], true) }}"
   when:
     - "'master' in group_names or inventory_hostname in groups['master']"
-    - infrastructure_ip_list | length > 0
+    - infrastructure_ips | length > 0
 
 # ==========================================
 # 6. Docker Firewall Protection (DOCKER-USER chain)
@@ -158,10 +172,10 @@
   shell: |
     iptables -C DOCKER-USER -p tcp -s {{ item | trim }} --dport 8000 -j ACCEPT 2>/dev/null || \
     iptables -I DOCKER-USER -p tcp -s {{ item | trim }} --dport 8000 -j ACCEPT
-  loop: "{{ infrastructure_ip_list.split(',') | default([]) }}"
+  loop: "{{ infrastructure_ips | default([]) }}"
   when:
     - "'master' in group_names or inventory_hostname in groups['master']"
-    - infrastructure_ip_list | length > 0
+    - infrastructure_ips | length > 0
 
 - name: Enable UFW
   ufw:

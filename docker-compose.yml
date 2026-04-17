@@ -11,7 +11,7 @@ services:
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PASSWORD: ${VPN_ADMIN_PASSWORD}
       MARZBAN_URL: http://marzban:8000
       VPN_ADMIN_USERNAME: ${VPN_ADMIN_USERNAME}
       VPN_ADMIN_PASSWORD: ${VPN_ADMIN_PASSWORD}
@@ -47,9 +47,9 @@ services:
       - cloudnode-network
     volumes:
       - marzban-node-certs:/var/www/marzban_node/var:rw
-    # Ports only if bot exposes HTTP endpoints
-    # ports:
-    #   - "3000:3000"
+    # Health check endpoint
+    ports:
+      - "127.0.0.1:3000:3000"
     logging:
       driver: "json-file"
       options:
