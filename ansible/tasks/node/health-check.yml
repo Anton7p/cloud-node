@@ -2,12 +2,11 @@
 # Marzban Node Health Check and Cleanup Tasks
 # ==========================================
 
-- name: Wait for Marzban Node to be ready (HTTPS)
+- name: Wait for Marzban Node to be ready (HTTP)
   uri:
-    url: "https://localhost:{{ service_port }}/health"
+    url: "http://localhost:{{ service_port }}/health"
     method: GET
     status_code: 200
-    validate_certs: no
   register: health_check
   retries: 15
   delay: 2

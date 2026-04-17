@@ -60,33 +60,13 @@
   become: no
   run_once: yes
 
-- name: Find malformed nodes to clean up (names containing JSON or special chars)
-  set_fact:
-    nodes_to_cleanup: >-
-      {{ existing_nodes.json | default([]) | selectattr('name', 'search', '[\\[\\]{\\}\"]') | list }}
-  delegate_to: localhost
-  become: no
-
-- name: DEBUG - Show nodes to cleanup
+- name: DEBUG - Skip cleanup on fresh install (no malformed nodes expected)
   debug:
-    msg: "Found {{ nodes_to_cleanup | length }} malformed nodes to cleanup"
+    msg: "Fresh server - skipping malformed node cleanup"
   delegate_to: localhost
   become: no
 
-- name: Delete malformed node entries (cleanup garbage)
-  uri:
-    url: "{{ computed_api_url }}/node/{{ item.id }}"
-    method: DELETE
-    headers:
-      Authorization: "Bearer {{ auth_response.json.access_token }}"
-    status_code: [200, 204, 404]
-    timeout: 30
-  loop: "{{ nodes_to_cleanup }}"
-  when: nodes_to_cleanup | length > 0
-  delegate_to: localhost
-  become: no
-
-- name: Check if current node already registered with correct format
+- name: Check if current node already registered
   set_fact:
     node_already_registered: >-
       {{ existing_nodes.json is defined and
