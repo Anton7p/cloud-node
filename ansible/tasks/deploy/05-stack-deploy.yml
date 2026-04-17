@@ -91,10 +91,24 @@
   args:
     chdir: "{{ deploy_dir }}"
   register: bot_container
-  retries: 10
+  retries: 15
   delay: 5
   until: bot_container.stdout | length > 0
   changed_when: false
+
+- name: DEBUG - Check bot container state
+  shell: docker compose ps bot --format "{{'{{.Status}}'}}"
+  args:
+    chdir: "{{ deploy_dir }}"
+  register: bot_status
+  retries: 10
+  delay: 5
+  until: bot_status.stdout is defined and 'running' in bot_status.stdout | lower
+  changed_when: false
+
+- name: DEBUG - Show bot container state
+  debug:
+    var: bot_status.stdout
 
 - name: Run Prisma db push to create tables from schema
   shell: |
