@@ -141,17 +141,33 @@
 
     - name: Validate required variables
       fail:
-        msg: "Missing required variable: {{ item }}"
-      when: vars[item] is not defined or vars[item] | length == 0
-      loop:
-        - image_name
-        - image_tag
-        - db_password
-        - telegram_bot_token
-        - encryption_key
-        - vpn_admin_username
-        - vpn_admin_password
-        - domain_name
+        msg: "Missing required variable: image_name or image_tag"
+      when: image_name | length == 0 or image_tag | length == 0
+
+    - name: Validate required variables (db_password)
+      fail:
+        msg: "Missing required variable: db_password (or vpn_admin_password as fallback)"
+      when: db_password | length == 0
+
+    - name: Validate required variables (telegram_bot_token)
+      fail:
+        msg: "Missing required variable: telegram_bot_token"
+      when: telegram_bot_token | length == 0
+
+    - name: Validate required variables (encryption_key)
+      fail:
+        msg: "Missing required variable: encryption_key"
+      when: encryption_key | length == 0
+
+    - name: Validate required variables (vpn_admin)
+      fail:
+        msg: "Missing required variable: vpn_admin_username or vpn_admin_password"
+      when: vpn_admin_username | length == 0 or vpn_admin_password | length == 0
+
+    - name: Validate required variables (domain_name)
+      fail:
+        msg: "Missing required variable: domain_name"
+      when: domain_name | length == 0
 
   tasks:
     - name: Setup Docker and Docker Compose
