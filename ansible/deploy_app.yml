@@ -14,23 +14,14 @@
     registry_url: "ghcr.io"
     server_ip: "{{ inventory_hostname }}"
     server_user: "root"
-    # These vars are passed via --extra-vars (-e) from CI/CD or deploy.sh
-    # Using default('') to allow extra-vars to override
-    image_name: "{{ image_name | default('') }}:{{ image_tag | default('') }}"
-    image_tag: "{{ image_tag | default('') }}"
-    db_password: "{{ db_password | default(vpn_admin_password | default('')) }}"
-    telegram_bot_token: "{{ telegram_bot_token | default('') }}"
-    encryption_key: "{{ encryption_key | default('') }}"
-    redis_password: "{{ redis_password | default(vpn_admin_password | default('')) }}"
-    vpn_admin_username: "{{ vpn_admin_username | default('') }}"
-    vpn_admin_password: "{{ vpn_admin_password | default('') }}"
-    infrastructure_ip_list: "{{ infrastructure_ip_list | default('') }}"
-    domain_name: "{{ domain_name | default('') }}"
-    reality_public_key: "{{ reality_public_key | default('') }}"
-    reality_short_id: "{{ reality_short_id | default('') }}"
+    # Variables passed via --extra-vars (-e) from CI/CD or deploy.sh:
+    # image_name, image_tag, db_password, telegram_bot_token, encryption_key,
+    # vpn_admin_username, vpn_admin_password, domain_name, infrastructure_ip_list,
+    # ghcr_username, ghcr_token, redis_password, reality_public_key, reality_short_id,
+    # marzban_inbound_tag
+    # Extra-vars have highest precedence and override these defaults
+    redis_password: "{{ redis_password | default(vpn_admin_password) }}"
     marzban_inbound_tag: "{{ marzban_inbound_tag | default('VLESS_REALITY') }}"
-    ghcr_username: "{{ ghcr_username | default('') }}"
-    ghcr_token: "{{ ghcr_token | default('') }}"
 
   pre_tasks:
     - name: DEBUG - Log deployment start
