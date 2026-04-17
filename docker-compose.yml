@@ -20,7 +20,22 @@ services:
       MARZBAN_NODE_CERT_DIR: /var/www/marzban_node/var
     env_file:
       - .env
-    command: sh -c "npx prisma migrate deploy && node dist/main.js"
+    command: >
+      sh -c '
+        echo "[BOT] Starting with environment: NODE_ENV=$${NODE_ENV}" &&
+        echo "[BOT] Database: $${DATABASE_URL//:*@/***:****@}" &&
+        echo "[BOT] Marzban URL: $${MARZBAN_URL}" &&
+        echo "[BOT] Running Prisma migrate deploy..." &&
+        npx prisma migrate deploy &&
+        echo "[BOT] Migration complete, starting application..." &&
+        node dist/main.js
+      '
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     depends_on:
       db:
         condition: service_healthy

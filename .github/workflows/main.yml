@@ -17,9 +17,26 @@ on:
 
 jobs:
   # ==========================================
+  # Stage 0: Debug Environment
+  # ==========================================
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Debug Environment Variables
+        run: |
+          echo "=== DEBUG: Environment Variables ==="
+          echo "GitHub Actor: ${{ github.actor }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Branch: ${{ github.ref }}"
+          echo "INFRASTRUCTURE_IP_LIST exists: ${{ secrets.INFRASTRUCTURE_IP_LIST != '' }}"
+          echo "SERVER_IP exists: ${{ secrets.SERVER_IP != '' }}"
+          echo "======================================"
+
+  # ==========================================
   # Stage 1: Build Docker Image
   # ==========================================
   build:
+    needs: debug
     uses: ./.github/workflows/build.yml
     permissions:
       contents: read
@@ -30,7 +47,7 @@ jobs:
   # Stage 2: Application Deploy
   # ==========================================
   deploy:
-    needs: build
+    needs: [debug, build]
     uses: ./.github/workflows/deploy.yml
     with:
       image_tag: ${{ needs.build.outputs.image_tag }}
@@ -41,6 +58,6 @@ jobs:
   # Stage 3: Infrastructure Setup (after app is ready)
   # ==========================================
   infrastructure:
-    needs: [build, deploy]
+    needs: [debug, build, deploy]
     uses: ./.github/workflows/infrastructure.yml
     secrets: inherit

@@ -31,6 +31,36 @@
     ghcr_token: "{{ lookup('env', 'GHCR_TOKEN') }}"
 
   pre_tasks:
+    - name: DEBUG - Log deployment start
+      debug:
+        msg:
+          - "=== DEPLOYMENT START ==="
+          - "Target: {{ inventory_hostname }}"
+          - "Deploy dir: {{ deploy_dir }}"
+          - "Image: {{ image_name }}"
+          - "Domain: {{ domain_name }}"
+          - "Infrastructure IPs: {{ infrastructure_ip_list }}"
+          - "VPN Admin defined: {{ vpn_admin_username | length > 0 }}"
+          - "Reality Public Key defined: {{ reality_public_key | length > 0 }}"
+
+    - name: DEBUG - Check Docker status
+      shell: docker version && docker info --format "{{.ServerVersion}}"
+      register: docker_check
+      changed_when: false
+
+    - name: DEBUG - Show Docker status
+      debug:
+        var: docker_check.stdout
+
+    - name: DEBUG - Check disk space
+      shell: df -h {{ deploy_dir }} 2>/dev/null || df -h /
+      register: disk_space
+      changed_when: false
+
+    - name: DEBUG - Show disk space
+      debug:
+        var: disk_space.stdout
+
     - name: Generate Reality keys if not provided
       block:
         - name: Check if keys need generation

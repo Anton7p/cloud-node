@@ -2,12 +2,27 @@
 # Application Deployment: Stack Deployment
 # ==========================================
 
+- name: DEBUG - Starting stack deployment
+  debug:
+    msg:
+      - "=== STACK DEPLOY START ==="
+      - "Directory: {{ deploy_dir }}"
+      - "Database exists check starting"
+
 - name: Stop existing containers gracefully
   command: docker compose down --timeout 30
   args:
     chdir: "{{ deploy_dir }}"
   register: compose_down
   changed_when: compose_down.rc == 0
+
+- name: DEBUG - Compose down result
+  debug:
+    msg: "Compose down exit code: {{ compose_down.rc }}"
+
+- name: DEBUG - Starting database and Redis
+  debug:
+    msg: "Starting database initialization..."
 
 - name: Start database and Redis first (for DB initialization)
   command: docker compose up -d db redis
@@ -83,24 +98,41 @@
 
 - name: Run Prisma db push to create tables from schema
   shell: |
-    docker compose exec -T bot npx prisma db push --accept-data-loss 2>&1
+    echo "[ANSIBLE] Running Prisma migrate deploy..." &&
+    docker compose exec -T bot npx prisma migrate deploy 2>&1
   args:
     chdir: "{{ deploy_dir }}"
-  register: prisma_db_push
+  register: prisma_migrate
   retries: 3
   delay: 5
-  until: prisma_db_push.rc == 0
+  until: prisma_migrate.rc == 0
   changed_when: true
+
+- name: DEBUG - Migration result
+  debug:
+    msg:
+      - "Migration exit code: {{ prisma_migrate.rc }}"
+      - "Migration stdout: {{ prisma_migrate.stdout | default('') | truncate(200) }}"
+      - "Migration stderr: {{ prisma_migrate.stderr | default('') | truncate(200) }}"
 
 - name: Display migration status
   debug:
-    msg: "Prisma DB push: {{ 'SUCCESS' if prisma_db_push.rc == 0 else 'FAILED - ' + prisma_db_push.stderr | default('unknown') }}"
+    msg: "Prisma migrate: {{ 'SUCCESS' if prisma_migrate.rc == 0 else 'FAILED - ' + prisma_migrate.stderr | default('unknown') }}"
 
-- name: Restart bot if db push was applied
+- name: DEBUG - Container status before restart
+  shell: docker ps -a --format "table {{ '{{.Names}}' }}\t{{ '{{.Status}}' }}\t{{ '{{.Ports}}' }}" | grep cloudnode
+  register: container_status_before
+  changed_when: false
+
+- name: Show container status
+  debug:
+    var: container_status_before.stdout
+
+- name: Restart bot if migration was applied
   command: docker compose restart bot
   args:
     chdir: "{{ deploy_dir }}"
-  when: prisma_db_push.rc == 0
+  when: prisma_migrate.rc == 0
 
 - name: Prune unused Docker images to free disk space
   command: docker image prune -f

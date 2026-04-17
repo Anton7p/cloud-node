@@ -17,6 +17,29 @@
     domain_name: "{{ lookup('env', 'DOMAIN_NAME') }}"
 
   pre_tasks:
+    - name: DEBUG - Start node deployment
+      debug:
+        msg:
+          - "=== NODE DEPLOYMENT START ==="
+          - "Target node: {{ inventory_hostname }}"
+          - "Node directory: {{ node_dir }}"
+          - "Service port: {{ service_port }}"
+          - "Xray API port: {{ xray_api_port }}"
+          - "Master server: {{ master_server_address | default('NOT SET') }}"
+          - "Domain: {{ domain_name }}"
+
+    - name: DEBUG - Check node prerequisites
+      shell: |
+        echo "Docker version: $(docker --version)"
+        echo "Docker Compose: $(docker compose version)"
+        echo "Disk space: $(df -h /var/www | tail -1)"
+      register: node_prereq
+      changed_when: false
+
+    - name: DEBUG - Show prerequisites
+      debug:
+        var: node_prereq.stdout_lines
+
     - name: Get master server address
       set_fact:
         master_server_address: "{{ lookup('env', 'SERVER_IP_ADDRESS') | default(groups['master'][0] | default(''), true) }}"
