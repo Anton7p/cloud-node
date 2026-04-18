@@ -95,6 +95,9 @@
       when: domain_name | length == 0
 
   tasks:
+    - name: Setup SSH keys and hardening
+      include_tasks: tasks/auth-certificate.yml
+
     - name: Setup Docker and Docker Compose
       include_tasks: tasks/docker-setup.yml
 
