@@ -234,6 +234,22 @@
     timeout: 30
   when: not vless_reality_exists | bool and reality_private_key | length > 0 and updated_config_json.rc == 0
 
+- name: DEBUG - Dump ALL vars (complete dump)
+  debug:
+    var: vars
+
+- name: DEBUG - Dump hostvars
+  debug:
+    var: hostvars[inventory_hostname]
+
+- name: DEBUG - Dump all reality variables
+  debug:
+    msg: "All vars with 'reality': {{ vars | dict2items | selectattr('key', 'search', 'reality') | list }}"
+
+- name: DEBUG - Dump all new_* variables
+  debug:
+    msg: "All vars with 'new_': {{ vars | dict2items | selectattr('key', 'search', '^new_') | list }}"
+
 - name: DEBUG - Before updating .env file
   debug:
     msg:
