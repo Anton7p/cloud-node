@@ -185,9 +185,9 @@
 
 - name: Select final keys (new or existing)
   set_fact:
-    reality_private_key: "{{ new_private_key }}"
-    reality_public_key: "{{ new_public_key }}"
-    reality_short_id: "{{ new_short_id }}"
+    reality_private_key: "{{ new_private_key if not vless_reality_exists else existing_private_key | default('') }}"
+    reality_public_key: "{{ new_public_key if not vless_reality_exists else existing_public_key | default('') }}"
+    reality_short_id: "{{ new_short_id if not vless_reality_exists else existing_short_id | default('abcd1234') }}"
 
 - name: DEBUG - Final keys selected
   debug:
