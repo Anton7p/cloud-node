@@ -133,48 +133,68 @@
   debug:
     msg: "Compose down exit code: {{ compose_down.rc }}"
 
-- name: DEBUG - Starting database and Redis
-  debug:
-    msg: "Starting database initialization..."
-
-- name: Start database and Redis first (for DB initialization)
+# ============================================================================
+# BOOT SEQUENCE STEP 1: Infrastructure (DB & Redis)
+# ============================================================================
+- name: Start infrastructure services (db, redis)
   command: docker compose up -d db redis
   args:
     chdir: "{{ deploy_dir }}"
   environment:
     DB_PASSWORD: "{{ db_password }}"
-  register: db_start
+    REDIS_PASSWORD: "{{ redis_password | default('') }}"
+  register: infra_up
   retries: 3
-  delay: 3
-  until: db_start.rc == 0
+  delay: 5
+  until: infra_up.rc == 0
 
 - name: Wait for PostgreSQL to be ready
   command: docker compose exec -T db pg_isready -U postgres
   args:
     chdir: "{{ deploy_dir }}"
   register: pg_ready
-  retries: 10
+  retries: 15
   delay: 3
   until: pg_ready.rc == 0
   changed_when: false
 
-- name: Create database if not exists
-  shell: |
-    docker compose exec -T db psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'cloudnode'" | grep -q 1 || \
-    docker compose exec -T db psql -U postgres -c "CREATE DATABASE cloudnode;"
+# ============================================================================
+# BOOT SEQUENCE STEP 2: VPN Core (Marzban)
+# ============================================================================
+- name: Start VPN Core (Marzban)
+  command: docker compose up -d marzban
   args:
     chdir: "{{ deploy_dir }}"
   environment:
-    DB_PASSWORD: "{{ db_password }}"
-  register: db_create
-  changed_when: "'CREATE DATABASE' in db_create.stdout | default('')"
+    VPN_ADMIN_USERNAME: "{{ vpn_admin_username }}"
+    VPN_ADMIN_PASSWORD: "{{ vpn_admin_password }}"
+  register: marzban_up
+  retries: 3
+  delay: 5
+  until: marzban_up.rc == 0
 
-- name: Display database creation status
-  debug:
-    msg: "Database 'cloudnode' status: {{ 'CREATED' if db_create.changed else 'EXISTS or FAILED' }}"
+- name: Wait for Marzban container to be healthy
+  command: docker compose ps marzban --format "{{'{{.Health}}'}}"
+  args:
+    chdir: "{{ deploy_dir }}"
+  register: marzban_health
+  retries: 20
+  delay: 5
+  until: marzban_health.stdout is defined and 'healthy' in marzban_health.stdout | lower
+  changed_when: false
 
-- name: Start application stack (all services)
-  command: docker compose up -d
+# ============================================================================
+# BOOT SEQUENCE STEP 3: Generate Reality Keys via Marzban API
+# ============================================================================
+- name: Setup Reality Keys via Marzban API
+  include_tasks: tasks/setup-reality-keys.yml
+  when: inventory_hostname in groups['master'] | default([inventory_hostname])
+
+# ============================================================================
+# BOOT SEQUENCE STEP 4: The App (Bot)
+# ============================================================================
+- name: Start Bot application
+  command: docker compose up -d bot
   args:
     chdir: "{{ deploy_dir }}"
   environment:
@@ -188,8 +208,6 @@
     VPN_ADMIN_PASSWORD: "{{ vpn_admin_password }}"
     INFRASTRUCTURE_IP_LIST: "{{ infrastructure_ip_list | default('') }}"
     DOMAIN_NAME: "{{ domain_name }}"
-    REALITY_PUBLIC_KEY: "{{ reality_public_key | default('initial_placeholder_key_change_me') }}"
-    REALITY_SHORT_ID: "{{ reality_short_id | default('abcd1234') }}"
   register: compose_up
   retries: 2
   delay: 5
@@ -208,15 +226,14 @@
   delay: 10
   until: bot_health.stdout is defined and 'healthy' in bot_health.stdout | lower
   changed_when: false
-  ignore_errors: true
 
 - name: DEBUG - Show bot health status
   debug:
     var: bot_health.stdout
 
-- name: WARN if bot is not healthy (may need key generation from Marzban)
-  debug:
-    msg: "WARNING: Bot container not healthy yet. This is expected if Reality keys are not yet generated. Marzban tasks will generate keys and restart bot."
+- name: Fail if bot is not healthy after boot sequence
+  fail:
+    msg: "Bot container failed to become healthy. Check logs with: docker compose logs bot. Note: Keys should be generated before bot start in the new boot sequence."
   when: bot_health is failed or not ('healthy' in bot_health.stdout | lower)
 
 - name: Prune unused Docker images to free disk space
