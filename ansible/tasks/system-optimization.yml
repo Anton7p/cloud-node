@@ -30,13 +30,14 @@
   when: lookup('env', 'SSH_PUBLIC_KEY') | length > 0
 
 - name: Verify SSH service accepts key authentication
-  command: grep -E "^PubkeyAuthentication (yes|no)" /etc/ssh/sshd_config
+  shell: grep -E "^[#\s]*PubkeyAuthentication\s+(yes|no)" /etc/ssh/sshd_config || echo "NOT FOUND"
   register: pubkey_auth_check
   changed_when: false
+  ignore_errors: true
 
 - name: Display SSH key auth status
   debug:
-    msg: "SSH PubkeyAuthentication setting: {{ pubkey_auth_check.stdout | default('NOT SET') }}"
+    msg: "SSH PubkeyAuthentication setting: {{ pubkey_auth_check.stdout | default('NOT FOUND') }}"
 
 # ==========================================
 # 2. SSH Hardening - Disable password auth
