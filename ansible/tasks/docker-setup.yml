@@ -42,17 +42,26 @@
     creates: /usr/bin/docker
   when: docker_check.rc != 0
 
+- name: Check if Docker service exists
+  command: systemctl list-unit-files docker.service
+  register: docker_service_check
+  changed_when: false
+  ignore_errors: true
+
 - name: Enable and start Docker service
   systemd:
     name: docker
     enabled: yes
     state: started
+  when: docker_service_check.rc == 0
+  ignore_errors: true
 
 - name: Add root user to docker group
   user:
     name: root
     groups: docker
     append: yes
+  ignore_errors: true
 
 - name: Ensure Docker Compose V2 plugin directory exists
   file:

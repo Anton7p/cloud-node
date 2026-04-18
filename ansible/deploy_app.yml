@@ -35,7 +35,7 @@
           - "Domain: {{ domain_name }}"
           - "Infrastructure IPs: {{ infrastructure_ip_list }}"
           - "VPN Admin defined: {{ vpn_admin_username | length > 0 }}"
-          - "Reality Public Key defined: {{ reality_public_key | length > 0 }}"
+          - "Reality Public Key defined: {{ reality_public_key | default('') | length > 0 }}"
 
     - name: DEBUG - Check disk space
       shell: df -h {{ deploy_dir }} 2>/dev/null || df -h /
@@ -117,6 +117,11 @@
     - name: restart sshd
       systemd:
         name: ssh
+        state: restarted
+
+    - name: restart fail2ban
+      systemd:
+        name: fail2ban
         state: restarted
 
     - name: Restart bot container

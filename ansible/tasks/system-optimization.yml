@@ -109,13 +109,14 @@
     rule: allow
     port: '443'
     proto: tcp
-  when: "'nodes' in group_names or inventory_hostname in groups['nodes']"
+  when: "'nodes' in group_names"
 
 - name: Set master server IP fact for nodes
   set_fact:
-    master_server_ip: "{{ hostvars[groups['master'][0]]['ansible_host'] | default(hostvars[groups['master'][0]]['inventory_hostname'] | default(groups['master'][0] | default(''))) }}"
+    master_server_ip: "{{ hostvars[groups['master'][0]]['ansible_host'] | default(hostvars[groups['master'][0]]['inventory_hostname'] | default(groups['master'][0])) }}"
   when:
-    - "'nodes' in group_names or inventory_hostname in groups['nodes']"
+    - "'nodes' in group_names"
+    - "'master' in group_names"
     - groups['master'] is defined
     - groups['master'] | length > 0
 
@@ -126,7 +127,7 @@
     proto: tcp
     src: "{{ master_server_ip }}"
   when:
-    - "'nodes' in group_names or inventory_hostname in groups['nodes']"
+    - "'nodes' in group_names"
     - master_server_ip is defined
     - master_server_ip | length > 0
 
@@ -168,7 +169,7 @@
     src: "{{ item | trim }}"
   loop: "{{ infrastructure_ips | default(['0.0.0.0/0'], true) }}"
   when:
-    - "'master' in group_names or inventory_hostname in groups['master']"
+    - "'master' in group_names"
     - infrastructure_ips | length > 0
 
 # ==========================================
@@ -178,7 +179,7 @@
   shell: |
     iptables -C DOCKER-USER -p tcp --dport 8000 -j DROP 2>/dev/null || \
     iptables -I DOCKER-USER -p tcp --dport 8000 -j DROP
-  when: "'master' in group_names or inventory_hostname in groups['master']"
+  when: "'master' in group_names"
 
 - name: Allow infrastructure IPs to port 8000 in DOCKER-USER chain (master only)
   shell: |
@@ -186,7 +187,7 @@
     iptables -I DOCKER-USER -p tcp -s {{ item | trim }} --dport 8000 -j ACCEPT
   loop: "{{ infrastructure_ips | default([]) }}"
   when:
-    - "'master' in group_names or inventory_hostname in groups['master']"
+    - "'master' in group_names"
     - infrastructure_ips | length > 0
 
 - name: Enable UFW
@@ -240,9 +241,17 @@
       maxretry = 3
   notify: restart fail2ban
 
+- name: Check if fail2ban service exists
+  command: systemctl list-unit-files fail2ban.service
+  register: fail2ban_service_check
+  changed_when: false
+  ignore_errors: true
+
 - name: Enable and start Fail2Ban
   systemd:
     name: fail2ban
     enabled: yes
     state: started
+  when: fail2ban_service_check.rc == 0
+  ignore_errors: true
 

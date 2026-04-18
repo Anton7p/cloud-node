@@ -188,7 +188,7 @@
 # ============================================================================
 - name: Setup Reality Keys via Marzban API and start bot
   include_tasks: tasks/setup-reality-keys.yml
-  when: inventory_hostname in groups['master'] | default([inventory_hostname])
+  when: "'master' in group_names"
 
 - name: Prune unused Docker images to free disk space
   command: docker image prune -f
