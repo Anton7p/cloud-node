@@ -291,10 +291,22 @@
   changed_when: false
   when: failed_service_names is defined and 'cloudnode-marzban' in failed_service_names
 
-- name: Fail if critical services not running
-  fail:
-    msg: "Deployment failed - critical services are not running: {{ failed_service_names | join(', ') }}. Check logs above."
+- name: WARN - Some services not running (bot may need Reality keys from Marzban)
+  debug:
+    msg: |
+      WARNING: Some critical services are not running: {{ failed_service_names | join(', ') }}
+      - If 'cloudnode-bot' is in the list, this is EXPECTED during initial deployment.
+      - Bot requires REALITY_PUBLIC_KEY which is generated later by Marzban tasks.
+      - The bot will be automatically restarted after key generation.
+      - Continuing with Marzban setup...
   when: failed_service_names is defined and failed_service_names | length > 0
+
+- name: Fail if critical services not running (non-bot services)
+  fail:
+    msg: "Deployment failed - critical non-bot services are not running: {{ failed_non_bot_services | join(', ') }}. Check logs above."
+  when: failed_non_bot_services is defined and failed_non_bot_services | length > 0
+  vars:
+    failed_non_bot_services: "{{ failed_service_names | reject('search', 'cloudnode-bot') | list }}"
 
 - name: Verify bot health endpoint (if available)
   uri:
@@ -304,6 +316,7 @@
   register: health_check
   retries: 5
   delay: 10
+  ignore_errors: true
 
 # --- CLEANUP PHASE ---
 - name: Remove old Docker images
