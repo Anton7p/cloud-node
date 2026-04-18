@@ -17,6 +17,8 @@
     # All other variables (image_name, db_password, etc.) come from --extra-vars (-e)
     # Extra-vars have highest precedence in Ansible variable precedence order
     # Do NOT define them here to avoid conflicts
+    # This var is used in template and may not be passed via extra-vars
+    marzban_inbound_tag: "{{ hostvars[inventory_hostname]['marzban_inbound_tag'] | default('VLESS_REALITY') }}"
 
   pre_tasks:
     - name: DEBUG - Log deployment start
