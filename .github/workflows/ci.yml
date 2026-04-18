@@ -170,7 +170,8 @@ jobs:
           fi
           
           echo "Parsed server address: $SERVER_ADDRESS"
-          
+          echo "Password length: ${#SERVER_PASSWORD}"
+
           # Check if SSH key exists, fallback to password auth
           if [ -n "$SERVER_PASSWORD" ]; then
             echo "Using password authentication for bootstrap"
@@ -182,6 +183,7 @@ jobs:
             echo "ansible_ssh_pass=$SERVER_PASSWORD" >> inventory.ini
             echo "ansible_python_interpreter=/usr/bin/python3" >> inventory.ini
           else
+            echo "WARNING: No password found, using SSH key"
             echo "[master]" > inventory.ini
             echo "$SERVER_ADDRESS" >> inventory.ini
             echo "" >> inventory.ini
@@ -190,6 +192,9 @@ jobs:
             echo "ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory.ini
             echo "ansible_python_interpreter=/usr/bin/python3" >> inventory.ini
           fi
+
+          echo "=== Generated inventory.ini ==="
+          cat inventory.ini
 
       - name: Deploy to server
         env:
