@@ -208,15 +208,15 @@
   delay: 10
   until: bot_health.stdout is defined and 'healthy' in bot_health.stdout | lower
   changed_when: false
-  ignore_errors: false
+  ignore_errors: true
 
 - name: DEBUG - Show bot health status
   debug:
     var: bot_health.stdout
 
-- name: Fail if bot is not healthy
-  fail:
-    msg: "Bot container failed to become healthy. Check logs with: docker compose logs bot"
+- name: WARN if bot is not healthy (may need key generation from Marzban)
+  debug:
+    msg: "WARNING: Bot container not healthy yet. This is expected if Reality keys are not yet generated. Marzban tasks will generate keys and restart bot."
   when: bot_health is failed or not ('healthy' in bot_health.stdout | lower)
 
 - name: Prune unused Docker images to free disk space

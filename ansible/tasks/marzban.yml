@@ -228,7 +228,7 @@
 # SECTION 3: Update Bot Environment Variables
 # ============================================================================
 
-- name: Update bot .env file on master server
+- name: Update bot .env file on master server with Reality keys
   lineinfile:
     path: /var/www/cloudnode/.env
     regexp: "^{{ item.key }}="
@@ -236,10 +236,10 @@
     create: yes
     mode: '0644'
   loop:
-    - { key: "REALITY_PUBLIC_KEY", value: "{{ reality_public_key | default(REALITY_PUBLIC_KEY | default('')) }}" }
-    - { key: "REALITY_SHORT_ID", value: "{{ reality_short_id | default(REALITY_SHORT_ID | default('')) }}" }
+    - { key: "REALITY_PUBLIC_KEY", value: "{{ reality_public_key | default('') }}" }
+    - { key: "REALITY_SHORT_ID", value: "{{ reality_short_id | default('') }}" }
     - { key: "MARZBAN_INBOUND_TAG", value: "VLESS_REALITY" }
-  when: reality_public_key is defined or REALITY_PUBLIC_KEY is defined
+  when: (reality_public_key | default('')) | length > 0
   delegate_to: "{{ groups['master'][0] | default('localhost') }}"
   become: true
   no_log: true
@@ -248,7 +248,7 @@
   command: docker compose restart bot
   args:
     chdir: /var/www/cloudnode
-  when: reality_public_key is defined
+  when: (reality_public_key | default('')) | length > 0
   delegate_to: "{{ groups['master'][0] | default('localhost') }}"
   become: true
 
