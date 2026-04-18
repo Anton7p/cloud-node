@@ -1,0 +1,27 @@
+; Ansible inventory for VPN infrastructure
+; Copy this file to inventory.ini and fill in your server IPs
+;
+; DO NOT commit inventory.ini to Git - it contains sensitive server information!
+
+[master]
+; Master server (API and management)
+; Example: 203.0.113.1 ansible_user=root ansible_ssh_private_key_file=~/.ssh/id_ed25519
+YOUR_MASTER_IP_HERE
+
+[master:vars]
+ansible_user=root
+ansible_ssh_private_key_file=~/.ssh/id_ed25519
+ansible_python_interpreter=/usr/bin/python3
+ansible_ssh_common_args=-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+
+[nodes]
+; Infrastructure nodes (Marzban Nodes for traffic processing)
+; Uncomment and add your node IPs:
+; 203.0.113.2 ansible_user=root ansible_ssh_private_key_file=~/.ssh/id_ed25519
+; 203.0.113.3 ansible_user=root ansible_ssh_private_key_file=~/.ssh/id_ed25519
+
+[nodes:vars]
+ansible_user=root
+ansible_ssh_private_key_file=~/.ssh/id_ed25519
+ansible_python_interpreter=/usr/bin/python3
+ansible_ssh_extra_args=-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null

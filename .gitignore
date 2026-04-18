@@ -59,4 +59,5 @@ deploy-local.ps1
 ansible/load-env.ps1
 ansible/deploy.sh
 ansible/generate_inventory.sh
+ansible/inventory.ini
 fix-encoding.bat
