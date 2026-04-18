@@ -155,13 +155,14 @@ jobs:
       - name: Install dependencies
         run: |
           pip install ansible
-          sudo apt-get update && sudo apt-get install -y jq
+          sudo apt-get update && sudo apt-get install -y jq sshpass
 
       - name: Parse SERVER_IP and generate inventory
         run: |
           # Parse JSON format: {"address": "1.2.3.4", "password": "..."}
           SERVER_IP_JSON='${{ secrets.SERVER_IP }}'
           SERVER_ADDRESS=$(echo "$SERVER_IP_JSON" | jq -r '.address // empty')
+          SERVER_PASSWORD=$(echo "$SERVER_IP_JSON" | jq -r '.password // empty')
           
           if [ -z "$SERVER_ADDRESS" ]; then
             echo "Failed to parse SERVER_IP. Expected format: {\"address\": \"1.2.3.4\", \"password\": \"...\"}"
@@ -169,16 +170,30 @@ jobs:
           fi
           
           echo "Parsed server address: $SERVER_ADDRESS"
+          
+          # Check if SSH key exists, fallback to password auth
+          if [ -n "$SERVER_PASSWORD" ]; then
+            echo "Using password authentication for bootstrap"
+            cat > inventory.ini <<EOF
+[master]
+$SERVER_ADDRESS
 
-          cat > inventory.ini <<EOF
-          [master]
-          $SERVER_ADDRESS
+[master:vars]
+ansible_user=root
+ansible_ssh_pass=$SERVER_PASSWORD
+ansible_python_interpreter=/usr/bin/python3
+EOF
+          else
+            cat > inventory.ini <<EOF
+[master]
+$SERVER_ADDRESS
 
-          [master:vars]
-          ansible_user=root
-          ansible_ssh_private_key_file=~/.ssh/id_rsa
-          ansible_python_interpreter=/usr/bin/python3
-          EOF
+[master:vars]
+ansible_user=root
+ansible_ssh_private_key_file=~/.ssh/id_rsa
+ansible_python_interpreter=/usr/bin/python3
+EOF
+          fi
 
       - name: Deploy to server
         env:
