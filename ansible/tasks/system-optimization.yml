@@ -113,8 +113,11 @@
 
 - name: Set master server IP fact for nodes
   set_fact:
-    master_server_ip: "{{ hostvars[groups['master'][0]]['ansible_host'] | default(hostvars[groups['master'][0]]['inventory_hostname'] | default(groups['master'][0])) }}"
-  when: "'nodes' in group_names or inventory_hostname in groups['nodes']"
+    master_server_ip: "{{ hostvars[groups['master'][0]]['ansible_host'] | default(hostvars[groups['master'][0]]['inventory_hostname'] | default(groups['master'][0] | default(''))) }}"
+  when:
+    - "'nodes' in group_names or inventory_hostname in groups['nodes']"
+    - groups['master'] is defined
+    - groups['master'] | length > 0
 
 - name: Allow Marzban Node API (port 62050) from master only
   ufw:
@@ -142,6 +145,7 @@
   when:
     - infrastructure_ip_list | length > 0
     - infrastructure_ip_list is string
+  ignore_errors: true
 
 - name: Fallback to split if not JSON
   set_fact:
@@ -149,6 +153,12 @@
   when:
     - infrastructure_ip_list | length > 0
     - infrastructure_ips is not defined
+  ignore_errors: true
+
+- name: Set default infrastructure IPs if all parsing failed
+  set_fact:
+    infrastructure_ips: "['0.0.0.0/0']"
+  when: infrastructure_ips is not defined
 
 - name: Allow Marzban API (port 8000) from infrastructure nodes only
   ufw:

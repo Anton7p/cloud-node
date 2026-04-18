@@ -390,8 +390,8 @@
     src: "/tmp/ssl_client_cert.pem"
     dest: "{{ cert_file }}"
     mode: '0644'
-    owner: "{{ ansible_user | default(ansible_ssh_user) }}"
-    group: "{{ ansible_user | default(ansible_ssh_user) }}"
+    owner: root
+    group: root
   when: not cert_file_check.stat.exists or hostvars['localhost'].cert_changed | default(false)
 
 - name: Fail if certificate file not found after copy
@@ -421,8 +421,8 @@
               max-size: "10m"
               max-file: "3"
     mode: '0644'
-    owner: "{{ ansible_user | default(ansible_ssh_user) }}"
-    group: "{{ ansible_user | default(ansible_ssh_user) }}"
+    owner: root
+    group: root
   register: compose_file
 
 - name: Validate Docker Compose configuration

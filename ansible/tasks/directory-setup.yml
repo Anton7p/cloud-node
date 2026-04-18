@@ -5,8 +5,8 @@
     path: "{{ item }}"
     state: directory
     mode: '0755'
-    owner: "{{ ansible_user | default(ansible_ssh_user) }}"
-    group: "{{ ansible_user | default(ansible_ssh_user) }}"
+    owner: root
+    group: root
   loop:
     - "{{ node_dir }}"
     - "{{ node_var_dir }}"

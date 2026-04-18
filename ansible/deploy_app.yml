@@ -14,12 +14,13 @@
     registry_url: "ghcr.io"
     server_ip: "{{ inventory_hostname }}"
     server_user: "root"
+    # Marzban API URL for master
+    computed_api_url: "http://{{ inventory_hostname }}:8000/api"
+    marzban_username: "{{ vpn_admin_username }}"
+    marzban_password: "{{ vpn_admin_password }}"
     # Version pinning for Marzban components
     marzban_node_image: "gozargah/marzban-node:v0.5.2"
     marzban_image: "gozargah/marzban:v0.8.4"
-    # All other variables (image_name, db_password, etc.) come from --extra-vars (-e)
-    # Extra-vars have highest precedence in Ansible variable precedence order
-    # Do NOT define them here to avoid conflicts
     # This var is used in template and may not be passed via extra-vars
     marzban_inbound_tag: "{{ hostvars[inventory_hostname]['marzban_inbound_tag'] | default('VLESS_REALITY') }}"
 
