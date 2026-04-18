@@ -282,11 +282,11 @@
     VPN_ADMIN_PASSWORD: "{{ vpn_admin_password }}"
     INFRASTRUCTURE_IP_LIST: "{{ infrastructure_ip_list | default('') }}"
     DOMAIN_NAME: "{{ domain_name }}"
-  when: (reality_public_key | default('')) | length > 0
+  when: (ansible_facts.reality_public_key | default('')) | length > 0
 
 - name: DEBUG - Bot startup condition
   debug:
-    msg: "Bot will start: reality_public_key length = {{ reality_public_key | default('') | length }}"
+    msg: "Bot will start: ansible_facts.reality_public_key length = {{ ansible_facts.reality_public_key | default('') | length }}"
 
 - name: Wait for bot container to be healthy
   command: docker compose ps bot --format "{% raw %}{{.Health}}{% endraw %}"
