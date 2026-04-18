@@ -75,24 +75,32 @@
          core_config.json.inbounds is defined and
          core_config.json.inbounds | selectattr('tag', 'equalto', 'VLESS Reality TCP') | list | length > 0 }}
 
-- name: Generate X25519 keys using xray
-  command: docker run --rm {{ marzban_node_image }} xray x25519
-  register: x25519_output
+- name: Generate and parse X25519 keys using shell
+  shell: |
+    # Generate keys
+    OUTPUT=$(docker run --rm {{ marzban_node_image }} xray x25519)
+    echo "DEBUG: Raw output: $OUTPUT" >&2
+    
+    # Parse keys using grep (more reliable than Ansible regex)
+    PRIVATE_KEY=$(echo "$OUTPUT" | grep 'Private key:' | sed 's/Private key: //')
+    PUBLIC_KEY=$(echo "$OUTPUT" | grep 'Public key:' | sed 's/Public key: //')
+    
+    echo "DEBUG: Parsed private_key: $PRIVATE_KEY" >&2
+    echo "DEBUG: Parsed public_key: $PUBLIC_KEY" >&2
+    
+    # Output for Ansible register
+    echo "private_key=$PRIVATE_KEY"
+    echo "public_key=$PUBLIC_KEY"
+  register: x25519_parsed
   when: not vless_reality_exists | bool
   changed_when: true
   check_mode: no
 
-- name: DEBUG - Show X25519 output
-  debug:
-    msg:
-      - "X25519 stdout_lines: {{ x25519_output.stdout_lines | default([]) }}"
-      - "X25519 stdout: {{ x25519_output.stdout | default('N/A') }}"
-
-- name: Parse generated keys
+- name: Set facts from shell output
   set_fact:
-    reality_private_key: "{{ x25519_output.stdout | regex_search('Private key:\\s*([A-Za-z0-9_-]+)', '\\1') | first }}"
-    reality_public_key: "{{ x25519_output.stdout | regex_search('Public key:\\s*([A-Za-z0-9_-]+)', '\\1') | first }}"
-  when: x25519_output.stdout is defined and not vless_reality_exists | bool
+    reality_private_key: "{{ x25519_parsed.stdout_lines[0] | regex_replace('private_key=', '') }}"
+    reality_public_key: "{{ x25519_parsed.stdout_lines[1] | regex_replace('public_key=', '') }}"
+  when: x25519_parsed.stdout is defined and not vless_reality_exists | bool
 
 - name: DEBUG - After Parse generated keys
   debug:
@@ -100,7 +108,7 @@
       - "=== AFTER PARSE ==="
       - "reality_private_key: '{{ reality_private_key | default('NOT_SET') }}'"
       - "reality_public_key: '{{ reality_public_key | default('NOT_SET') }}'"
-      - "Length: private={{ reality_private_key | default('') | length }}, public={{ reality_public_key | default('') | length }}"
+      - "Shell output lines: {{ x25519_parsed.stdout_lines | default([]) }}"
 
 - name: Generate random SHORT_ID
   shell: openssl rand -hex 4
