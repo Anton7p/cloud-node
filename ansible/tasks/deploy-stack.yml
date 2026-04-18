@@ -272,7 +272,7 @@
 
 - name: Logout from Docker registry
   command: docker logout {{ registry_url }}
-  when: docker_login is succeeded
+  when: docker_login is defined and docker_login is succeeded
 
 - name: Display deployment summary
   debug:
