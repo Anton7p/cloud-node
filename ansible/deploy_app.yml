@@ -14,6 +14,9 @@
     registry_url: "ghcr.io"
     server_ip: "{{ inventory_hostname }}"
     server_user: "root"
+    # Version pinning for Marzban components
+    marzban_node_image: "gozargah/marzban-node:v0.5.2"
+    marzban_image: "gozargah/marzban:v0.8.4"
     # All other variables (image_name, db_password, etc.) come from --extra-vars (-e)
     # Extra-vars have highest precedence in Ansible variable precedence order
     # Do NOT define them here to avoid conflicts
@@ -50,72 +53,6 @@
     - name: DEBUG - Show disk space
       debug:
         var: disk_space.stdout
-
-    - name: Generate Reality keys if not provided
-      block:
-        - name: Check if keys need generation
-          set_fact:
-            needs_key_generation: "{{ reality_public_key | length == 0 }}"
-
-        - name: Generate X25519 keys using xray
-          command: docker run --rm gozargah/marzban-node:latest xray x25519
-          register: x25519_output
-          when: needs_key_generation | bool
-          delegate_to: localhost
-          become: no
-          run_once: yes
-          changed_when: true
-
-        - name: Parse generated public key
-          set_fact:
-            reality_public_key: "{{ x25519_output.stdout | regex_search('Public key: ([^\\s]+)', '\\1') | first }}"
-          when: x25519_output.stdout is defined and needs_key_generation | bool
-          delegate_to: localhost
-          become: no
-          run_once: yes
-
-        - name: Parse generated private key
-          set_fact:
-            reality_private_key: "{{ x25519_output.stdout | regex_search('Private key: ([^\\s]+)', '\\1') | first }}"
-          when: x25519_output.stdout is defined and needs_key_generation | bool
-          delegate_to: localhost
-          become: no
-          run_once: yes
-
-        - name: Display generated keys
-          debug:
-            msg:
-              - "Generated Public Key: {{ reality_public_key | default('N/A') }}"
-          when: needs_key_generation | bool
-          delegate_to: localhost
-          become: no
-          run_once: yes
-      when: reality_public_key | length == 0
-
-    - name: Generate Reality Short ID if not provided
-      block:
-        - name: Generate random SHORT_ID (8 hex chars)
-          shell: openssl rand -hex 4
-          register: openssl_short_id
-          delegate_to: localhost
-          become: no
-          run_once: yes
-
-        - name: Set reality_short_id fact
-          set_fact:
-            reality_short_id: "{{ openssl_short_id.stdout }}"
-          when: openssl_short_id.stdout is defined
-          delegate_to: localhost
-          become: no
-          run_once: yes
-
-        - name: Display generated Short ID
-          debug:
-            msg: "Generated Short ID: {{ reality_short_id }}"
-          delegate_to: localhost
-          become: no
-          run_once: yes
-      when: reality_short_id | length == 0
 
     - name: Display deployment information
       debug:
