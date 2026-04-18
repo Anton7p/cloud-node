@@ -191,12 +191,13 @@ jobs:
 
       - name: Deploy to server
         env:
-          IMAGE_NAME: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          IMAGE_NAME: ${{ env.REGISTRY }}/${{ github.repository_owner | lower }}/${{ github.event.repository.name | lower }}
           IMAGE_TAG: ${{ needs.test-and-build.outputs.image_tag }}
         run: |
           echo "=== Starting Deploy ==="
+          IMAGE_NAME_LOWER=$(echo "${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')
           ansible-playbook -i inventory.ini ansible/deploy_app.yml \
-            -e "image_name=${IMAGE_NAME}" \
+            -e "image_name=${IMAGE_NAME_LOWER}" \
             -e "image_tag=${IMAGE_TAG}" \
             -e "domain_name=${{ secrets.DOMAIN_NAME }}" \
             -e "db_password=${{ secrets.VPN_ADMIN_PASSWORD }}" \
