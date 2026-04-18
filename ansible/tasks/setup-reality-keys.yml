@@ -80,6 +80,7 @@
   register: x25519_output
   when: not vless_reality_exists | bool
   changed_when: true
+  check_mode: no
 
 - name: DEBUG - Show X25519 output
   debug:
@@ -92,16 +93,19 @@
     reality_private_key: "{{ x25519_output.stdout | regex_search('Private key:\\s*([^\\n]+)', '\\1') | first | trim }}"
     reality_public_key: "{{ x25519_output.stdout | regex_search('Public key:\\s*([^\\n]+)', '\\1') | first | trim }}"
   when: x25519_output.stdout is defined and not vless_reality_exists | bool
+  check_mode: no
 
 - name: Generate random SHORT_ID
   shell: openssl rand -hex 4
   register: openssl_short_id
   when: not vless_reality_exists | bool
+  check_mode: no
 
 - name: Set reality_short_id fact
   set_fact:
     reality_short_id: "{{ openssl_short_id.stdout | trim }}"
   when: openssl_short_id.stdout is defined and not vless_reality_exists | bool
+  check_mode: no
 
 - name: Use existing keys if inbound already exists
   set_fact:
