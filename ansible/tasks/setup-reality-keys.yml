@@ -75,68 +75,127 @@
          core_config.json.inbounds is defined and
          core_config.json.inbounds | selectattr('tag', 'equalto', 'VLESS Reality TCP') | list | length > 0 }}
 
-- name: Generate Reality keys and write directly to .env
-  shell: |
-    set -e
-    
-    # Generate X25519 keys
-    OUTPUT=$(docker run --rm {{ marzban_node_image }} xray x25519)
-    echo "DEBUG: Raw output: $OUTPUT" >&2
-    
-    # Parse keys
-    PRIVATE_KEY=$(echo "$OUTPUT" | grep 'Private key:' | sed 's/Private key: //')
-    PUBLIC_KEY=$(echo "$OUTPUT" | grep 'Public key:' | sed 's/Public key: //')
-    
-    # Generate short_id
-    SHORT_ID=$(openssl rand -hex 4)
-    
-    echo "DEBUG: Keys parsed - pub=$PUBLIC_KEY, short=$SHORT_ID" >&2
-    
-    # Write directly to .env file
-    sed -i "s/^REALITY_PRIVATE_KEY=.*/REALITY_PRIVATE_KEY=$PRIVATE_KEY/" {{ deploy_dir }}/.env
-    sed -i "s/^REALITY_PUBLIC_KEY=.*/REALITY_PUBLIC_KEY=$PUBLIC_KEY/" {{ deploy_dir }}/.env
-    sed -i "s/^REALITY_SHORT_ID=.*/REALITY_SHORT_ID=$SHORT_ID/" {{ deploy_dir }}/.env
-    
-    echo "DEBUG: .env updated" >&2
-    
-    # Output for Ansible
-    echo "private_key=$PRIVATE_KEY"
-    echo "public_key=$PUBLIC_KEY"
-    echo "short_id=$SHORT_ID"
-  register: reality_keys_result
+- name: Generate X25519 keys using xray
+  command: docker run --rm {{ marzban_node_image }} xray x25519
+  register: x25519_output
   when: not vless_reality_exists | bool
   changed_when: true
   check_mode: no
 
-- name: Set facts from shell result
-  set_fact:
-    reality_private_key: "{{ reality_keys_result.stdout_lines[0] | regex_replace('private_key=', '') }}"
-    reality_public_key: "{{ reality_keys_result.stdout_lines[1] | regex_replace('public_key=', '') }}"
-    reality_short_id: "{{ reality_keys_result.stdout_lines[2] | regex_replace('short_id=', '') }}"
-  when: reality_keys_result.stdout is defined and not vless_reality_exists | bool
-
-- name: DEBUG - Keys status
+- name: DEBUG - Show X25519 output
   debug:
     msg:
-      - "=== KEYS STATUS ==="
-      - "reality_private_key: '{{ reality_private_key | default('NOT_SET') }}'"
-      - "reality_public_key: '{{ reality_public_key | default('NOT_SET') }}'"
-      - "reality_short_id: '{{ reality_short_id | default('NOT_SET') }}'"
+      - "X25519 stdout_lines: {{ x25519_output.stdout_lines | default([]) }}"
+      - "X25519 stdout: {{ x25519_output.stdout | default('N/A') }}"
 
-- name: Use existing keys if inbound already exists
+- name: Parse generated keys
   set_fact:
-    reality_private_key: "{{ lookup('env', 'REALITY_PRIVATE_KEY') | default('') }}"
-    reality_public_key: "{{ lookup('env', 'REALITY_PUBLIC_KEY') | default('') }}"
-    reality_short_id: "{{ lookup('env', 'REALITY_SHORT_ID') | default('abcd1234') }}"
-  when: vless_reality_exists | bool
+    new_private_key: "{{ x25519_output.stdout | regex_search('Private key:\\s*([A-Za-z0-9_-]+)', '\\1') | first }}"
+    new_public_key: "{{ x25519_output.stdout | regex_search('Public key:\\s*([A-Za-z0-9_-]+)', '\\1') | first }}"
+  when: x25519_output.stdout is defined and not vless_reality_exists | bool
 
-- name: DEBUG - Final keys status
+- name: Generate random SHORT_ID
+  shell: openssl rand -hex 4
+  register: openssl_short_id
+  when: not vless_reality_exists | bool
+  check_mode: no
+
+- name: Set new_short_id fact
+  set_fact:
+    new_short_id: "{{ openssl_short_id.stdout | trim }}"
+  when: openssl_short_id.stdout is defined and not vless_reality_exists | bool
+
+- name: DEBUG - New keys status
   debug:
     msg:
-      - "=== FINAL KEYS STATUS ==="
-      - "vless_reality_exists: {{ vless_reality_exists | default('unknown') }}"
-      - "reality_public_key: '{{ reality_public_key | default('NOT_SET') }}' (length: {{ reality_public_key | default('') | length }})"
-      - "reality_short_id: '{{ reality_short_id | default('NOT_SET') }}' (length: {{ reality_short_id | default('') | length }})"
+      - "=== NEW KEYS ==="
+      - "new_private_key: '{{ new_private_key | default('NOT_SET') }}'"
+      - "new_public_key: '{{ new_public_key | default('NOT_SET') }}'"
+      - "new_short_id: '{{ new_short_id | default('NOT_SET') }}'"
+
+- name: Read existing keys from .env
+  shell: |
+    grep -E '^REALITY_(PRIVATE|PUBLIC)_KEY=|^REALITY_SHORT_ID=' {{ deploy_dir }}/.env 2>/dev/null | cut -d= -f2 | tr '\n' ' ' || echo ""
+  register: existing_env_keys
+  ignore_errors: true
+  changed_when: false
+
+- name: Set existing keys facts
+  set_fact:
+    existing_private_key: "{{ existing_env_keys.stdout.split(' ')[0] | default('') }}"
+    existing_public_key: "{{ existing_env_keys.stdout.split(' ')[1] | default('') }}"
+    existing_short_id: "{{ existing_env_keys.stdout.split(' ')[2] | default('') }}"
+  when: vless_reality_exists | bool and existing_env_keys.stdout | length > 0
+
+- name: DEBUG - Existing keys status
+  debug:
+    msg:
+      - "=== EXISTING KEYS ==="
+      - "existing_private_key: '{{ existing_private_key | default('NOT_SET') }}'"
+      - "existing_public_key: '{{ existing_public_key | default('NOT_SET') }}'"
+      - "existing_short_id: '{{ existing_short_id | default('NOT_SET') }}'"
+
+- name: API RECOVERY - Fetch keys from Marzban if .env is empty but inbound exists
+  block:
+    - name: Get Xray core config from API
+      uri:
+        url: "{{ master_api_url }}/core/config"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ auth_response.json.access_token }}"
+        status_code: 200
+        timeout: 30
+      register: api_config
+
+    - name: Extract Reality keys from API config
+      set_fact:
+        api_private_key: "{{ (api_config.json.inbounds | selectattr('tag', 'equalto', 'VLESS Reality TCP') | first).streamSettings.realitySettings.privateKey | default('') }}"
+        api_public_key: "{{ (api_config.json.inbounds | selectattr('tag', 'equalto', 'VLESS Reality TCP') | first).streamSettings.realitySettings.publicKey | default('') }}"
+        api_short_id: "{{ ((api_config.json.inbounds | selectattr('tag', 'equalto', 'VLESS Reality TCP') | first).streamSettings.realitySettings.shortIds | first) | default('') }}"
+      when: api_config.json is defined
+
+    - name: Copy API keys to existing keys
+      set_fact:
+        existing_private_key: "{{ api_private_key }}"
+        existing_public_key: "{{ api_public_key }}"
+        existing_short_id: "{{ api_short_id }}"
+      when: api_public_key | length > 0
+
+    - name: Write API keys to .env
+      lineinfile:
+        path: "{{ deploy_dir }}/.env"
+        regexp: "^{{ item.key }}="
+        line: "{{ item.key }}={{ item.value }}"
+        create: no
+      loop:
+        - { key: "REALITY_PRIVATE_KEY", value: "{{ api_private_key }}" }
+        - { key: "REALITY_PUBLIC_KEY", value: "{{ api_public_key }}" }
+        - { key: "REALITY_SHORT_ID", value: "{{ api_short_id }}" }
+      when: api_public_key | length > 0
+
+    - name: DEBUG - API recovery successful
+      debug:
+        msg:
+          - "=== KEYS RECOVERED FROM API ==="
+          - "api_public_key: '{{ api_public_key }}'"
+          - "api_short_id: '{{ api_short_id }}'"
+  when: 
+    - vless_reality_exists | bool
+    - (existing_public_key | default('')) | length == 0
+
+- name: Select final keys (new or existing)
+  set_fact:
+    reality_private_key: "{{ new_private_key if not vless_reality_exists else existing_private_key | default('') }}"
+    reality_public_key: "{{ new_public_key if not vless_reality_exists else existing_public_key | default('') }}"
+    reality_short_id: "{{ new_short_id if not vless_reality_exists else existing_short_id | default('abcd1234') }}"
+
+- name: DEBUG - Final keys selected
+  debug:
+    msg:
+      - "=== FINAL KEYS SELECTED ==="
+      - "reality_private_key: '{{ reality_private_key }}'"
+      - "reality_public_key: '{{ reality_public_key }}'"
+      - "reality_short_id: '{{ reality_short_id }}'"
 
 - name: Create VLESS Reality inbound JSON
   copy:
