@@ -109,7 +109,20 @@
     reality_public_key: "{{ lookup('env', 'REALITY_PUBLIC_KEY') | default('') }}"
     reality_short_id: "{{ lookup('env', 'REALITY_SHORT_ID') | default('abcd1234') }}"
   when: vless_reality_exists | bool
-  no_log: true
+
+- name: Force sync facts to hostvars
+  set_fact:
+    reality_private_key: "{{ reality_private_key }}"
+    reality_public_key: "{{ reality_public_key }}"
+    reality_short_id: "{{ reality_short_id }}"
+  when: reality_public_key is defined
+
+- name: DEBUG - Verify facts before writing to .env
+  debug:
+    msg:
+      - "reality_private_key: {{ reality_private_key | default('NOT SET') }}"
+      - "reality_public_key: {{ reality_public_key | default('NOT SET') }}"
+      - "reality_short_id: {{ reality_short_id | default('NOT SET') }}"
 
 - name: Create VLESS Reality inbound JSON
   copy:
@@ -171,17 +184,17 @@
     line: "{{ item.key }}={{ item.value }}"
     create: no
   loop:
-    - { key: "REALITY_PUBLIC_KEY", value: "{{ reality_public_key | default('') }}" }
-    - { key: "REALITY_SHORT_ID", value: "{{ reality_short_id | default('') }}" }
+    - { key: "REALITY_PUBLIC_KEY", value: "{{ hostvars[inventory_hostname]['reality_public_key'] | default('') }}" }
+    - { key: "REALITY_SHORT_ID", value: "{{ hostvars[inventory_hostname]['reality_short_id'] | default('') }}" }
     - { key: "MARZBAN_INBOUND_TAG", value: "VLESS_REALITY" }
-  when: (reality_public_key | default('')) | length > 0
+  when: (hostvars[inventory_hostname]['reality_public_key'] | default('')) | length > 0
 
 - name: Display key generation status
   debug:
     msg: |
       Reality keys generated and saved:
-      - Public Key: {{ reality_public_key | default('N/A') }}
-      - Short ID: {{ reality_short_id | default('N/A') }}
+      - Public Key: {{ hostvars[inventory_hostname]['reality_public_key'] | default('N/A') }}
+      - Short ID: {{ hostvars[inventory_hostname]['reality_short_id'] | default('N/A') }}
       - Inbound created: {{ not vless_reality_exists | bool }}
 
 # ============================================================================
@@ -203,7 +216,11 @@
     VPN_ADMIN_PASSWORD: "{{ vpn_admin_password }}"
     INFRASTRUCTURE_IP_LIST: "{{ infrastructure_ip_list | default('') }}"
     DOMAIN_NAME: "{{ domain_name }}"
-  when: (reality_public_key | default('')) | length > 0
+  when: (hostvars[inventory_hostname]['reality_public_key'] | default('')) | length > 0
+
+- name: DEBUG - Bot startup condition
+  debug:
+    msg: "Bot will start: reality_public_key length = {{ hostvars[inventory_hostname]['reality_public_key'] | default('') | length }}"
 
 - name: Wait for bot container to be healthy
   command: docker compose ps bot --format "{% raw %}{{.Health}}{% endraw %}"
