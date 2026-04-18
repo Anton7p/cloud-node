@@ -182,6 +182,7 @@ jobs:
             echo "ansible_user=root" >> inventory.ini
             echo "ansible_ssh_pass=$SERVER_PASSWORD" >> inventory.ini
             echo "ansible_python_interpreter=/usr/bin/python3" >> inventory.ini
+            echo "ansible_ssh_extra_args='-o PubkeyAuthentication=no -o PasswordAuthentication=yes'" >> inventory.ini
           else
             echo "WARNING: No password found, using SSH key"
             echo "[master]" > inventory.ini
