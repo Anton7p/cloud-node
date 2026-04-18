@@ -150,19 +150,13 @@
       - "ansible_facts.reality_public_key: '{{ ansible_facts.reality_public_key | default('NOT_SET') }}'"
       - "ansible_facts.reality_short_id: '{{ ansible_facts.reality_short_id | default('NOT_SET') }}'"
 
-- name: Fix variable scope - reassign from ansible_facts
-  set_fact:
-    reality_private_key: "{{ ansible_facts.reality_private_key | default(new_private_key) }}"
-    reality_public_key: "{{ ansible_facts.reality_public_key | default(new_public_key) }}"
-    reality_short_id: "{{ ansible_facts.reality_short_id | default(new_short_id) }}"
-
-- name: DEBUG - After Fix variable scope
+- name: DEBUG - After Select final keys (summary)
   debug:
     msg:
-      - "=== AFTER FIX VARIABLE SCOPE ==="
-      - "reality_private_key: '{{ reality_private_key | default('NOT_SET') }}'"
-      - "reality_public_key: '{{ reality_public_key | default('NOT_SET') }}'"
-      - "reality_short_id: '{{ reality_short_id | default('NOT_SET') }}'"
+      - "=== USING ANSIBLE_FACTS ==="
+      - "ansible_facts.reality_private_key: '{{ ansible_facts.reality_private_key | default('NOT_SET') }}'"
+      - "ansible_facts.reality_public_key: '{{ ansible_facts.reality_public_key | default('NOT_SET') }}'"
+      - "ansible_facts.reality_short_id: '{{ ansible_facts.reality_short_id | default('NOT_SET') }}'"
 
 - name: DEBUG - Keys status
   debug:
@@ -172,14 +166,13 @@
       - "reality_public_key: '{{ reality_public_key | default('NOT_SET') }}'"
       - "reality_short_id: '{{ reality_short_id | default('NOT_SET') }}'"
 
-
 - name: DEBUG - Final keys status
   debug:
     msg:
       - "=== FINAL KEYS STATUS ==="
-      - "vless_reality_exists: {{ vless_reality_exists | default('unknown') }}"
-      - "reality_public_key: '{{ reality_public_key | default('NOT_SET') }}' (length: {{ reality_public_key | default('') | length }})"
-      - "reality_short_id: '{{ reality_short_id | default('NOT_SET') }}' (length: {{ reality_short_id | default('') | length }})"
+      - "vless_reality_exists: {{ vless_reality_exists }}"
+      - "ansible_facts.reality_public_key: '{{ ansible_facts.reality_public_key | default('NOT_SET') }}' (length: {{ ansible_facts.reality_public_key | default('') | length }})"
+      - "ansible_facts.reality_short_id: '{{ ansible_facts.reality_short_id | default('NOT_SET') }}' (length: {{ ansible_facts.reality_short_id | default('') | length }})"
 
 - name: Create VLESS Reality inbound JSON
   copy:
@@ -199,9 +192,9 @@
           "realitySettings": {
             "dest": "{{ domain_name }}:443",
             "serverNames": ["{{ domain_name }}"],
-            "privateKey": "{{ reality_private_key }}",
-            "publicKey": "{{ reality_public_key }}",
-            "shortIds": ["{{ reality_short_id }}"]
+            "privateKey": "{{ ansible_facts.reality_private_key }}",
+            "publicKey": "{{ ansible_facts.reality_public_key }}",
+            "shortIds": ["{{ ansible_facts.reality_short_id }}"]
           }
         },
         "sniffing": {
@@ -210,7 +203,7 @@
         }
       }
     dest: "/tmp/vless_reality_inbound.json"
-  when: not vless_reality_exists | bool and reality_private_key | length > 0
+  when: not vless_reality_exists | bool and (ansible_facts.reality_private_key | default('')) | length > 0
 
 - name: Build updated core config
   shell: |
@@ -219,7 +212,7 @@
     EOF
     jq --slurpfile inbound /tmp/vless_reality_inbound.json '.inbounds = (.inbounds // []) + $inbound' /tmp/current_core_config.json
   register: updated_config_json
-  when: not vless_reality_exists | bool and reality_private_key | length > 0
+  when: not vless_reality_exists | bool and (ansible_facts.reality_private_key | default('')) | length > 0
 
 - name: Update Xray core config with VLESS Reality
   uri:
@@ -232,15 +225,7 @@
     body: "{{ updated_config_json.stdout }}"
     status_code: [200, 201, 204]
     timeout: 30
-  when: not vless_reality_exists | bool and reality_private_key | length > 0 and updated_config_json.rc == 0
-
-- name: DEBUG - Dump ALL vars (complete dump)
-  debug:
-    var: vars
-
-- name: DEBUG - Dump hostvars
-  debug:
-    var: hostvars[inventory_hostname]
+  when: not vless_reality_exists | bool and (ansible_facts.reality_private_key | default('')) | length > 0 and updated_config_json.rc == 0
 
 - name: DEBUG - Dump all reality variables
   debug:
@@ -265,10 +250,10 @@
     line: "{{ item.key }}={{ item.value }}"
     create: no
   loop:
-    - { key: "REALITY_PUBLIC_KEY", value: "{{ reality_public_key | default('') }}" }
-    - { key: "REALITY_SHORT_ID", value: "{{ reality_short_id | default('') }}" }
+    - { key: "REALITY_PUBLIC_KEY", value: "{{ ansible_facts.reality_public_key }}" }
+    - { key: "REALITY_SHORT_ID", value: "{{ ansible_facts.reality_short_id }}" }
     - { key: "MARZBAN_INBOUND_TAG", value: "VLESS_REALITY" }
-  when: (reality_public_key | default('')) | length > 0
+  when: (ansible_facts.reality_public_key | default('')) | length > 0
 
 - name: Display key generation status
   debug:
