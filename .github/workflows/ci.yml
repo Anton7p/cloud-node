@@ -191,11 +191,12 @@ jobs:
 
       - name: Deploy to server
         env:
-          IMAGE_NAME: ${{ env.REGISTRY }}/${{ github.repository_owner | lower }}/${{ github.event.repository.name | lower }}
+          IMAGE_NAME_RAW: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           IMAGE_TAG: ${{ needs.test-and-build.outputs.image_tag }}
         run: |
           echo "=== Starting Deploy ==="
-          IMAGE_NAME_LOWER=$(echo "${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')
+          IMAGE_NAME_LOWER=$(echo "${IMAGE_NAME_RAW}" | tr '[:upper:]' '[:lower:]')
+          echo "Image (lowercase): ${IMAGE_NAME_LOWER}"
           ansible-playbook -i inventory.ini ansible/deploy_app.yml \
             -e "image_name=${IMAGE_NAME_LOWER}" \
             -e "image_tag=${IMAGE_TAG}" \
