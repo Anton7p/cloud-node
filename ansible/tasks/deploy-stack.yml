@@ -89,8 +89,13 @@
     msg: "Docker is not installed or not running on {{ inventory_hostname }}"
   when: docker_check.rc != 0
 
-# Docker login already performed by GitHub Actions (docker/login-action@v3)
-# For local deployment, run: echo $GHCR_TOKEN | docker login ghcr.io -u $GHCR_USERNAME --password-stdin
+# --- DOCKER LOGIN PHASE ---
+- name: Docker login to GitHub Container Registry
+  shell: |
+    echo "{{ github_token }}" | docker login ghcr.io -u "{{ github_actor }}" --password-stdin
+  no_log: true
+  changed_when: true
+  when: github_token is defined and github_token | length > 0
 
 # --- PULL IMAGE PHASE ---
 - name: Pull application image with SHA tag

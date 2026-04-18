@@ -15,31 +15,23 @@ permissions:
 
 jobs:
   # ==========================================
-  # Stage 1: Test & Build
+  # Stage 1: Build & Push Docker Image
   # ==========================================
   test-and-build:
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.meta.outputs.version }}
-      image_name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+      image_name: ${{ steps.normalize.outputs.image_name_lower }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Lint
-        run: npm run lint || echo "No lint script"
-
-      - name: Test
-        run: npm test || echo "No tests yet"
+      - name: Normalize image name to lowercase
+        id: normalize
+        run: |
+          IMAGE_NAME_LOWER=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
+          echo "image_name_lower=${IMAGE_NAME_LOWER}" >> $GITHUB_OUTPUT
+          echo "Normalized image: ${IMAGE_NAME_LOWER}"
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -55,7 +47,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ steps.normalize.outputs.image_name_lower }}
           tags: |
             type=sha,prefix=,suffix=,format=short
             type=ref,event=branch
@@ -177,28 +169,26 @@ jobs:
           fi
           
           echo "✅ Parsed server address: $SERVER_ADDRESS"
-          
+
           cat > inventory.ini <<EOF
           [master]
           $SERVER_ADDRESS
-          
+
           [master:vars]
           ansible_user=root
           ansible_ssh_private_key_file=~/.ssh/id_rsa
           ansible_python_interpreter=/usr/bin/python3
           EOF
-          cat inventory.ini
 
       - name: Deploy to server
         env:
-          IMAGE_NAME_RAW: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          IMAGE_NAME: ${{ needs.test-and-build.outputs.image_name }}
           IMAGE_TAG: ${{ needs.test-and-build.outputs.image_tag }}
         run: |
           echo "=== Starting Deploy ==="
-          IMAGE_NAME_LOWER=$(echo "${IMAGE_NAME_RAW}" | tr '[:upper:]' '[:lower:]')
-          echo "Image (lowercase): ${IMAGE_NAME_LOWER}"
+          echo "Image: ${IMAGE_NAME}"
           ansible-playbook -i inventory.ini ansible/deploy_app.yml \
-            -e "image_name=${IMAGE_NAME_LOWER}" \
+            -e "image_name=${IMAGE_NAME}" \
             -e "image_tag=${IMAGE_TAG}" \
             -e "domain_name=${{ secrets.DOMAIN_NAME }}" \
             -e "db_password=${{ secrets.VPN_ADMIN_PASSWORD }}" \
@@ -212,7 +202,6 @@ jobs:
             -e "reality_short_id=${{ secrets.REALITY_SHORT_ID }}" \
             -e "marzban_inbound_tag=${{ vars.MARZBAN_INBOUND_TAG || 'VLESS_REALITY' }}" \
             -e "github_token=${{ secrets.GITHUB_TOKEN }}" \
-            -e "github_actor=${{ github.actor }}" \
             -e "github_actor=${{ github.actor }}" \
             -v
 
@@ -256,8 +245,6 @@ jobs:
           
           echo "[nodes:vars]" >> inventory_nodes.ini
           echo "ansible_python_interpreter=/usr/bin/python3" >> inventory_nodes.ini
-          
-          cat inventory_nodes.ini
 
       - name: Parse master server address for nodes
         run: |
@@ -272,7 +259,11 @@ jobs:
           echo "=== Deploying Infrastructure ==="
           ansible-playbook -i inventory_nodes.ini ansible/deploy_node.yml \
             -e "master_server_address=$MASTER_ADDRESS" \
-            -e "domain_name=${{ secrets.DOMAIN_NAME }}" \
+            -e "domain_name_extra=${{ secrets.DOMAIN_NAME }}" \
+            -e "vpn_admin_username=${{ secrets.VPN_ADMIN_USERNAME }}" \
+            -e "vpn_admin_password=${{ secrets.VPN_ADMIN_PASSWORD }}" \
             -e "service_port=62050" \
             -e "xray_api_port=62051" \
+            -e "github_token=${{ secrets.GITHUB_TOKEN }}" \
+            -e "github_actor=${{ github.actor }}" \
             -v

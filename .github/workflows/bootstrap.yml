@@ -66,18 +66,16 @@ jobs:
 
           # Parse master server
           SERVER_ADDRESS=$(echo '${{ inputs.server_ip_json }}' | jq -r '.address')
-          SERVER_PASSWORD=$(echo '${{ inputs.server_ip_json }}' | jq -r '.password')
 
           echo "Master Server: $SERVER_ADDRESS"
           echo "server_address=$SERVER_ADDRESS" >> $GITHUB_OUTPUT
-          echo "server_password=$SERVER_PASSWORD" >> $GITHUB_OUTPUT
 
           # Parse infrastructure nodes
           NODES_JSON='${{ inputs.infrastructure_ips_json }}'
 
-          # Generate inventory with password auth
+          # Generate inventory with password auth (sensitive, not logged)
           echo "[master]" > ansible/inventory_bootstrap.ini
-          echo "$SERVER_ADDRESS ansible_user=root ansible_ssh_pass=$SERVER_PASSWORD ansible_ssh_extra_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'" >> ansible/inventory_bootstrap.ini
+          echo "$SERVER_ADDRESS ansible_user=root ansible_ssh_pass='${{ fromJSON(inputs.server_ip_json).password }}' ansible_ssh_extra_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'" >> ansible/inventory_bootstrap.ini
           echo "" >> ansible/inventory_bootstrap.ini
 
           echo "[nodes]" >> ansible/inventory_bootstrap.ini
@@ -87,7 +85,7 @@ jobs:
             NODE_ADDRESS=$(echo "$node" | jq -r '.address')
             NODE_PASSWORD=$(echo "$node" | jq -r '.password')
             if [ -n "$NODE_ADDRESS" ] && [ "$NODE_ADDRESS" != "null" ]; then
-              echo "$NODE_ADDRESS ansible_user=root ansible_ssh_pass=$NODE_PASSWORD ansible_ssh_extra_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'" >> ansible/inventory_bootstrap.ini
+              echo "$NODE_ADDRESS ansible_user=root ansible_ssh_pass='$NODE_PASSWORD' ansible_ssh_extra_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'" >> ansible/inventory_bootstrap.ini
               echo "  Added node: $NODE_ADDRESS"
             fi
           done
@@ -97,8 +95,7 @@ jobs:
           echo "ansible_python_interpreter=/usr/bin/python3" >> ansible/inventory_bootstrap.ini
           echo "ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'" >> ansible/inventory_bootstrap.ini
 
-          echo "=== Generated Bootstrap Inventory ==="
-          cat ansible/inventory_bootstrap.ini
+          echo "=== Bootstrap Inventory Generated (content redacted for security) ==="
 
       - name: Run Bootstrap Playbook - Install SSH Keys
         working-directory: ./ansible
@@ -114,7 +111,8 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          MASTER_ADDR="${{ steps.parse_servers.outputs.server_address }}"
+          SERVER_IP_JSON='${{ inputs.server_ip_json }}'
+          MASTER_ADDR=$(echo "$SERVER_IP_JSON" | jq -r '.address')
 
           echo "=== Testing SSH Key Access to Master ==="
           ssh -o StrictHostKeyChecking=no -o PasswordAuthentication=no -i ~/.ssh/id_rsa root@$MASTER_ADDR "echo 'SSH key access successful for master'" || exit 1
