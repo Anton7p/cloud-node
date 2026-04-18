@@ -13,20 +13,21 @@
     owner: root
     group: root
 
-- name: Add SSH public key from GitHub Secrets
+- name: Ensure authorized_keys file exists
+  file:
+    path: /root/.ssh/authorized_keys
+    state: touch
+    mode: '0600'
+    owner: root
+    group: root
+
+- name: Add SSH public key from GitHub Secrets if provided
   authorized_key:
     user: root
     key: "{{ lookup('env', 'SSH_PUBLIC_KEY') }}"
     state: present
   no_log: true
   when: lookup('env', 'SSH_PUBLIC_KEY') | length > 0
-
-- name: Ensure authorized_keys has correct permissions
-  file:
-    path: /root/.ssh/authorized_keys
-    mode: '0600'
-    owner: root
-    group: root
 
 - name: Verify SSH service accepts key authentication
   command: grep -E "^PubkeyAuthentication (yes|no)" /etc/ssh/sshd_config
