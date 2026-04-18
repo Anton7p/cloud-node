@@ -36,15 +36,6 @@
           - "VPN Admin defined: {{ vpn_admin_username | length > 0 }}"
           - "Reality Public Key defined: {{ reality_public_key | length > 0 }}"
 
-    - name: DEBUG - Check Docker status
-      shell: docker version && docker info 2>&1 | head -20
-      register: docker_check
-      changed_when: false
-
-    - name: DEBUG - Show Docker status
-      debug:
-        var: docker_check.stdout
-
     - name: DEBUG - Check disk space
       shell: df -h {{ deploy_dir }} 2>/dev/null || df -h /
       register: disk_space
@@ -95,11 +86,23 @@
       when: domain_name | length == 0
 
   tasks:
-    - name: Setup SSH keys and hardening
-      include_tasks: tasks/auth-certificate.yml
+    - name: Apply system optimizations and SSH hardening
+      include_tasks: tasks/system-optimization.yml
 
     - name: Setup Docker and Docker Compose
       include_tasks: tasks/docker-setup.yml
+
+    - name: Verify Docker installation
+      shell: docker version && docker info 2>&1 | head -20
+      register: docker_check
+      changed_when: false
+
+    - name: DEBUG - Show Docker status
+      debug:
+        var: docker_check.stdout
+
+    - name: Setup SSL certificates
+      include_tasks: tasks/auth-certificate.yml
 
     - name: Deploy application stack
       include_tasks: tasks/deploy-stack.yml
