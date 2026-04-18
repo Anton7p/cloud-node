@@ -211,6 +211,9 @@ jobs:
             -e "reality_public_key=${{ secrets.REALITY_PUBLIC_KEY }}" \
             -e "reality_short_id=${{ secrets.REALITY_SHORT_ID }}" \
             -e "marzban_inbound_tag=${{ vars.MARZBAN_INBOUND_TAG || 'VLESS_REALITY' }}" \
+            -e "github_token=${{ secrets.GITHUB_TOKEN }}" \
+            -e "github_actor=${{ github.actor }}" \
+            -e "github_actor=${{ github.actor }}" \
             -v
 
   # ==========================================
