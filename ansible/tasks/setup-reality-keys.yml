@@ -178,7 +178,7 @@
   copy:
     content: |
       {
-        "tag": "VLESS Reality TCP",
+        "tag": "VLESS_REALITY",
         "listen": "0.0.0.0",
         "port": 443,
         "protocol": "vless",
