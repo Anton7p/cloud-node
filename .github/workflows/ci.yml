@@ -174,25 +174,21 @@ jobs:
           # Check if SSH key exists, fallback to password auth
           if [ -n "$SERVER_PASSWORD" ]; then
             echo "Using password authentication for bootstrap"
-            cat > inventory.ini <<EOF
-[master]
-$SERVER_ADDRESS
-
-[master:vars]
-ansible_user=root
-ansible_ssh_pass=$SERVER_PASSWORD
-ansible_python_interpreter=/usr/bin/python3
-EOF
+            echo "[master]" > inventory.ini
+            echo "$SERVER_ADDRESS" >> inventory.ini
+            echo "" >> inventory.ini
+            echo "[master:vars]" >> inventory.ini
+            echo "ansible_user=root" >> inventory.ini
+            echo "ansible_ssh_pass=$SERVER_PASSWORD" >> inventory.ini
+            echo "ansible_python_interpreter=/usr/bin/python3" >> inventory.ini
           else
-            cat > inventory.ini <<EOF
-[master]
-$SERVER_ADDRESS
-
-[master:vars]
-ansible_user=root
-ansible_ssh_private_key_file=~/.ssh/id_rsa
-ansible_python_interpreter=/usr/bin/python3
-EOF
+            echo "[master]" > inventory.ini
+            echo "$SERVER_ADDRESS" >> inventory.ini
+            echo "" >> inventory.ini
+            echo "[master:vars]" >> inventory.ini
+            echo "ansible_user=root" >> inventory.ini
+            echo "ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory.ini
+            echo "ansible_python_interpreter=/usr/bin/python3" >> inventory.ini
           fi
 
       - name: Deploy to server
