@@ -94,6 +94,14 @@
     reality_public_key: "{{ x25519_output.stdout | regex_search('Public key:\\s*([^\\n]+)', '\\1') | first | trim }}"
   when: x25519_output.stdout is defined and not vless_reality_exists | bool
 
+- name: DEBUG - After Parse generated keys
+  debug:
+    msg:
+      - "=== AFTER PARSE ==="
+      - "reality_private_key: '{{ reality_private_key | default('NOT_SET') }}'"
+      - "reality_public_key: '{{ reality_public_key | default('NOT_SET') }}'"
+      - "Length: private={{ reality_private_key | default('') | length }}, public={{ reality_public_key | default('') | length }}"
+
 - name: Generate random SHORT_ID
   shell: openssl rand -hex 4
   register: openssl_short_id
@@ -105,12 +113,28 @@
     reality_short_id: "{{ openssl_short_id.stdout | trim }}"
   when: openssl_short_id.stdout is defined and not vless_reality_exists | bool
 
+- name: DEBUG - After Set reality_short_id
+  debug:
+    msg:
+      - "=== AFTER SHORT_ID ==="
+      - "reality_short_id: '{{ reality_short_id | default('NOT_SET') }}'"
+      - "All keys: private={{ reality_private_key | default('') | length }}, public={{ reality_public_key | default('') | length }}, short_id={{ reality_short_id | default('') | length }}"
+
 - name: Use existing keys if inbound already exists
   set_fact:
     reality_private_key: "{{ lookup('env', 'REALITY_PRIVATE_KEY') | default('') }}"
     reality_public_key: "{{ lookup('env', 'REALITY_PUBLIC_KEY') | default('') }}"
     reality_short_id: "{{ lookup('env', 'REALITY_SHORT_ID') | default('abcd1234') }}"
   when: vless_reality_exists | bool
+
+- name: DEBUG - After Use existing keys (or skipped)
+  debug:
+    msg:
+      - "=== AFTER EXISTING KEYS CHECK ==="
+      - "vless_reality_exists: {{ vless_reality_exists | default('unknown') }}"
+      - "reality_private_key: '{{ reality_private_key | default('NOT_SET') }}'"
+      - "reality_public_key: '{{ reality_public_key | default('NOT_SET') }}'"
+      - "reality_short_id: '{{ reality_short_id | default('NOT_SET') }}'"
 
 - name: Create VLESS Reality inbound JSON
   copy:
@@ -164,6 +188,14 @@
     status_code: [200, 201, 204]
     timeout: 30
   when: not vless_reality_exists | bool and reality_private_key | length > 0 and updated_config_json.rc == 0
+
+- name: DEBUG - Before updating .env file
+  debug:
+    msg:
+      - "=== BEFORE .env UPDATE ==="
+      - "reality_public_key: '{{ reality_public_key | default('NOT_SET') }}' (length: {{ reality_public_key | default('') | length }})"
+      - "reality_short_id: '{{ reality_short_id | default('NOT_SET') }}' (length: {{ reality_short_id | default('') | length }})"
+      - "Condition check: reality_public_key | length > 0 = {{ (reality_public_key | default('') | length > 0) }}"
 
 - name: Update bot .env file with Reality keys
   lineinfile:
