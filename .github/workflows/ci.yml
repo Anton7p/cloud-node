@@ -199,8 +199,8 @@ jobs:
             -e "image_name=${IMAGE_NAME}" \
             -e "image_tag=${IMAGE_TAG}" \
             -e "domain_name=${{ secrets.DOMAIN_NAME }}" \
-            -e "db_password=${{ secrets.DB_PASSWORD }}" \
-            -e "redis_password=${{ secrets.REDIS_PASSWORD }}" \
+            -e "db_password=${{ secrets.VPN_ADMIN_PASSWORD }}" \
+            -e "redis_password=${{ secrets.VPN_ADMIN_PASSWORD }}" \
             -e "telegram_bot_token=${{ secrets.TELEGRAM_BOT_TOKEN }}" \
             -e "encryption_key=${{ secrets.ENCRYPTION_KEY }}" \
             -e "vpn_admin_username=${{ secrets.VPN_ADMIN_USERNAME }}" \
