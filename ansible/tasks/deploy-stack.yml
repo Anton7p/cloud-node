@@ -186,55 +186,21 @@
 # ============================================================================
 # BOOT SEQUENCE STEP 3: Generate Reality Keys via Marzban API
 # ============================================================================
-- name: Setup Reality Keys via Marzban API
+- name: Setup Reality Keys via Marzban API and start bot
   include_tasks: tasks/setup-reality-keys.yml
+  vars:
+    deploy_dir: "{{ deploy_dir }}"
+    db_password: "{{ db_password }}"
+    telegram_bot_token: "{{ telegram_bot_token }}"
+    encryption_key: "{{ encryption_key }}"
+    image_name: "{{ image_name }}"
+    redis_password: "{{ redis_password | default('') }}"
+    vpn_admin_username: "{{ vpn_admin_username }}"
+    vpn_admin_password: "{{ vpn_admin_password }}"
+    infrastructure_ip_list: "{{ infrastructure_ip_list | default('') }}"
+    domain_name: "{{ domain_name }}"
+    marzban_node_image: "{{ marzban_node_image | default('gozargah/marzban-node:latest') }}"
   when: inventory_hostname in groups['master'] | default([inventory_hostname])
-
-# ============================================================================
-# BOOT SEQUENCE STEP 4: The App (Bot)
-# ============================================================================
-- name: Start Bot application
-  command: docker compose up -d bot
-  args:
-    chdir: "{{ deploy_dir }}"
-  environment:
-    DB_PASSWORD: "{{ db_password }}"
-    TELEGRAM_BOT_TOKEN: "{{ telegram_bot_token }}"
-    ENCRYPTION_KEY: "{{ encryption_key }}"
-    DOCKER_IMAGE_NAME: "{{ image_name }}"
-    REDIS_PASSWORD: "{{ redis_password | default('') }}"
-    MARZBAN_URL: "http://marzban:8000"
-    VPN_ADMIN_USERNAME: "{{ vpn_admin_username }}"
-    VPN_ADMIN_PASSWORD: "{{ vpn_admin_password }}"
-    INFRASTRUCTURE_IP_LIST: "{{ infrastructure_ip_list | default('') }}"
-    DOMAIN_NAME: "{{ domain_name }}"
-  register: compose_up
-  retries: 2
-  delay: 5
-  until: compose_up.rc == 0
-
-- name: Display compose up output
-  debug:
-    msg: "{{ compose_up.stdout_lines }}"
-
-- name: Wait for bot container to be healthy
-  command: docker compose ps bot --format "{{'{{.Health}}'}}"
-  args:
-    chdir: "{{ deploy_dir }}"
-  register: bot_health
-  retries: 30
-  delay: 10
-  until: bot_health.stdout is defined and 'healthy' in bot_health.stdout | lower
-  changed_when: false
-
-- name: DEBUG - Show bot health status
-  debug:
-    var: bot_health.stdout
-
-- name: Fail if bot is not healthy after boot sequence
-  fail:
-    msg: "Bot container failed to become healthy. Check logs with: docker compose logs bot. Note: Keys should be generated before bot start in the new boot sequence."
-  when: bot_health is failed or not ('healthy' in bot_health.stdout | lower)
 
 - name: Prune unused Docker images to free disk space
   command: docker image prune -f
@@ -287,19 +253,6 @@
     msg: "Failed services: {{ failed_service_names | default([]) | join(', ') }}"
   when: failed_service_names is defined and failed_service_names | length > 0
 
-- name: Get bot container logs on failure
-  command: docker compose logs bot --tail 50
-  args:
-    chdir: "{{ deploy_dir }}"
-  register: bot_logs
-  changed_when: false
-  when: failed_service_names is defined and 'cloudnode-bot' in failed_service_names
-
-- name: DEBUG - Display bot logs
-  debug:
-    msg: "Bot container logs:\n{{ bot_logs.stdout | default('No logs available') }}"
-  when: bot_logs is defined and bot_logs.stdout is defined and bot_logs.stdout | length > 0
-
 - name: Get Marzban container logs on failure
   command: docker compose logs marzban --tail 50
   args:
@@ -308,32 +261,15 @@
   changed_when: false
   when: failed_service_names is defined and 'cloudnode-marzban' in failed_service_names
 
-- name: WARN - Some services not running (bot may need Reality keys from Marzban)
+- name: DEBUG - Display marzban logs
   debug:
-    msg: |
-      WARNING: Some critical services are not running: {{ failed_service_names | join(', ') }}
-      - If 'cloudnode-bot' is in the list, this is EXPECTED during initial deployment.
-      - Bot requires REALITY_PUBLIC_KEY which is generated later by Marzban tasks.
-      - The bot will be automatically restarted after key generation.
-      - Continuing with Marzban setup...
-  when: failed_service_names is defined and failed_service_names | length > 0
+    msg: "Marzban container logs:\n{{ marzban_logs.stdout | default('No logs available') }}"
+  when: marzban_logs is defined and marzban_logs.stdout is defined and marzban_logs.stdout | length > 0
 
-- name: Fail if critical services not running (non-bot services)
+- name: Fail if critical services not running
   fail:
-    msg: "Deployment failed - critical non-bot services are not running: {{ failed_non_bot_services | join(', ') }}. Check logs above."
-  when: failed_non_bot_services is defined and failed_non_bot_services | length > 0
-  vars:
-    failed_non_bot_services: "{{ failed_service_names | reject('search', 'cloudnode-bot') | list }}"
-
-- name: Verify bot health endpoint (if available)
-  uri:
-    url: "http://localhost:3000/health"
-    method: GET
-    status_code: [200, 404]
-  register: health_check
-  retries: 5
-  delay: 10
-  ignore_errors: true
+    msg: "Deployment failed - critical services are not running: {{ failed_service_names | join(', ') }}. Check logs above."
+  when: failed_service_names is defined and failed_service_names | length > 0
 
 # --- CLEANUP PHASE ---
 - name: Remove old Docker images

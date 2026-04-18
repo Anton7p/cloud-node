@@ -180,3 +180,43 @@
       - Public Key: {{ reality_public_key | default('N/A') | truncate(20, True, '...') }}
       - Short ID: {{ reality_short_id | default('N/A') }}
       - Inbound created: {{ not vless_reality_exists | bool }}
+
+# ============================================================================
+# BOT STARTUP (after keys are in .env)
+# ============================================================================
+
+- name: Start Bot container with fresh env
+  command: docker compose up -d bot --force-recreate
+  args:
+    chdir: "{{ deploy_dir }}"
+  environment:
+    DB_PASSWORD: "{{ db_password }}"
+    TELEGRAM_BOT_TOKEN: "{{ telegram_bot_token }}"
+    ENCRYPTION_KEY: "{{ encryption_key }}"
+    DOCKER_IMAGE_NAME: "{{ image_name }}"
+    REDIS_PASSWORD: "{{ redis_password | default('') }}"
+    MARZBAN_URL: "http://marzban:8000"
+    VPN_ADMIN_USERNAME: "{{ vpn_admin_username }}"
+    VPN_ADMIN_PASSWORD: "{{ vpn_admin_password }}"
+    INFRASTRUCTURE_IP_LIST: "{{ infrastructure_ip_list | default('') }}"
+    DOMAIN_NAME: "{{ domain_name }}"
+  when: (reality_public_key | default('')) | length > 0
+
+- name: Wait for bot container to be healthy
+  command: docker compose ps bot --format "{{'{{.Health}}'}}"
+  args:
+    chdir: "{{ deploy_dir }}"
+  register: bot_health
+  retries: 30
+  delay: 10
+  until: bot_health.stdout is defined and 'healthy' in bot_health.stdout | lower
+  changed_when: false
+
+- name: DEBUG - Show bot health status
+  debug:
+    var: bot_health.stdout
+
+- name: Fail if bot is not healthy
+  fail:
+    msg: "Bot container failed to become healthy. Check logs with: docker compose logs bot"
+  when: bot_health is failed or not ('healthy' in bot_health.stdout | lower)
