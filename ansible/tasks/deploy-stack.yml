@@ -188,18 +188,6 @@
 # ============================================================================
 - name: Setup Reality Keys via Marzban API and start bot
   include_tasks: tasks/setup-reality-keys.yml
-  vars:
-    deploy_dir: "{{ deploy_dir }}"
-    db_password: "{{ db_password }}"
-    telegram_bot_token: "{{ telegram_bot_token }}"
-    encryption_key: "{{ encryption_key }}"
-    image_name: "{{ image_name }}"
-    redis_password: "{{ redis_password | default('') }}"
-    vpn_admin_username: "{{ vpn_admin_username }}"
-    vpn_admin_password: "{{ vpn_admin_password }}"
-    infrastructure_ip_list: "{{ infrastructure_ip_list | default('') }}"
-    domain_name: "{{ domain_name }}"
-    marzban_node_image: "{{ marzban_node_image | default('gozargah/marzban-node:latest') }}"
   when: inventory_hostname in groups['master'] | default([inventory_hostname])
 
 - name: Prune unused Docker images to free disk space

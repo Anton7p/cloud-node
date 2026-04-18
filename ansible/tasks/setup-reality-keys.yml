@@ -76,8 +76,7 @@
          core_config.json.inbounds | selectattr('tag', 'equalto', 'VLESS Reality TCP') | list | length > 0 }}
 
 - name: Generate X25519 keys using xray
-  command: >
-    docker run --rm gozargah/marzban-node:latest xray x25519
+  command: docker run --rm {{ marzban_node_image }} xray x25519
   register: x25519_output
   when: not vless_reality_exists | bool
   changed_when: true
@@ -203,7 +202,7 @@
   when: (reality_public_key | default('')) | length > 0
 
 - name: Wait for bot container to be healthy
-  command: docker compose ps bot --format "{{'{{.Health}}'}}"
+  command: docker compose ps bot --format "{% raw %}{{.Health}}{% endraw %}"
   args:
     chdir: "{{ deploy_dir }}"
   register: bot_health
