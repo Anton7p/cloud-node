@@ -93,16 +93,7 @@
     - name: Apply system optimizations and SSH hardening
       include_tasks: tasks/system-optimization.yml
 
-    - name: Verify Docker installation
-      shell: docker version && docker info 2>&1 | head -20
-      register: docker_check
-      changed_when: false
-
-    - name: DEBUG - Show Docker status
-      debug:
-        var: docker_check.stdout
-
-    - name: Deploy application stack first (containers must be running)
+    - name: Deploy application stack (starts all containers)
       include_tasks: tasks/deploy-stack.yml
 
     - name: Setup SSL certificates (after containers are running)
