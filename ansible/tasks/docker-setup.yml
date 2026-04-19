@@ -4,6 +4,7 @@
   command: docker --version
   register: docker_check
   changed_when: false
+  ignore_errors: true
 
 - name: Update apt cache
   apt:
@@ -22,6 +23,10 @@
     purge: yes
   when: ansible_facts['os_family'] == "Debian"
 
+- name: DEBUG - OS Family check
+  debug:
+    msg: "OS Family: {{ ansible_facts['os_family'] | default('unknown') }}"
+
 - name: Install prerequisites for Docker
   apt:
     name:
@@ -33,6 +38,10 @@
     state: present
   when: ansible_facts['os_family'] == "Debian"
 
+- name: DEBUG - Docker check result
+  debug:
+    msg: "Docker check rc={{ docker_check.rc | default('undefined') }}, stdout={{ docker_check.stdout | default('none') }}"
+
 - name: Install Docker using official script
   shell: |
     curl -fsSL https://get.docker.com -o get-docker.sh
@@ -40,7 +49,10 @@
     rm get-docker.sh
   args:
     creates: /usr/bin/docker
-  when: docker_check.rc != 0
+  when:
+    - docker_check.rc is defined
+    - docker_check.rc != 0
+    - ansible_facts['os_family'] == "Debian"
 
 - name: Check if Docker service exists
   command: systemctl list-unit-files docker.service
