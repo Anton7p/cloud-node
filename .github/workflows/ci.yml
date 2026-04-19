@@ -204,22 +204,29 @@ jobs:
         run: |
           echo "=== Starting Deploy ==="
           echo "Image: ${IMAGE_NAME}"
+          
+          # Write vars to file to avoid shell escaping issues with JSON
+          cat > deploy_vars.yml << 'VARS_EOF'
+          ---
+          image_name: "${IMAGE_NAME}"
+          image_tag: "${IMAGE_TAG}"
+          domain_name: "${{ secrets.DOMAIN_NAME }}"
+          db_password: "${{ secrets.VPN_ADMIN_PASSWORD }}"
+          redis_password: "${{ secrets.VPN_ADMIN_PASSWORD }}"
+          telegram_bot_token: "${{ secrets.TELEGRAM_BOT_TOKEN }}"
+          encryption_key: "${{ secrets.ENCRYPTION_KEY }}"
+          vpn_admin_username: "${{ secrets.VPN_ADMIN_USERNAME }}"
+          vpn_admin_password: "${{ secrets.VPN_ADMIN_PASSWORD }}"
+          infrastructure_ip_list: '${{ secrets.INFRASTRUCTURE_IP_LIST }}'
+          reality_public_key: "${{ secrets.REALITY_PUBLIC_KEY }}"
+          reality_short_id: "${{ secrets.REALITY_SHORT_ID }}"
+          marzban_inbound_tag: "${{ vars.MARZBAN_INBOUND_TAG || 'VLESS_REALITY' }}"
+          github_token: "${{ secrets.GITHUB_TOKEN }}"
+          github_actor: "${{ github.actor }}"
+          VARS_EOF
+          
           ansible-playbook -i inventory.ini ansible/deploy_app.yml \
-            -e "image_name=${IMAGE_NAME}" \
-            -e "image_tag=${IMAGE_TAG}" \
-            -e "domain_name=${{ secrets.DOMAIN_NAME }}" \
-            -e "db_password=${{ secrets.VPN_ADMIN_PASSWORD }}" \
-            -e "redis_password=${{ secrets.VPN_ADMIN_PASSWORD }}" \
-            -e "telegram_bot_token=${{ secrets.TELEGRAM_BOT_TOKEN }}" \
-            -e "encryption_key=${{ secrets.ENCRYPTION_KEY }}" \
-            -e "vpn_admin_username=${{ secrets.VPN_ADMIN_USERNAME }}" \
-            -e "vpn_admin_password=${{ secrets.VPN_ADMIN_PASSWORD }}" \
-            -e "infrastructure_ip_list=${{ secrets.INFRASTRUCTURE_IP_LIST }}" \
-            -e "reality_public_key=${{ secrets.REALITY_PUBLIC_KEY }}" \
-            -e "reality_short_id=${{ secrets.REALITY_SHORT_ID }}" \
-            -e "marzban_inbound_tag=${{ vars.MARZBAN_INBOUND_TAG || 'VLESS_REALITY' }}" \
-            -e "github_token=${{ secrets.GITHUB_TOKEN }}" \
-            -e "github_actor=${{ github.actor }}" \
+            -e "@deploy_vars.yml" \
             -v
 
   # ==========================================
