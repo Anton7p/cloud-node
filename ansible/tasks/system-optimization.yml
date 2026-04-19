@@ -2,239 +2,284 @@
 # System hardening and optimization tasks
 # ==========================================
 
-# ==========================================
-# 1. SSH Key Setup from GitHub Secrets
-# ==========================================
-- name: Ensure .ssh directory exists for root
-  file:
-    path: /root/.ssh
-    state: directory
-    mode: '0700'
-    owner: root
-    group: root
-
-- name: Ensure authorized_keys file exists
-  file:
-    path: /root/.ssh/authorized_keys
-    state: touch
-    mode: '0600'
-    owner: root
-    group: root
-
-- name: Add SSH public key from GitHub Secrets if provided
-  authorized_key:
-    user: root
-    key: "{{ lookup('env', 'SSH_PUBLIC_KEY') }}"
-    state: present
-  no_log: true
-  when: lookup('env', 'SSH_PUBLIC_KEY') | length > 0
-
-- name: Verify SSH service accepts key authentication
-  shell: grep -E "^[#\s]*PubkeyAuthentication\s+(yes|no)" /etc/ssh/sshd_config || echo "NOT FOUND"
-  register: pubkey_auth_check
+- name: Check if system optimizations already applied
+  stat:
+    path: /var/lib/cloudnode/.system_optimized
+  register: optimization_flag
   changed_when: false
-  ignore_errors: true
 
-- name: Display SSH key auth status
+- name: Skip optimizations if already applied
   debug:
-    msg: "SSH PubkeyAuthentication setting: {{ pubkey_auth_check.stdout | default('NOT FOUND') }}"
+    msg: |
+      ==========================================
+      SYSTEM OPTIMIZATIONS ALREADY APPLIED
+      Flag file: /var/lib/cloudnode/.system_optimized
+      First applied: {{ optimization_flag.stat.mtime | default('unknown') }}
+      Skipping all hardening tasks (SSH, UFW, BBR)
+      ==========================================
+  when: optimization_flag.stat.exists | default(false)
 
-# ==========================================
-# 2. SSH Hardening - Disable password auth
-# ==========================================
-- name: Disable password authentication in SSH
-  lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: '^#?PasswordAuthentication'
-    line: 'PasswordAuthentication no'
-    validate: '/usr/sbin/sshd -t -f %s'
-  notify: restart sshd
+- name: Apply system optimizations
+  when: not optimization_flag.stat.exists | default(false)
+  block:
+    # ==========================================
+    # 1. SSH Key Setup from GitHub Secrets
+    # ==========================================
+    - name: Ensure .ssh directory exists for root
+      file:
+        path: /root/.ssh
+        state: directory
+        mode: '0700'
+        owner: root
+        group: root
 
-- name: Enable public key authentication
-  lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: '^#?PubkeyAuthentication'
-    line: 'PubkeyAuthentication yes'
-    validate: '/usr/sbin/sshd -t -f %s'
-  notify: restart sshd
+    - name: Ensure authorized_keys file exists
+      file:
+        path: /root/.ssh/authorized_keys
+        state: touch
+        mode: '0600'
+        owner: root
+        group: root
 
-- name: Set PermitRootLogin to prohibit-password
-  lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: '^#?PermitRootLogin'
-    line: 'PermitRootLogin prohibit-password'
-    validate: '/usr/sbin/sshd -t -f %s'
-  notify: restart sshd
+    - name: Add SSH public key from GitHub Secrets if provided
+      authorized_key:
+        user: root
+        key: "{{ lookup('env', 'SSH_PUBLIC_KEY') }}"
+        state: present
+      no_log: true
+      when: lookup('env', 'SSH_PUBLIC_KEY') | length > 0
 
-- name: Disable ChallengeResponseAuthentication
-  lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: '^#?ChallengeResponseAuthentication'
-    line: 'ChallengeResponseAuthentication no'
-    validate: '/usr/sbin/sshd -t -f %s'
-  notify: restart sshd
+    - name: Verify SSH service accepts key authentication
+      shell: grep -E "^[#\s]*PubkeyAuthentication\s+(yes|no)" /etc/ssh/sshd_config || echo "NOT FOUND"
+      register: pubkey_auth_check
+      changed_when: false
+      ignore_errors: true
 
-# ==========================================
-# 3. UFW Firewall Configuration
-# ==========================================
-- name: Install UFW
-  apt:
-    name: ufw
-    state: present
-    update_cache: yes
-  when: ansible_facts['os_family'] == "Debian"
+    - name: Display SSH key auth status
+      debug:
+        msg: "SSH PubkeyAuthentication setting: {{ pubkey_auth_check.stdout | default('NOT FOUND') }}"
 
-- name: Reset UFW to clean state
-  ufw:
-    state: reset
+    # ==========================================
+    # 2. SSH Hardening - Disable password auth
+    # ==========================================
+    - name: Disable password authentication in SSH
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PasswordAuthentication'
+        line: 'PasswordAuthentication no'
+        validate: '/usr/sbin/sshd -t -f %s'
+      notify: restart sshd
 
-- name: Set UFW default incoming policy to deny
-  ufw:
-    direction: incoming
-    policy: deny
+    - name: Enable public key authentication
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PubkeyAuthentication'
+        line: 'PubkeyAuthentication yes'
+        validate: '/usr/sbin/sshd -t -f %s'
+      notify: restart sshd
 
-- name: Set UFW default outgoing policy to allow
-  ufw:
-    direction: outgoing
-    policy: allow
+    - name: Set PermitRootLogin to prohibit-password
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitRootLogin'
+        line: 'PermitRootLogin prohibit-password'
+        validate: '/usr/sbin/sshd -t -f %s'
+      notify: restart sshd
 
-- name: Allow SSH (port 22) from anywhere
-  ufw:
-    rule: allow
-    port: '22'
-    proto: tcp
+    - name: Disable ChallengeResponseAuthentication
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?ChallengeResponseAuthentication'
+        line: 'ChallengeResponseAuthentication no'
+        validate: '/usr/sbin/sshd -t -f %s'
+      notify: restart sshd
 
-- name: Allow HTTPS (port 443) for VLESS Reality
-  ufw:
-    rule: allow
-    port: '443'
-    proto: tcp
-  when: "'nodes' in group_names"
+    # ==========================================
+    # 3. UFW Firewall Configuration
+    # ==========================================
+    - name: Install UFW
+      apt:
+        name: ufw
+        state: present
+        update_cache: yes
+      when: ansible_facts['os_family'] == "Debian"
 
-- name: Set master server IP fact for nodes
-  set_fact:
-    master_server_ip: "{{ hostvars[groups['master'][0]]['ansible_host'] | default(hostvars[groups['master'][0]]['inventory_hostname'] | default(groups['master'][0])) }}"
-  when:
-    - "'nodes' in group_names"
-    - "'master' in group_names"
-    - groups['master'] is defined
-    - groups['master'] | length > 0
+    - name: Reset UFW to clean state
+      ufw:
+        state: reset
 
-- name: Allow Marzban Node API (port 62050) from master only
-  ufw:
-    rule: allow
-    port: '62050'
-    proto: tcp
-    src: "{{ master_server_ip }}"
-  when:
-    - "'nodes' in group_names"
-    - master_server_ip is defined
-    - master_server_ip | length > 0
+    - name: Set UFW default incoming policy to deny
+      ufw:
+        direction: incoming
+        policy: deny
 
-- name: Allow 3x-ui ports (temporary)
-  ufw:
-    rule: allow
-    port: '{{ item }}'
-    proto: tcp
-  loop:
-    - '2053'
-    - '2096'
+    - name: Set UFW default outgoing policy to allow
+      ufw:
+        direction: outgoing
+        policy: allow
 
-- name: Parse infrastructure IPs from JSON
-  set_fact:
-    infrastructure_ips_parsed: "{{ (infrastructure_ip_list | from_json) | map(attribute='address') | list }}"
-  when:
-    - infrastructure_ip_list | length > 0
-    - infrastructure_ip_list is string
-    - infrastructure_ip_list != '[]'
-    - infrastructure_ip_list != ''
-  ignore_errors: true
+    - name: Allow SSH (port 22) from anywhere
+      ufw:
+        rule: allow
+        port: '22'
+        proto: tcp
 
-- name: Set infrastructure IPs from parsed result
-  set_fact:
-    infrastructure_ips: "{{ infrastructure_ips_parsed }}"
-  when: infrastructure_ips_parsed is defined and infrastructure_ips_parsed | length > 0
+    - name: Allow HTTPS (port 443) for VLESS Reality
+      ufw:
+        rule: allow
+        port: '443'
+        proto: tcp
+      when: "'nodes' in group_names"
 
-- name: Fallback to split if not JSON
-  set_fact:
-    infrastructure_ips: "{{ infrastructure_ip_list.split(',') }}"
-  when:
-    - infrastructure_ip_list | length > 0
-    - infrastructure_ip_list != '[]'
-    - infrastructure_ips is not defined
-    - infrastructure_ip_list is string
-  ignore_errors: true
+    - name: Set master server IP fact for nodes
+      set_fact:
+        master_server_ip: "{{ hostvars[groups['master'][0]]['ansible_host'] | default(hostvars[groups['master'][0]]['inventory_hostname'] | default(groups['master'][0])) }}"
+      when:
+        - "'nodes' in group_names"
+        - "'master' in group_names"
+        - groups['master'] is defined
+        - groups['master'] | length > 0
 
-- name: Set default infrastructure IPs if all parsing failed
-  set_fact:
-    infrastructure_ips: "['0.0.0.0/0']"
-  when: infrastructure_ips is not defined
+    - name: Allow Marzban Node API (port 62050) from master only
+      ufw:
+        rule: allow
+        port: '62050'
+        proto: tcp
+        src: "{{ master_server_ip }}"
+      when:
+        - "'nodes' in group_names"
+        - master_server_ip is defined
+        - master_server_ip | length > 0
 
-- name: Filter out empty IPs
-  set_fact:
-    infrastructure_ips_filtered: "{{ infrastructure_ips | select('match', '^(?!\\[?\\]?$).+') | list }}"
-  when: infrastructure_ips is defined
+    - name: Allow 3x-ui ports (temporary)
+      ufw:
+        rule: allow
+        port: '{{ item }}'
+        proto: tcp
+      loop:
+        - '2053'
+        - '2096'
 
-- name: Use filtered IPs or default
-  set_fact:
-    infrastructure_ips: "{{ infrastructure_ips_filtered | default(['0.0.0.0/0'], true) }}"
-  when: infrastructure_ips_filtered is defined
+    - name: Parse infrastructure IPs from JSON
+      set_fact:
+        infrastructure_ips_parsed: "{{ (infrastructure_ip_list | from_json) | map(attribute='address') | list }}"
+      when:
+        - infrastructure_ip_list | length > 0
+        - infrastructure_ip_list is string
+        - infrastructure_ip_list != '[]'
+        - infrastructure_ip_list != ''
+      ignore_errors: true
 
-- name: Allow Marzban API (port 8000) from infrastructure nodes only
-  ufw:
-    rule: allow
-    port: '8000'
-    proto: tcp
-    src: "{{ item | trim }}"
-  loop: "{{ infrastructure_ips | default(['0.0.0.0/0'], true) }}"
-  when:
-    - "'master' in group_names"
-    - item | trim | length > 0
-    - item | trim != '[]'
+    - name: Set infrastructure IPs from parsed result
+      set_fact:
+        infrastructure_ips: "{{ infrastructure_ips_parsed }}"
+      when: infrastructure_ips_parsed is defined and infrastructure_ips_parsed | length > 0
 
-# ==========================================
-# 6. Docker Firewall Protection (DOCKER-USER chain)
-# ==========================================
-- name: Drop all traffic to port 8000 in DOCKER-USER chain (master only)
-  shell: |
-    iptables -C DOCKER-USER -p tcp --dport 8000 -j DROP 2>/dev/null || \
-    iptables -I DOCKER-USER -p tcp --dport 8000 -j DROP
-  when: "'master' in group_names"
+    - name: Fallback to split if not JSON
+      set_fact:
+        infrastructure_ips: "{{ infrastructure_ip_list.split(',') }}"
+      when:
+        - infrastructure_ip_list | length > 0
+        - infrastructure_ip_list != '[]'
+        - infrastructure_ips is not defined
+        - infrastructure_ip_list is string
+      ignore_errors: true
 
-- name: Allow infrastructure IPs to port 8000 in DOCKER-USER chain (master only)
-  shell: |
-    iptables -C DOCKER-USER -p tcp -s {{ item | trim }} --dport 8000 -j ACCEPT 2>/dev/null || \
-    iptables -I DOCKER-USER -p tcp -s {{ item | trim }} --dport 8000 -j ACCEPT
-  loop: "{{ infrastructure_ips | default([]) }}"
-  when:
-    - "'master' in group_names"
-    - item | trim | length > 0
-    - item | trim is match('^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+(/[0-9]+)?$')
-  ignore_errors: true
+    - name: Set default infrastructure IPs if all parsing failed
+      set_fact:
+        infrastructure_ips: "['0.0.0.0/0']"
+      when: infrastructure_ips is not defined
 
-- name: Enable UFW
-  ufw:
-    state: enabled
+    - name: Filter out empty IPs
+      set_fact:
+        infrastructure_ips_filtered: "{{ infrastructure_ips | select('match', '^(?!\\[?\\]?$).+') | list }}"
+      when: infrastructure_ips is defined
 
-# ==========================================
-# 4. TCP BBR Congestion Control
-# ==========================================
-- name: Enable TCP BBR congestion control
-  sysctl:
-    name: net.ipv4.tcp_congestion_control
-    value: bbr
-    state: present
-    reload: yes
+    - name: Use filtered IPs or default
+      set_fact:
+        infrastructure_ips: "{{ infrastructure_ips_filtered | default(['0.0.0.0/0'], true) }}"
+      when: infrastructure_ips_filtered is defined
 
-- name: Ensure BBR is available
-  shell: sysctl net.ipv4.tcp_available_congestion_control | grep -q bbr
-  register: bbr_available
-  changed_when: false
+    - name: Allow Marzban API (port 8000) from infrastructure nodes only
+      ufw:
+        rule: allow
+        port: '8000'
+        proto: tcp
+        src: "{{ item | trim }}"
+      loop: "{{ infrastructure_ips | default(['0.0.0.0/0'], true) }}"
+      when:
+        - "'master' in group_names"
+        - item | trim | length > 0
+        - item | trim != '[]'
 
-- name: Load tcp_bbr module if available
-  modprobe:
-    name: tcp_bbr
-    state: present
-  when: bbr_available.rc == 0
+    # ==========================================
+    # 6. Docker Firewall Protection (DOCKER-USER chain)
+    # ==========================================
+    - name: Drop all traffic to port 8000 in DOCKER-USER chain (master only)
+      shell: |
+        iptables -C DOCKER-USER -p tcp --dport 8000 -j DROP 2>/dev/null || \
+        iptables -I DOCKER-USER -p tcp --dport 8000 -j DROP
+      when: "'master' in group_names"
 
+    - name: Allow infrastructure IPs to port 8000 in DOCKER-USER chain (master only)
+      shell: |
+        iptables -C DOCKER-USER -p tcp -s {{ item | trim }} --dport 8000 -j ACCEPT 2>/dev/null || \
+        iptables -I DOCKER-USER -p tcp -s {{ item | trim }} --dport 8000 -j ACCEPT
+      loop: "{{ infrastructure_ips | default([]) }}"
+      when:
+        - "'master' in group_names"
+        - item | trim | length > 0
+        - item | trim is match('^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+(/[0-9]+)?$')
+      ignore_errors: true
 
+    - name: Enable UFW
+      ufw:
+        state: enabled
+
+    # ==========================================
+    # 4. TCP BBR Congestion Control
+    # ==========================================
+    - name: Enable TCP BBR congestion control
+      sysctl:
+        name: net.ipv4.tcp_congestion_control
+        value: bbr
+        state: present
+        reload: yes
+
+    - name: Ensure BBR is available
+      shell: sysctl net.ipv4.tcp_available_congestion_control | grep -q bbr
+      register: bbr_available
+      changed_when: false
+
+    - name: Load tcp_bbr module if available
+      modprobe:
+        name: tcp_bbr
+        state: present
+      when: bbr_available.rc == 0
+
+# Create flag file after successful optimization
+- name: Ensure flag directory exists
+  file:
+    path: /var/lib/cloudnode
+    state: directory
+    mode: '0755'
+  when: not optimization_flag.stat.exists | default(false)
+
+- name: Create optimization flag file
+  copy:
+    content: "System optimizations applied: {{ ansible_date_time.iso8601 }}"
+    dest: /var/lib/cloudnode/.system_optimized
+    mode: '0644'
+  when: not optimization_flag.stat.exists | default(false)
+
+- name: Display optimization success message
+  debug:
+    msg: |
+      ==========================================
+      SYSTEM OPTIMIZATIONS APPLIED SUCCESSFULLY
+      Flag created: /var/lib/cloudnode/.system_optimized
+      Applied at: {{ ansible_date_time.iso8601 }}
+      Optimizations: SSH hardening, UFW firewall, TCP BBR
+      Next runs will SKIP these tasks automatically
+      ==========================================
+  when: not optimization_flag.stat.exists | default(false)

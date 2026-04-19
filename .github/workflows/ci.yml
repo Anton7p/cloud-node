@@ -206,7 +206,7 @@ jobs:
           echo "Image: ${IMAGE_NAME}"
           
           # Write vars to file to avoid shell escaping issues with JSON
-          cat > deploy_vars.yml << 'VARS_EOF'
+          cat > deploy_vars.yml << VARS_EOF
           ---
           image_name: "${IMAGE_NAME}"
           image_tag: "${IMAGE_TAG}"
