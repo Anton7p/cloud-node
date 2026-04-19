@@ -84,19 +84,24 @@ registerHandler(handler: BaseAction): void {
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                         ТРИГГЕРЫ (Triggers)                              │
 ├─────────────────────────────────────────────────────────────────────────┤
-│  push: [main, master]  │  pull_request  │  workflow_dispatch (manual)   │
+│  push: [main]          │  workflow_dispatch (manual)                     │
 └─────────────────────────────────────────────────────────────────────────┘
                                     ↓
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                     ORCHESTRATOR: .github/workflows/main.yml            │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────────────┐  │
-│  │   Stage 1   │ →  │   Stage 2   │ →  │          Stage 3            │  │
-│  │    Build    │    │   Deploy    │    │    Infrastructure           │  │
-│  │ Docker Image│    │   App Stack │    │    (Nodes Setup)            │  │
-│  └─────────────┘    └─────────────┘    └─────────────────────────────┘  │
-│       outputs              needs: build         needs: [build, deploy]   │
-│    image_tag               to: master                to: nodes         │
+│                     ORCHESTRATOR: .github/workflows/ci.yml              │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────────┐  │
+│  │   Stage 1       │  │   Stage 2       │  │   Stage 3               │  │
+│  │   Build & Push  │→ │   Verify Secrets│→ │   Deploy Application    │  │
+│  │   Docker Image  │  │                 │  │   to Master Server      │  │
+│  └─────────────────┘  └─────────────────┘  └─────────────────────────┘  │
+│       outputs              needs: build        needs: [build, verify]    │
+│    image_tag                                environment: production      │
 │    image_name                                                            │
+│  ┌────────────────────────────────────────────────────────────────────┐  │
+│  │   Stage 4 (Optional)                                               │  │
+│  │   Infrastructure — Setup Nodes from INFRASTRUCTURE_IP_LIST           │  │
+│  │   needs: deploy                                                    │  │
+│  └────────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -141,56 +146,143 @@ MARZBAN_INBOUND_TAG=          # Тег инбаунда (default: VLESS_REALITY)
 
 > **Note:** `GITHUB_TOKEN` выдаётся автоматически для пуша в GHCR.
 
-### Stage 1: Build (`.github/workflows/build.yml`)
+### Workflow файлы
+
+| Файл | Назначение | Триггер |
+|------|------------|---------|
+| `.github/workflows/ci.yml` | Полный CI/CD пайплайн | `push: [main]` |
+| `.github/workflows/bootstrap.yml` | Первоначальная настройка SSH | `workflow_dispatch` (ручной) |
+
+---
+
+### Stage 1: Build & Push Docker Image (`test-and-build`)
+
+**Файл:** `.github/workflows/ci.yml`
 
 **Что делает:**
-1. Собирает Docker образ NestJS приложения
-2. Генерирует уникальный тег из Git commit SHA (например `a81813f`)
-3. Пушит в GitHub Container Registry: `ghcr.io/anton7p/cloud-node:<sha>`
 
-**Выход:**
+| # | Шаг | Действие |
+|---|-----|----------|
+| 1 | **Checkout** | Клонирование репозитория |
+| 2 | **Normalize image name** | Приведение имени образа к lowercase |
+| 3 | **Setup Docker Buildx** | Настройка BuildKit |
+| 4 | **Login to GHCR** | Авторизация в GitHub Container Registry (`secrets.GITHUB_TOKEN`) |
+| 5 | **Extract metadata** | Генерация тегов: `type=sha` (short), `type=ref,event=branch`, `latest` |
+| 6 | **Build and push** | Сборка и пуш с layer caching (`cache-from: type=gha`, `cache-to: type=gha,mode=max`) |
+| 7 | **Output image info** | Вывод информации об образе в логи |
+
+**Выходные данные (outputs):**
 ```yaml
-image_name: ghcr.io/anton7p/cloud-node
-image_tag: a81813f...  # Git commit SHA
+image_tag: ${{ steps.meta.outputs.version }}    # Git commit SHA
+image_name: ${{ steps.normalize.outputs.image_name_lower }}  # ghcr.io/anton7p/cloud-node
 ```
 
-### Stage 2: Deploy (`.github/workflows/deploy.yml`)
+### Stage 2: Verify Secrets (`verify-secrets`)
 
-**Цель:** Master сервер (из SERVER_IP)
+**Зависимость:** `test-and-build`
 
-**Порядок выполнения Ansible:**
+Проверяет обязательные секреты GitHub перед деплоем:
+
+| Secret | Проверка |
+|--------|----------|
+| `SERVER_IP` | JSON формат `{"address": "1.2.3.4", "password": "..."}` |
+| `SSH_PRIVATE_KEY` | Установлен или нет |
+| `DOMAIN_NAME` | Установлен или нет |
+| `INFRASTRUCTURE_IP_LIST` | Опционально — проверка JSON массива |
+
+**При ошибке:** пайплайн фейлится до начала деплоя.
+
+---
+
+### Stage 3: Deploy Application (`deploy`)
+
+**Зависимости:** `[test-and-build, verify-secrets]`  
+**Environment:** `production`  
+**Цель:** Master сервер (из `SERVER_IP`)
+
+**Подготовка:**
+| # | Шаг | Действие |
+|---|-----|----------|
+| 1 | **Setup SSH** | Создание `~/.ssh/id_rsa`, `chmod 600`, отключение `StrictHostKeyChecking` |
+| 2 | **Install deps** | `pip install ansible`, `apt-get install jq sshpass` |
+| 3 | **Parse SERVER_IP** | Парсинг JSON → генерация `inventory.ini` (парольная или ключевая аутентификация) |
+| 4 | **Generate vars** | Создание `deploy_vars.yml` с переменными для Ansible |
+| 5 | **Run playbook** | `ansible-playbook -i inventory.ini ansible/deploy_app.yml` |
+
+**Ansible Playbook:** `ansible/deploy_app.yml`
+
 ```
 deploy_app.yml
-├── 01-backup.yml        # Резервное копирование .env
-├── 02-configure.yml     # Генерация .env и docker-compose.yml
-├── docker-setup.yml     # Установка Docker (если отсутствует)
-├── 03-docker-auth.yml   # Логин в GHCR
-├── 04-pull-image.yml    # docker pull ghcr.io/...:<sha>
-├── 05-stack-deploy.yml  # docker compose up -d
-│                         └── docker image prune -f  # Очистка старых SHA
-├── 06-health-check.yml  # Проверка контейнеров
-└── 07-cleanup.yml       # Ротация логов
+├── pre_tasks (валидация)
+│   ├── DEBUG — логирование
+│   ├── Проверка диска (df -h)
+│   ├── Валидация: image_name, image_tag
+│   ├── Валидация: db_password, telegram_bot_token, encryption_key
+│   └── Валидация: vpn_admin_username, vpn_admin_password, domain_name
+│
+├── tasks/docker-setup.yml
+│   ├── Удаление конфликтных пакетов (containerd, docker.io)
+│   ├── Установка Docker через get.docker.com
+│   ├── Enable & start Docker service
+│   ├── Настройка daemon.json (iptables, ip-forward)
+│   └── Настройка iptables цепочки DOCKER-USER
+│
+├── tasks/system-optimization.yml
+│   ├── SSH hardening (отключение password auth)
+│   ├── UFW firewall (порты 22, 443, 8000, 62050)
+│   ├── TCP BBR congestion control
+│   └── Docker firewall protection
+│
+└── tasks/deploy-stack.yml
+    ├── BACKUP: /var/backups/cloudnode/{.env,docker-compose.yml}.{timestamp}
+    ├── CONFIGURE: генерация .env из templates/.env.j2
+    ├── DOCKER AUTH: docker login ghcr.io
+    ├── PULL: docker pull ghcr.io/...:<sha>
+    │
+    ├── BOOT SEQUENCE:
+    │   ├── Шаг 1: docker compose up -d db redis → ожидание PostgreSQL (pg_isready)
+    │   ├── Шаг 2: docker compose up -d marzban → ожидание healthcheck
+    │   └── Шаг 3: setup-reality-keys.yml (генерация Reality keys через Marzban API)
+    │
+    ├── HEALTH CHECK:
+    │   ├── Проверка всех контейнеров: bot, db, redis, marzban
+    │   ├── Сбор логов при ошибках
+    │   └── Fail если критический сервис не запущен
+    │
+    └── CLEANUP: docker image prune -af --filter "until=168h"
 ```
 
 **Стек на Master:**
-- `cloudnode-bot` — Telegram бот (NestJS)
-- `cloudnode-db` — PostgreSQL 16
-- `cloudnode-redis` — Redis 7
-- `cloudnode-marzban` — VPN панель (v0.6.0)
 
-### Stage 3: Infrastructure (`.github/workflows/infrastructure.yml`)
+| Сервис | Контейнер | Образ | Назначение |
+|--------|-----------|-------|------------|
+| Bot | `cloudnode-bot` | `ghcr.io/anton7p/cloud-node:<sha>` | NestJS Telegram бот |
+| Database | `cloudnode-db` | `postgres:16-alpine` | PostgreSQL данные |
+| Queue | `cloudnode-redis` | `redis:7.2-alpine` | BullMQ очереди |
+| VPN Core | `cloudnode-marzban` | `gozargah/marzban:v0.8.4` | VPN панель управления |
 
-**Цель:** Ноды из INFRASTRUCTURE_IP_LIST
+### Stage 4: Setup Infrastructure Nodes (`infrastructure`)
 
-**Порядок выполнения Ansible:**
+**Зависимость:** `deploy`  
+**Условие:** Выполняется только если `INFRASTRUCTURE_IP_LIST` задан  
+**Цель:** Ноды из `INFRASTRUCTURE_IP_LIST`
+
+**Подготовка:**
+| # | Шаг | Действие |
+|---|-----|----------|
+| 1 | **Parse INFRASTRUCTURE_IP_LIST** | Парсинг JSON массива нод |
+| 2 | **Generate inventory** | Создание `inventory_nodes.ini` |
+| 3 | **Parse master address** | Определение IP мастера для связи |
+| 4 | **Run playbook** | `ansible-playbook -i inventory_nodes.ini ansible/deploy_node.yml` |
+
+**Ansible Playbook:** `ansible/deploy_node.yml`
 ```
 deploy_node.yml
 ├── directory-setup.yml       # /var/www/marzban_node
 ├── docker-setup.yml          # Docker CE + Compose V2
-├── system-optimization.yml   # SSH hardening, UFW, Fail2Ban
+├── system-optimization.yml   # SSH hardening, UFW, TCP BBR
 ├── auth-certificate.yml      # Получение SSL сертификата от Master
-├── marzban-setup.yml         # Регистрация ноды в Core API
-└── marzban-node.yml          # Запуск gozargah/marzban-node:v0.4.2
+└── marzban-node.yml          # Запуск gozargah/marzban-node:v0.5.2
 ```
 
 ### Manual Workflow: Bootstrap (`.github/workflows/bootstrap.yml`)
@@ -200,21 +292,42 @@ deploy_node.yml
 - Переустановка ОС (новые SSH host keys)
 - Потеря SSH доступа
 
-**Флоу:**
+**Input параметры:**
+| Параметр | Формат | Обязательный |
+|----------|--------|--------------|
+| `server_ip_json` | `{"address":"1.2.3.4","password":"root_pass"}` | Да |
+| `infrastructure_ips_json` | `[{"address":"1.2.3.5","password":"pass"}]` | Нет |
+
+**Пошаговый флоу:**
+
+| # | Шаг | Действие |
+|---|-----|----------|
+| 1 | **Checkout** | Клонирование репозитория |
+| 2 | **Install deps** | `pip install ansible jq`, `apt-get install sshpass` |
+| 3 | **Clean old keys** | `ssh-keygen -R <IP>` для мастера и всех нод |
+| 4 | **Parse servers** | Парсинг JSON, генерация `inventory_bootstrap.ini` с парольной аутентификацией |
+| 5 | **Run Bootstrap** | `ansible-playbook -i inventory_bootstrap.ini bootstrap.yml` |
+| 6 | **Verify SSH** | Проверка доступа по ключу (без пароля) |
+| 7 | **Cleanup** | Удаление `~/.ssh/id_rsa`, `inventory_bootstrap.ini` |
+
+**Ansible Playbook:** `ansible/bootstrap.yml`
 ```
-Input: {"address":"1.2.3.4","password":"root_pass"}
-       ↓
-1. ssh-keygen -R <IP>          # Очистка старых host keys
-2. SSH по паролю (единственный раз!)
-3. Установка SSH_PUBLIC_KEY в /root/.ssh/authorized_keys
-4. chmod 700 .ssh / 600 authorized_keys  # Ubuntu 24.04 strict mode
-5. Disable PasswordAuthentication
-6. Enable PubkeyAuthentication
-7. Restart SSH service
-8. Verify: вход по ключу работает
-       ↓
-Output: Сервер готов для Deploy/Infrastructure (только ключи)
+bootstrap.yml
+├── Wait for connection (timeout: 60s)
+├── Validate SSH_PUBLIC_KEY
+├── Ensure /root/.ssh (chmod 700)
+├── Ensure authorized_keys (chmod 600)
+├── Install SSH public key (authorized_key module, exclusive: yes)
+├── Backup /etc/ssh/sshd_config
+├── Disable PasswordAuthentication
+├── Enable PubkeyAuthentication
+├── Set PermitRootLogin prohibit-password
+├── Validate SSH config (sshd -t)
+├── Restart SSH service
+└── Verify: вход по ключу работает
 ```
+
+**Output:** Сервер готов для CI/CD деплоя (только SSH ключи, без паролей).
 
 ### Поток данных CI/CD
 
@@ -234,7 +347,7 @@ Developer push → main ─────┐
         ↓                  ↓                  ↓
 ghcr.io/anton7p    docker-compose      marzban-node
 /cloud-node:sha    bot + db + redis    (VPN nodes)
-                   + marzban:v0.6.0    
+                   + marzban:v0.8.4
 ```
 
 ### Деплой командами
@@ -252,11 +365,7 @@ cd ansible
 ansible-playbook -i inventory.ini deploy_app.yml \
   -e "image_name=ghcr.io/anton7p/cloud-node" \
   -e "image_tag=<commit-sha>"
-```
 
-### Ручной запуск Ansible (для отладки)
-
-```bash
 # Настройка инфраструктурных нод
 cd ansible
 ansible-playbook -i inventory.ini deploy_node.yml \
@@ -264,11 +373,15 @@ ansible-playbook -i inventory.ini deploy_node.yml \
   -e "VPN_ADMIN_USERNAME=admin" \
   -e "VPN_ADMIN_PASSWORD=secret"
 
-# Деплой приложения (db_password берется из VPN_ADMIN_PASSWORD)
+# Деплой приложения с полным набором переменных
 ansible-playbook -i inventory.ini deploy_app.yml \
   -e "image_name=ghcr.io/username/repo" \
   -e "image_tag=latest" \
-  -e "telegram_bot_token=xxx"
+  -e "telegram_bot_token=xxx" \
+  -e "encryption_key=xxx" \
+  -e "vpn_admin_username=admin" \
+  -e "vpn_admin_password=secret" \
+  -e "domain_name=example.com"
 ```
 
 ## Health Check
