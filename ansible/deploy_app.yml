@@ -96,8 +96,8 @@
     - name: Deploy application stack (starts all containers)
       include_tasks: tasks/deploy-stack.yml
 
-    - name: Setup SSL certificates (after containers are running)
-      include_tasks: tasks/auth-certificate.yml
+    # Note: auth-certificate.yml is only for nodes to fetch SSL certs from master
+    # Master generates its own certificates automatically
 
   handlers:
     - name: restart docker

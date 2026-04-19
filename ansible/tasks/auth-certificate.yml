@@ -69,39 +69,49 @@
   when: auth_response.status != 200
 
 # --- CERTIFICATE FETCH TASKS ---
+# Only fetch certificates for nodes, not master
+# Master generates its own certificates, doesn't fetch them
 - name: Fetch certificate from Marzban Master API
   uri:
-    url: "{{ computed_api_url }}/node/certificate"
+    url: "{{ computed_api_url }}/node/certificate?node_id={{ node_id | default(1) }}"
     method: GET
     headers:
       Authorization: "Bearer {{ auth_response.json.access_token }}"
     return_content: yes
-    status_code: [200, 404]
+    status_code: [200, 404, 422]
     timeout: 30
   register: cert_response
   become: false
+  when: "'nodes' in group_names"  # Only for nodes, not master
 
 - name: Debug certificate response
   debug:
-    msg: "Certificate fetch status: {{ cert_response.status }}. Certificate defined: {{ cert_response.json.certificate is defined }}"
-  run_once: true
+    msg: "Certificate fetch status: {{ cert_response.status | default('skipped') }}. Certificate defined: {{ cert_response.json.certificate is defined | default(false) }}"
+  when: "'nodes' in group_names"
 
 - name: Fail if certificate endpoint returned 404
   fail:
     msg: "Certificate endpoint /node/settings not found (404)."
-  when: cert_response.status == 404
+  when: 
+    - "'nodes' in group_names"
+    - cert_response.status == 404
 
 - name: Fail if certificate not found in response
   fail:
     msg: "Certificate not found in API response."
-  when: cert_response.status == 200 and (cert_response.json.certificate is not defined or cert_response.json.certificate == "")
+  when: 
+    - "'nodes' in group_names"
+    - cert_response.status == 200
+    - cert_response.json.certificate is not defined or cert_response.json.certificate == ""
 
 - name: Save certificate locally on Runner
   copy:
     content: "{{ cert_response.json.certificate }}"
     dest: "/tmp/ssl_client_cert.pem"
     mode: '0644'
-  when: cert_response.json.certificate is defined
+  when: 
+    - "'nodes' in group_names"
+    - cert_response.json.certificate is defined
   delegate_to: localhost
   become: false
   run_once: true
@@ -109,6 +119,7 @@
 - name: Store certificate content as fact
   set_fact:
     new_certificate: "{{ cert_response.json.certificate }}"
+  when: "'nodes' in group_names"
   delegate_to: localhost
   become: false
   run_once: true
@@ -118,18 +129,22 @@
   stat:
     path: "{{ cert_file }}"
   register: existing_cert
+  when: "'nodes' in group_names"
 
 - name: Read existing certificate content from node
   slurp:
     src: "{{ cert_file }}"
   register: existing_cert_content
-  when: existing_cert.stat.exists
+  when: 
+    - "'nodes' in group_names"
+    - existing_cert.stat.exists
 
 - name: Set certificate changed fact
   set_fact:
     cert_changed: >-
       {{ not existing_cert.stat.exists or
          (existing_cert_content.content | b64decode) != new_certificate }}
+  when: "'nodes' in group_names"
   delegate_to: localhost
   become: false
   run_once: true
