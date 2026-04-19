@@ -237,43 +237,4 @@
     state: present
   when: bbr_available.rc == 0
 
-# ==========================================
-# 5. Fail2Ban Installation
-# ==========================================
-- name: Install Fail2Ban
-  apt:
-    name: fail2ban
-    state: present
-  when: ansible_facts['os_family'] == "Debian"
-
-- name: Configure Fail2Ban for SSH protection
-  copy:
-    dest: /etc/fail2ban/jail.local
-    content: |
-      [DEFAULT]
-      bantime = 86400
-      findtime = 600
-      maxretry = 3
-      backend = systemd
-
-      [sshd]
-      enabled = true
-      port = ssh
-      filter = sshd
-      maxretry = 3
-  notify: restart fail2ban
-
-- name: Check if fail2ban service exists
-  command: systemctl list-unit-files fail2ban.service
-  register: fail2ban_service_check
-  changed_when: false
-  ignore_errors: true
-
-- name: Enable and start Fail2Ban
-  systemd:
-    name: fail2ban
-    enabled: yes
-    state: started
-  when: fail2ban_service_check.rc == 0
-  ignore_errors: true
 

@@ -87,11 +87,11 @@
       when: domain_name | length == 0
 
   tasks:
+    - name: Setup Docker and Docker Compose first
+      include_tasks: tasks/docker-setup.yml
+
     - name: Apply system optimizations and SSH hardening
       include_tasks: tasks/system-optimization.yml
-
-    - name: Setup Docker and Docker Compose
-      include_tasks: tasks/docker-setup.yml
 
     - name: Verify Docker installation
       shell: docker version && docker info 2>&1 | head -20
@@ -117,11 +117,6 @@
     - name: restart sshd
       systemd:
         name: ssh
-        state: restarted
-
-    - name: restart fail2ban
-      systemd:
-        name: fail2ban
         state: restarted
 
     - name: Restart bot container
