@@ -102,11 +102,11 @@
       debug:
         var: docker_check.stdout
 
-    - name: Setup SSL certificates
-      include_tasks: tasks/auth-certificate.yml
-
-    - name: Deploy application stack
+    - name: Deploy application stack first (containers must be running)
       include_tasks: tasks/deploy-stack.yml
+
+    - name: Setup SSL certificates (after containers are running)
+      include_tasks: tasks/auth-certificate.yml
 
   handlers:
     - name: restart docker
