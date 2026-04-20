@@ -52,12 +52,6 @@ dist/
 
 # Local development tools (not used in CI/CD)
 .windsurfrules
-windsurf-rules.md
-docker-compose.local.yml
-deploy-local.sh
-deploy-local.ps1
-ansible/load-env.ps1
 ansible/deploy.sh
-ansible/generate_inventory.sh
 ansible/inventory.ini
-fix-encoding.bat
+

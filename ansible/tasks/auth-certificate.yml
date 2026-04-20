@@ -73,7 +73,7 @@
 # Master generates its own certificates, doesn't fetch them
 - name: Fetch certificate from Marzban Master API
   uri:
-    url: "{{ computed_api_url }}/node/certificate?node_id={{ node_id | default(1) }}"
+    url: "{{ computed_api_url }}/node/settings"
     method: GET
     headers:
       Authorization: "Bearer {{ auth_response.json.access_token }}"
