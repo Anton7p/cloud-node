@@ -25,6 +25,12 @@
     marzban_inbound_tag: "{{ hostvars[inventory_hostname]['marzban_inbound_tag'] | default('VLESS_REALITY') }}"
 
   pre_tasks:
+    - name: Parse infrastructure IPs from JSON
+      set_fact:
+        infrastructure_ips_parsed: "{{ (infrastructure_ip_list | from_json) | map(attribute='address') | list }}"
+      when: infrastructure_ip_list is defined and infrastructure_ip_list | length > 0
+      ignore_errors: true
+
     - name: DEBUG - Log deployment start
       debug:
         msg:
@@ -33,7 +39,7 @@
           - "Deploy dir: {{ deploy_dir }}"
           - "Image: {{ image_name }}"
           - "Domain: {{ domain_name }}"
-          - "Infrastructure IPs: {{ infrastructure_ip_list }}"
+          - "Infrastructure IPs: {{ infrastructure_ips_parsed | default([]) }}"
           - "VPN Admin defined: {{ vpn_admin_username | length > 0 }}"
           - "Reality Public Key defined: {{ reality_public_key | default('') | length > 0 }}"
 

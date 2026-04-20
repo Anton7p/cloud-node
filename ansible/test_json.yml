@@ -1,0 +1,19 @@
+---
+- name: Test JSON parsing
+  hosts: localhost
+  gather_facts: no
+  vars:
+    infrastructure_ip_list: '[{"address":"109.172.95.82","password":"cqxgACni1Zst"}]'
+  
+  tasks:
+    - name: Debug - Show infrastructure_ip_list value
+      debug:
+        msg: "infrastructure_ip_list: {{ infrastructure_ip_list }}"
+    
+    - name: Parse infrastructure IPs from JSON
+      set_fact:
+        infrastructure_ips_parsed: "{{ (infrastructure_ip_list | from_json) | map(attribute='address') | list }}"
+    
+    - name: Show parsed result
+      debug:
+        msg: "Parsed IPs: {{ infrastructure_ips_parsed }}"

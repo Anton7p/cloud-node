@@ -124,12 +124,19 @@
         port: '22'
         proto: tcp
 
-    - name: Allow HTTPS (port 443) for VLESS Reality
+    - name: Allow HTTPS (port 443) for VLESS Reality on nodes
       ufw:
         rule: allow
         port: '443'
         proto: tcp
       when: "'nodes' in group_names"
+
+    - name: Allow HTTPS (port 443) for VLESS Reality on master
+      ufw:
+        rule: allow
+        port: '443'
+        proto: tcp
+      when: "'master' in group_names"
 
     - name: Set master server IP fact for nodes
       set_fact:
@@ -140,7 +147,7 @@
         - groups['master'] is defined
         - groups['master'] | length > 0
 
-    - name: Allow Marzban Node API (port 62050) from master only
+    - name: Allow Marzban Node API (port 62050) from master only on nodes
       ufw:
         rule: allow
         port: '62050'
@@ -150,6 +157,37 @@
         - "'nodes' in group_names"
         - master_server_ip is defined
         - master_server_ip | length > 0
+
+    - name: Allow Marzban Node API (port 62050) on master from nodes only
+      ufw:
+        rule: allow
+        port: '62050'
+        proto: tcp
+        src: "{{ item | trim }}"
+      loop: "{{ infrastructure_ips | default(['0.0.0.0/0'], true) }}"
+      when:
+        - "'master' in group_names"
+        - item | trim | length > 0
+        - item | trim != '[]'
+
+    - name: Allow Marzban Node communication (port 62051) on master from nodes only
+      ufw:
+        rule: allow
+        port: '62051'
+        proto: tcp
+        src: "{{ item | trim }}"
+      loop: "{{ infrastructure_ips | default(['0.0.0.0/0'], true) }}"
+      when:
+        - "'master' in group_names"
+        - item | trim | length > 0
+        - item | trim != '[]'
+
+    - name: Allow Marzban Node communication (port 62051) on nodes
+      ufw:
+        rule: allow
+        port: '62051'
+        proto: tcp
+      when: "'nodes' in group_names"
 
     - name: Allow 3x-ui ports (temporary)
       ufw:
