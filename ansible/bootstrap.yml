@@ -63,10 +63,6 @@
         owner: root
         group: root
 
-    - name: Restore SELinux context on .ssh directory (if SELinux enabled)
-      command: restorecon -R /root/.ssh
-      changed_when: false
-
     - name: Display authorized_keys content for debug
       command: cat /root/.ssh/authorized_keys
       changed_when: false
@@ -85,7 +81,7 @@
     - name: Backup original SSH config
       copy:
         src: /etc/ssh/sshd_config
-        dest: /etc/ssh/sshd_config.backup.{{ ansible_date_time.epoch }}
+        dest: /etc/ssh/sshd_config.backup.{{ ansible_facts['date_time']['epoch'] }}
         remote_src: yes
 
     - name: Disable password authentication

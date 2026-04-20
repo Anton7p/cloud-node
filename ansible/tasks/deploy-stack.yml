@@ -18,7 +18,7 @@
 - name: Backup existing .env if present
   copy:
     src: "{{ deploy_dir }}/.env"
-    dest: "{{ backup_dir }}/.env.{{ ansible_date_time.epoch }}"
+    dest: "{{ backup_dir }}/.env.{{ ansible_facts['date_time']['epoch'] }}"
     remote_src: yes
     mode: '0600'
   when: env_file_stat.stat.exists
@@ -31,7 +31,7 @@
 - name: Backup existing docker-compose.yml if present
   copy:
     src: "{{ deploy_dir }}/docker-compose.yml"
-    dest: "{{ backup_dir }}/docker-compose.yml.{{ ansible_date_time.epoch }}"
+    dest: "{{ backup_dir }}/docker-compose.yml.{{ ansible_facts['date_time']['epoch'] }}"
     remote_src: yes
     mode: '0644'
   when: compose_file_stat.stat.exists
@@ -282,6 +282,6 @@
       ==========================================
       Target Server: {{ inventory_hostname }}
       Image: {{ image_name }}:{{ image_tag }}
-      Deployed At: {{ ansible_date_time.iso8601 }}
+      Deployed At: {{ ansible_facts['date_time']['iso8601'] }}
       Containers Running: {{ container_status.stdout_lines | length - 1 }}
       ==========================================

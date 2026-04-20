@@ -267,7 +267,7 @@
 
 - name: Create optimization flag file
   copy:
-    content: "System optimizations applied: {{ ansible_date_time.iso8601 }}"
+    content: "System optimizations applied: {{ ansible_facts['date_time']['iso8601'] }}"
     dest: /var/lib/cloudnode/.system_optimized
     mode: '0644'
   when: not optimization_flag.stat.exists | default(false)
@@ -278,7 +278,7 @@
       ==========================================
       SYSTEM OPTIMIZATIONS APPLIED SUCCESSFULLY
       Flag created: /var/lib/cloudnode/.system_optimized
-      Applied at: {{ ansible_date_time.iso8601 }}
+      Applied at: {{ ansible_facts['date_time']['iso8601'] }}
       Optimizations: SSH hardening, UFW firewall, TCP BBR
       Next runs will SKIP these tasks automatically
       ==========================================

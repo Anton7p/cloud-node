@@ -247,7 +247,9 @@
   command: docker compose restart bot
   args:
     chdir: /var/www/cloudnode
-  when: (reality_public_key | default('')) | length > 0
+  when:
+    - (reality_public_key | default('')) | length > 0
+    - "'master' in group_names"
   become: true
 
 # ============================================================================
@@ -392,10 +394,15 @@
     group: root
   when: not cert_file_check.stat.exists or hostvars['localhost'].cert_changed | default(false)
 
+- name: Verify certificate file exists after copy
+  stat:
+    path: "{{ cert_file }}"
+  register: cert_file_check_after
+
 - name: Fail if certificate file not found after copy
   fail:
     msg: "Certificate file not found at {{ cert_file }}"
-  when: not cert_file_check.stat.exists
+  when: not cert_file_check_after.stat.exists
 
 - name: Create Docker Compose file for Marzban Node
   copy:
