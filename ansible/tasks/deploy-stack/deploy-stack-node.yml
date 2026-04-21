@@ -1,0 +1,23 @@
+---
+# Node Deployment Stack Entry Point
+# This file orchestrates all node-specific deployment tasks
+# Currently minimal - can be extended as needed
+# ==========================================
+
+- name: Include backup tasks
+  include_tasks: "tasks/deploy-stack/common/backup.yml"
+
+- name: Include configure tasks
+  include_tasks: "tasks/deploy-stack/common/configure.yml"
+
+- name: Include docker auth tasks
+  include_tasks: "tasks/deploy-stack/common/docker-auth.yml"
+
+- name: Include docker login tasks
+  include_tasks: "tasks/deploy-stack/common/docker-login.yml"
+
+- name: Include pull image tasks
+  include_tasks: "tasks/deploy-stack/common/pull-image.yml"
+
+# Node-specific deployment tasks can be added here
+# For now, nodes use marzban-node deployment via deploy-node.yml

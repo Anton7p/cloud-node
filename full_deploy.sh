@@ -6,7 +6,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_FILE="$SCRIPT_DIR/../.env"
+ENV_FILE="$SCRIPT_DIR/.env"
 
 echo "========================================="
 echo "FULL DEPLOYMENT - TWO PHASE"
@@ -17,7 +17,7 @@ set -a
 source "$ENV_FILE"
 set +a
 
-cd "$SCRIPT_DIR"
+cd "$SCRIPT_DIR/ansible"
 
 # Phase 1: Bootstrap all servers (master + nodes)
 echo ""

@@ -1,0 +1,21 @@
+---
+# TCP BBR Congestion Control - Common for both master and node
+# ==========================================
+
+- name: Enable TCP BBR congestion control
+  sysctl:
+    name: net.ipv4.tcp_congestion_control
+    value: bbr
+    state: present
+    reload: yes
+
+- name: Ensure BBR is available
+  shell: sysctl net.ipv4.tcp_available_congestion_control | grep -q bbr
+  register: bbr_available
+  changed_when: false
+
+- name: Load tcp_bbr module if available
+  modprobe:
+    name: tcp_bbr
+    state: present
+  when: bbr_available.rc == 0

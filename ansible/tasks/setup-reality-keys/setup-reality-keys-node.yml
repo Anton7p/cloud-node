@@ -1,0 +1,8 @@
+---
+# Setup Reality Keys - Node Entry Point
+# Node doesn't generate Reality keys, uses certificates from master
+# ==========================================
+
+- name: Debug - Node doesn't generate Reality keys
+  debug:
+    msg: "Node servers use certificates from master, no Reality key generation needed"

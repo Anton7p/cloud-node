@@ -1,0 +1,19 @@
+---
+# Pull Image Phase - Common for both master and node
+# ==========================================
+
+- name: Pull application image with SHA tag
+  command: docker pull "{{ image_name }}"
+  register: image_pull
+  retries: 3
+  delay: 10
+  until: image_pull.rc == 0
+
+- name: Verify image pulled successfully
+  command: docker images "{{ image_name }}" --format "{% raw %}{{.Repository}}:{{.Tag}}{% endraw %}"
+  register: image_verify
+  changed_when: false
+
+- name: Display pulled image
+  debug:
+    msg: "Successfully pulled image: {{ image_verify.stdout }}"

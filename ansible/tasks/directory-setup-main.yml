@@ -1,0 +1,15 @@
+---
+# Directory Setup - Main Entry Point (NEW)
+# This file imports and orchestrates directory setup tasks
+# Use directory-setup-master.yml for master-only deployment
+# Use directory-setup-node.yml for node-only deployment
+# Original file: directory-setup.yml (unchanged)
+# ==========================================
+
+- name: Include master directory setup
+  include_tasks: "tasks/directory-setup/directory-setup-master.yml"
+  when: "'master' in group_names"
+
+- name: Include node directory setup
+  include_tasks: "tasks/directory-setup/directory-setup-node.yml"
+  when: "'nodes' in group_names"

@@ -1,0 +1,19 @@
+---
+# Node Deployment Entry Point
+# This file orchestrates all node-specific deployment tasks
+# ==========================================
+
+- name: Include authentication tasks
+  include_tasks: "tasks/marzban/master/authentication.yml"
+
+- name: Include certificate fetch tasks
+  include_tasks: "tasks/marzban/node/certificate-fetch.yml"
+
+- name: Include certificate comparison tasks
+  include_tasks: "tasks/marzban/node/certificate-compare.yml"
+
+- name: Include node registration tasks
+  include_tasks: "tasks/marzban/node/registration.yml"
+
+- name: Include node deployment tasks
+  include_tasks: "tasks/marzban/node/deployment.yml"

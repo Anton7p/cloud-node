@@ -1,0 +1,6 @@
+---
+# Master Directory Setup Entry Point
+# ==========================================
+
+- name: Include master directory setup tasks
+  include_tasks: "tasks/directory-setup/master.yml"

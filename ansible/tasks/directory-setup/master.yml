@@ -1,0 +1,19 @@
+---
+# Master Directory Structure Setup
+# ==========================================
+
+- name: Create master application directory
+  file:
+    path: /var/www/cloudnode
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+
+- name: Create master backup directory
+  file:
+    path: /var/backups/cloudnode
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root

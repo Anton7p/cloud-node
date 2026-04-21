@@ -1,0 +1,51 @@
+---
+# UFW Rules - Master-specific
+# ==========================================
+
+- name: Allow HTTPS (port 443) for VLESS Reality
+  ufw:
+    rule: allow
+    port: '443'
+    proto: tcp
+
+- name: Allow Marzban Node API (port 62050) from nodes only
+  ufw:
+    rule: allow
+    port: '62050'
+    proto: tcp
+    src: "{{ item | trim }}"
+  loop: "{{ infrastructure_ips | default(['0.0.0.0/0'], true) }}"
+  when:
+    - item | trim | length > 0
+    - item | trim != '[]'
+
+- name: Allow Marzban Node communication (port 62051) from nodes only
+  ufw:
+    rule: allow
+    port: '62051'
+    proto: tcp
+    src: "{{ item | trim }}"
+  loop: "{{ infrastructure_ips | default(['0.0.0.0/0'], true) }}"
+  when:
+    - item | trim | length > 0
+    - item | trim != '[]'
+
+- name: Allow 3x-ui ports (temporary)
+  ufw:
+    rule: allow
+    port: '{{ item }}'
+    proto: tcp
+  loop:
+    - '2053'
+    - '2096'
+
+- name: Allow Marzban API (port 8000) from infrastructure nodes only
+  ufw:
+    rule: allow
+    port: '8000'
+    proto: tcp
+    src: "{{ item | trim }}"
+  loop: "{{ infrastructure_ips | default(['0.0.0.0/0'], true) }}"
+  when:
+    - item | trim | length > 0
+    - item | trim != '[]'

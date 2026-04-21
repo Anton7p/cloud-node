@@ -1,0 +1,32 @@
+---
+# UFW Rules - Node-specific
+# ==========================================
+
+- name: Allow HTTPS (port 443) for VLESS Reality
+  ufw:
+    rule: allow
+    port: '443'
+    proto: tcp
+
+- name: Set master server IP fact
+  set_fact:
+    master_server_ip: "{{ hostvars[groups['master'][0]]['ansible_host'] | default(hostvars[groups['master'][0]]['inventory_hostname'] | default(groups['master'][0])) }}"
+  when:
+    - groups['master'] is defined
+    - groups['master'] | length > 0
+
+- name: Allow Marzban Node API (port 62050) from master only
+  ufw:
+    rule: allow
+    port: '62050'
+    proto: tcp
+    src: "{{ master_server_ip }}"
+  when:
+    - master_server_ip is defined
+    - master_server_ip | length > 0
+
+- name: Allow Marzban Node communication (port 62051)
+  ufw:
+    rule: allow
+    port: '62051'
+    proto: tcp

@@ -1,0 +1,34 @@
+---
+# Configure Phase - Common for both master and node
+# ==========================================
+
+- name: Ensure deployment directory exists
+  file:
+    path: "{{ deploy_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Generate docker-compose.yml from template
+  template:
+    src: "../docker-compose.yml"
+    dest: "{{ deploy_dir }}/docker-compose.yml"
+    mode: '0644'
+  register: compose_copy
+
+- name: Remove old .env file to ensure clean generation
+  file:
+    path: "{{ deploy_dir }}/.env"
+    state: absent
+
+- name: Generate environment file from template
+  template:
+    src: templates/.env.j2
+    dest: "{{ deploy_dir }}/.env"
+    mode: '0600'
+    owner: root
+    group: root
+  register: env_generation
+
+- name: Display .env generation status
+  debug:
+    msg: "Environment file generated at {{ deploy_dir }}/.env (changed: {{ env_generation.changed }})"

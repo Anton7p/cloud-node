@@ -1,0 +1,44 @@
+---
+# Infrastructure Boot Sequence - Master-specific
+# DB & Redis
+# ==========================================
+
+- name: DEBUG - Starting stack deployment
+  debug:
+    msg:
+      - "=== STACK DEPLOY START ==="
+      - "Directory: {{ deploy_dir }}"
+      - "Database exists check starting"
+
+- name: Stop existing containers gracefully
+  command: docker compose down --timeout 30
+  args:
+    chdir: "{{ deploy_dir }}"
+  register: compose_down
+  changed_when: compose_down.rc == 0
+
+- name: DEBUG - Compose down result
+  debug:
+    msg: "Compose down exit code: {{ compose_down.rc }}"
+
+- name: Start infrastructure services (db, redis)
+  command: docker compose up -d db redis
+  args:
+    chdir: "{{ deploy_dir }}"
+  environment:
+    DB_PASSWORD: "{{ db_password }}"
+    REDIS_PASSWORD: "{{ redis_password | default('') }}"
+  register: infra_up
+  retries: 3
+  delay: 5
+  until: infra_up.rc == 0
+
+- name: Wait for PostgreSQL to be ready
+  command: docker compose exec -T db pg_isready -U postgres
+  args:
+    chdir: "{{ deploy_dir }}"
+  register: pg_ready
+  retries: 15
+  delay: 3
+  until: pg_ready.rc == 0
+  changed_when: false

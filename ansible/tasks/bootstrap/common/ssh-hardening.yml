@@ -1,0 +1,59 @@
+---
+# SSH Hardening - Common for both master and node
+# ==========================================
+
+- name: Backup original SSH config
+  copy:
+    src: /etc/ssh/sshd_config
+    dest: /etc/ssh/sshd_config.backup.{{ ansible_facts['date_time']['epoch'] }}
+    remote_src: yes
+
+- name: Disable password authentication in SSH
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PasswordAuthentication'
+    line: 'PasswordAuthentication no'
+    validate: '/usr/sbin/sshd -t -f %s'
+  notify: restart sshd
+
+- name: Enable public key authentication
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PubkeyAuthentication'
+    line: 'PubkeyAuthentication yes'
+    validate: '/usr/sbin/sshd -t -f %s'
+  notify: restart sshd
+
+- name: Set PermitRootLogin to prohibit-password
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PermitRootLogin'
+    line: 'PermitRootLogin prohibit-password'
+    validate: '/usr/sbin/sshd -t -f %s'
+  notify: restart sshd
+
+- name: Disable ChallengeResponseAuthentication
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?ChallengeResponseAuthentication'
+    line: 'ChallengeResponseAuthentication no'
+    validate: '/usr/sbin/sshd -t -f %s'
+  notify: restart sshd
+
+- name: Validate SSH configuration
+  command: sshd -t
+  changed_when: false
+
+- name: Restart SSH service to apply changes
+  systemd:
+    name: ssh
+    state: restarted
+
+- name: Wait for SSH to come back
+  wait_for:
+    port: 22
+    host: '{{ inventory_hostname }}'
+    delay: 3
+    timeout: 60
+  delegate_to: localhost
+  become: no

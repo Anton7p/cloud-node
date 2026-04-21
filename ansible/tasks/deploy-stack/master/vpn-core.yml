@@ -1,0 +1,26 @@
+---
+# VPN Core Boot Sequence - Master-specific
+# Marzban
+# ==========================================
+
+- name: Start VPN Core (Marzban)
+  command: docker compose up -d marzban
+  args:
+    chdir: "{{ deploy_dir }}"
+  environment:
+    VPN_ADMIN_USERNAME: "{{ vpn_admin_username }}"
+    VPN_ADMIN_PASSWORD: "{{ vpn_admin_password }}"
+  register: marzban_up
+  retries: 3
+  delay: 5
+  until: marzban_up.rc == 0
+
+- name: Wait for Marzban container to be healthy
+  command: docker compose ps marzban --format "{{'{{.Health}}'}}"
+  args:
+    chdir: "{{ deploy_dir }}"
+  register: marzban_health
+  retries: 20
+  delay: 5
+  until: marzban_health.stdout is defined and 'healthy' in marzban_health.stdout | lower
+  changed_when: false

@@ -1,0 +1,6 @@
+---
+# Reality Keys Setup - Master-specific
+# ==========================================
+
+- name: Setup Reality Keys via Marzban API and start bot
+  include_tasks: tasks/setup-reality-keys-main.yml

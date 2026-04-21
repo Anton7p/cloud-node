@@ -1,0 +1,43 @@
+---
+# SSH Key Setup - Common for both master and node
+# ==========================================
+
+- name: Ensure .ssh directory exists for root
+  file:
+    path: /root/.ssh
+    state: directory
+    mode: '0700'
+    owner: root
+    group: root
+
+- name: Ensure authorized_keys file exists
+  file:
+    path: /root/.ssh/authorized_keys
+    state: touch
+    mode: '0600'
+    owner: root
+    group: root
+
+- name: Add SSH public key from GitHub Secrets if provided
+  authorized_key:
+    user: root
+    key: "{{ lookup('env', 'SSH_PUBLIC_KEY') }}"
+    state: present
+  no_log: true
+  when: lookup('env', 'SSH_PUBLIC_KEY') | length > 0
+
+- name: Verify SSH service accepts key authentication
+  shell: grep -E "^[#\s]*PubkeyAuthentication\s+(yes|no)" /etc/ssh/sshd_config || echo "NOT FOUND"
+  register: pubkey_auth_check
+  changed_when: false
+  ignore_errors: true
+
+- name: Display SSH key auth status
+  debug:
+    msg: "SSH PubkeyAuthentication setting: {{ pubkey_auth_check.stdout | default('NOT FOUND') }}"
+
+- name: Verify SSH service is running
+  systemd:
+    name: ssh
+    state: started
+    enabled: yes

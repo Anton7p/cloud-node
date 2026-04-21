@@ -1,0 +1,85 @@
+---
+# Ansible Playbook: Bootstrap Phase (NEW)
+# Description: Initial server preparation - SSH, Docker, Security, Directories
+# Creates flag file to skip on subsequent runs
+# Original: bootstrap.yml (unchanged)
+# ==========================================
+
+- name: Bootstrap Server - Initial Preparation
+  hosts: all
+  become: yes
+  gather_facts: yes
+  strategy: linear
+
+  vars:
+    ssh_public_key: "{{ lookup('env', 'SSH_PUBLIC_KEY') }}"
+    infrastructure_ip_list: "{{ lookup('env', 'INFRASTRUCTURE_IP_LIST') | default('[]', true) }}"
+
+  pre_tasks:
+    - name: Parse infrastructure IPs from JSON
+      set_fact:
+        infrastructure_ips_parsed: "{{ (infrastructure_ip_list | from_json) | map(attribute='address') | list }}"
+      when:
+        - infrastructure_ip_list | length > 0
+        - infrastructure_ip_list != '[]'
+      ignore_errors: true
+
+    - name: Set infrastructure IPs from parsed result
+      set_fact:
+        infrastructure_ips: "{{ infrastructure_ips_parsed }}"
+      when: infrastructure_ips_parsed is defined and infrastructure_ips_parsed | length > 0
+
+    - name: Fallback to split if not JSON
+      set_fact:
+        infrastructure_ips: "{{ infrastructure_ip_list.split(',') }}"
+      when:
+        - infrastructure_ip_list | length > 0
+        - infrastructure_ip_list != '[]'
+        - infrastructure_ips is not defined
+        - infrastructure_ip_list is string
+      ignore_errors: true
+
+    - name: Set default infrastructure IPs if all parsing failed
+      set_fact:
+        infrastructure_ips: "['0.0.0.0/0']"
+      when: infrastructure_ips is not defined
+
+    - name: Filter out empty IPs
+      set_fact:
+        infrastructure_ips_filtered: "{{ infrastructure_ips | select('match', '^(?!\\[?\\]?$).+') | list }}"
+      when: infrastructure_ips is defined
+
+    - name: Use filtered IPs or default
+      set_fact:
+        infrastructure_ips: "{{ infrastructure_ips_filtered | default(['0.0.0.0/0'], true) }}"
+      when: infrastructure_ips_filtered is defined
+
+    - name: Display bootstrap information
+      debug:
+        msg: |
+          ==========================================
+          BOOTSTRAP PHASE START
+          Target: {{ inventory_hostname }}
+          Role: {{ group_names | join(', ') }}
+          Infrastructure IPs: {{ infrastructure_ips }}
+          ==========================================
+
+  tasks:
+    - name: Run bootstrap tasks
+      include_tasks: tasks/bootstrap-main.yml
+
+  handlers:
+    - name: restart sshd
+      systemd:
+        name: ssh
+        state: restarted
+
+    - name: restart docker
+      systemd:
+        name: docker
+        state: restarted
+
+    - name: Restart bot container
+      command: docker compose restart bot
+      args:
+        chdir: "{{ deploy_dir }}"

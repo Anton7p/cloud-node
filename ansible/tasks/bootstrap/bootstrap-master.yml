@@ -1,0 +1,71 @@
+---
+# Bootstrap - Master Entry Point
+# ==========================================
+
+- name: Check if bootstrap already applied
+  stat:
+    path: /var/lib/cloudnode/.bootstrapped
+  register: bootstrap_flag
+  changed_when: false
+
+- name: Skip bootstrap if already applied
+  debug:
+    msg: |
+      ==========================================
+      BOOTSTRAP ALREADY APPLIED
+      Flag file: /var/lib/cloudnode/.bootstrapped
+      First applied: {{ bootstrap_flag.stat.mtime | default('unknown') }}
+      Skipping all bootstrap tasks
+      ==========================================
+  when: bootstrap_flag.stat.exists | default(false)
+
+- name: Apply bootstrap
+  when: not bootstrap_flag.stat.exists | default(false)
+  block:
+    - name: Include SSH setup tasks
+      include_tasks: common/ssh-setup.yml
+
+    - name: Include SSH hardening tasks
+      include_tasks: common/ssh-hardening.yml
+
+    - name: Include Docker setup tasks
+      include_tasks: common/docker-setup.yml
+
+    - name: Include UFW setup tasks
+      include_tasks: common/ufw-setup.yml
+
+    - name: Include UFW rules tasks
+      include_tasks: master/ufw-rules.yml
+
+    - name: Include Docker firewall tasks
+      include_tasks: master/docker-firewall.yml
+
+    - name: Include TCP BBR tasks
+      include_tasks: common/tcp-bbr.yml
+
+    - name: Ensure flag directory exists
+      file:
+        path: /var/lib/cloudnode
+        state: directory
+        mode: '0755'
+
+    - name: Create bootstrap flag file
+      copy:
+        content: "Server bootstrapped: {{ ansible_facts['date_time']['iso8601'] }}"
+        dest: /var/lib/cloudnode/.bootstrapped
+        mode: '0644'
+
+    - name: Display bootstrap completion
+      debug:
+        msg: |
+          ==========================================
+          BOOTSTRAP COMPLETED FOR MASTER
+          Flag created: /var/lib/cloudnode/.bootstrapped
+          Applied at: {{ ansible_facts['date_time']['iso8601'] }}
+          - SSH keys installed
+          - Password authentication disabled
+          - Docker installed
+          - UFW firewall configured
+          - TCP BBR enabled
+          Next runs will SKIP bootstrap
+          ==========================================

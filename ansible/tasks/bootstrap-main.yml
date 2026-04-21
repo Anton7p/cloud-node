@@ -1,0 +1,12 @@
+---
+# Bootstrap - Main Entry Point
+# This file orchestrates bootstrap tasks for master and node
+# ==========================================
+
+- name: Include master bootstrap
+  include_tasks: tasks/bootstrap/bootstrap-master.yml
+  when: "'master' in group_names"
+
+- name: Include node bootstrap
+  include_tasks: tasks/bootstrap/bootstrap-node.yml
+  when: "'nodes' in group_names"

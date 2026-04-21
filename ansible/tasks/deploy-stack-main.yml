@@ -1,0 +1,15 @@
+---
+# Application Deployment Stack - Main Entry Point (NEW)
+# This file imports and orchestrates all deployment tasks
+# Use deploy-stack-master.yml for master-only deployment
+# Use deploy-stack-node.yml for node-only deployment
+# Original file: deploy-stack.yml (unchanged)
+# ==========================================
+
+- name: Include master deployment stack
+  include_tasks: "tasks/deploy-stack/deploy-stack-master.yml"
+  when: "'master' in group_names"
+
+- name: Include node deployment stack
+  include_tasks: "tasks/deploy-stack/deploy-stack-node.yml"
+  when: "'nodes' in group_names"

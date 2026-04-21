@@ -1,0 +1,48 @@
+---
+# Certificate Fetch from Marzban Master (Node-specific)
+# ==========================================
+
+- name: Fetch certificate from Marzban Master API
+  uri:
+    url: "{{ computed_api_url }}/node/settings"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ auth_response.json.access_token }}"
+    return_content: yes
+    status_code: [200, 404, 422]
+    timeout: 30
+  register: cert_response
+  become: false
+
+- name: Debug certificate response
+  debug:
+    msg: "Certificate fetch status: {{ cert_response.status | default('skipped') }}. Certificate defined: {{ cert_response.json.certificate is defined | default(false) }}"
+
+- name: Fail if certificate endpoint returned 404
+  fail:
+    msg: "Certificate endpoint /node/settings not found (404)."
+  when: cert_response.status == 404
+
+- name: Fail if certificate not found in response
+  fail:
+    msg: "Certificate not found in API response."
+  when: 
+    - cert_response.status == 200
+    - cert_response.json.certificate is not defined or cert_response.json.certificate == ""
+
+- name: Save certificate locally on Runner
+  copy:
+    content: "{{ cert_response.json.certificate }}"
+    dest: "/tmp/ssl_client_cert.pem"
+    mode: '0644'
+  when: cert_response.json.certificate is defined
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Store certificate content as fact
+  set_fact:
+    new_certificate: "{{ cert_response.json.certificate }}"
+  delegate_to: localhost
+  become: false
+  run_once: true

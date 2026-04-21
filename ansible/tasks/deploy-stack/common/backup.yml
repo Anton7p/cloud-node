@@ -1,0 +1,35 @@
+---
+# Backup Phase - Common for both master and node
+# ==========================================
+
+- name: Ensure backup directory exists
+  file:
+    path: "{{ backup_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Check if existing .env exists
+  stat:
+    path: "{{ deploy_dir }}/.env"
+  register: env_file_stat
+
+- name: Backup existing .env if present
+  copy:
+    src: "{{ deploy_dir }}/.env"
+    dest: "{{ backup_dir }}/.env.{{ ansible_facts['date_time']['epoch'] }}"
+    remote_src: yes
+    mode: '0600'
+  when: env_file_stat.stat.exists
+
+- name: Check if existing docker-compose.yml exists
+  stat:
+    path: "{{ deploy_dir }}/docker-compose.yml"
+  register: compose_file_stat
+
+- name: Backup existing docker-compose.yml if present
+  copy:
+    src: "{{ deploy_dir }}/docker-compose.yml"
+    dest: "{{ backup_dir }}/docker-compose.yml.{{ ansible_facts['date_time']['epoch'] }}"
+    remote_src: yes
+    mode: '0644'
+  when: compose_file_stat.stat.exists

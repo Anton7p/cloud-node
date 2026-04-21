@@ -1,0 +1,24 @@
+---
+# Marzban Common Tasks - Entry Point
+# This file imports all tasks organized by role (master/node)
+# ==========================================
+
+- name: Include master-specific tasks (keys, inbound, bot env)
+  include_tasks: "tasks/marzban/master/keys-generation.yml"
+  when: "'master' in group_names"
+
+- name: Include master-specific tasks (inbound creation)
+  include_tasks: "tasks/marzban/master/inbound-creation.yml"
+  when: "'master' in group_names"
+
+- name: Include master-specific tasks (bot environment)
+  include_tasks: "tasks/marzban/master/bot-env.yml"
+  when: "'master' in group_names"
+
+- name: Include node registration tasks
+  include_tasks: "tasks/marzban/node/registration.yml"
+  when: "'nodes' in group_names"
+
+- name: Include node deployment tasks
+  include_tasks: "tasks/marzban/node/deployment.yml"
+  when: "'nodes' in group_names"

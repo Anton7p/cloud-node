@@ -1,0 +1,15 @@
+---
+# Marzban Complete Setup - Main Entry Point (NEW)
+# This file imports and orchestrates all Marzban-related tasks
+# Use deploy-master.yml for master-only deployment
+# Use deploy-node.yml for node-only deployment
+# Original file: marzban.yml (unchanged)
+# ==========================================
+
+- name: Include master deployment tasks
+  include_tasks: "tasks/marzban/deploy-master.yml"
+  when: "'master' in group_names"
+
+- name: Include node deployment tasks
+  include_tasks: "tasks/marzban/deploy-node.yml"
+  when: "'nodes' in group_names"

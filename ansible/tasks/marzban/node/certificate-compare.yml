@@ -1,0 +1,21 @@
+---
+# Certificate Comparison (Node-specific)
+# ==========================================
+
+- name: Check if certificate already exists on node
+  stat:
+    path: "{{ cert_file }}"
+  register: existing_cert
+
+- name: Read existing certificate content from node
+  slurp:
+    src: "{{ cert_file }}"
+  register: existing_cert_content
+  when: existing_cert.stat.exists
+
+- name: Set certificate changed fact
+  set_fact:
+    cert_changed: >-
+      {{ not existing_cert.stat.exists or
+         (existing_cert_content.content | b64decode) != new_certificate }}
+  become: false

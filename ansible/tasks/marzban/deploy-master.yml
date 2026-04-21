@@ -1,0 +1,16 @@
+---
+# Master Deployment Entry Point
+# This file orchestrates all master-specific deployment tasks
+# ==========================================
+
+- name: Include authentication tasks
+  include_tasks: "tasks/marzban/master/authentication.yml"
+
+- name: Include key generation tasks
+  include_tasks: "tasks/marzban/master/keys-generation.yml"
+
+- name: Include inbound creation tasks
+  include_tasks: "tasks/marzban/master/inbound-creation.yml"
+
+- name: Include bot environment tasks
+  include_tasks: "tasks/marzban/master/bot-env.yml"

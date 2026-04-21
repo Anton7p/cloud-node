@@ -1,0 +1,56 @@
+---
+# VLESS Reality Inbound Creation - Master-specific
+# ==========================================
+
+- name: Create VLESS Reality inbound JSON
+  copy:
+    content: |
+      {
+        "tag": "VLESS_REALITY",
+        "listen": "0.0.0.0",
+        "port": 443,
+        "protocol": "vless",
+        "settings": {
+          "clients": [],
+          "decryption": "none"
+        },
+        "streamSettings": {
+          "network": "tcp",
+          "security": "reality",
+          "realitySettings": {
+            "dest": "{{ domain_name }}:443",
+            "serverNames": ["{{ domain_name }}"],
+            "privateKey": "{{ ansible_facts.reality_private_key }}",
+            "publicKey": "{{ ansible_facts.reality_public_key }}",
+            "shortIds": ["{{ ansible_facts.reality_short_id }}"]
+          }
+        },
+        "sniffing": {
+          "enabled": true,
+          "destOverride": ["http", "tls"]
+        }
+      }
+    dest: "/tmp/vless_reality_inbound.json"
+  when: not vless_reality_exists | bool and (ansible_facts.reality_private_key | default('')) | length > 0
+
+- name: Build updated core config
+  shell: |
+    cat > /tmp/current_core_config.json << 'EOF'
+    {{ core_config.json | to_nice_json }}
+    EOF
+    jq --slurpfile inbound /tmp/vless_reality_inbound.json '.inbounds = (.inbounds // []) + $inbound' /tmp/current_core_config.json
+  register: updated_config_json
+  when: not vless_reality_exists | bool and (ansible_facts.reality_private_key | default('')) | length > 0
+
+- name: Update Xray core config with VLESS Reality
+  uri:
+    url: "{{ master_api_url }}/core/config"
+    method: PUT
+    headers:
+      Authorization: "Bearer {{ auth_response.json.access_token }}"
+      Content-Type: "application/json"
+    body_format: json
+    body: "{{ updated_config_json.stdout }}"
+    status_code: [200, 201, 204]
+    timeout: 30
+  when: not vless_reality_exists | bool and (ansible_facts.reality_private_key | default('')) | length > 0 and updated_config_json.rc == 0

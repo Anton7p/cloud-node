@@ -1,0 +1,6 @@
+---
+# Node Directory Setup Entry Point
+# ==========================================
+
+- name: Include node directory setup tasks
+  include_tasks: "tasks/directory-setup/node.yml"

@@ -33,7 +33,7 @@ lerna-debug.log*
 !.vscode/extensions.json
 
 # Environment variables
-#.env
+.env
 .env.local
 .env.development.local
 .env.test.local
@@ -53,5 +53,5 @@ dist/
 # Local development tools (not used in CI/CD)
 .windsurfrules
 ansible/deploy.sh
-#insible/inventory.ini
-
+ansible/inventory.ini
+ansible/inventory_nodes.ini
