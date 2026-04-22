@@ -55,3 +55,4 @@ dist/
 ansible/deploy.sh
 ansible/inventory.ini
 ansible/inventory_nodes.ini
+ansible/deploy_vars.yml
