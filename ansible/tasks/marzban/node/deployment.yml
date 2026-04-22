@@ -71,9 +71,8 @@
           restart: always
           network_mode: host
           environment:
-            - SERVICE_PORT={{ service_port | default(62050) }}
-            - XRAY_API_PORT={{ xray_api_port | default(62051) }}
             - SSL_CLIENT_CERT_FILE=/var/lib/marzban-node/ssl_client_cert.pem
+            - SERVICE_PROTOCOL=rest
           volumes:
             - {{ node_var_dir }}:/var/lib/marzban-node:rw
           logging:

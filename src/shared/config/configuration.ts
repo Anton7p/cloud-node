@@ -74,8 +74,8 @@ export const configuration = registerAs('app', (): AppConfig => {
     infrastructureIpList: process.env.INFRASTRUCTURE_IP_LIST,
     // Marzban Node SSL certificate directory
     marzbanNodeCertDir: process.env.MARZBAN_NODE_CERT_DIR,
-    // Marzban Inbound tag for user creation (default: VLESS_REALITY)
-    marzbanInboundTag: process.env.MARZBAN_INBOUND_TAG || 'VLESS_REALITY',
+    // Marzban Inbound tag for user creation (default: VLESS TCP REALITY)
+    marzbanInboundTag: process.env.MARZBAN_INBOUND_TAG || 'VLESS TCP REALITY',
     // Reality protocol settings
     realityPublicKey: process.env.REALITY_PUBLIC_KEY,
     realityShortId: process.env.REALITY_SHORT_ID || 'abcd1234',

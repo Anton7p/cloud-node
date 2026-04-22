@@ -225,7 +225,7 @@ jobs:
           github_actor: "${{ github.actor }}"
           VARS_EOF
           
-          ansible-playbook -i inventory.ini ansible/deploy_app.yml \
+          ansible-playbook -i inventory.ini ansible/deploy-phase.yml \
             -e "@deploy_vars.yml" \
             -v
 
@@ -293,7 +293,9 @@ jobs:
       - name: Setup infrastructure
         run: |
           echo "=== Deploying Infrastructure ==="
-          ansible-playbook -i inventory_nodes.ini ansible/deploy_node.yml \
+          # Deploy phase includes both master and nodes in unified playbook
+          ansible-playbook -i inventory_nodes.ini ansible/deploy-phase.yml \
+            -e "@deploy_vars.yml" \
             -e "master_server_address=$MASTER_ADDRESS" \
             -e "domain_name_extra=${{ secrets.DOMAIN_NAME }}" \
             -e "vpn_admin_username=${{ secrets.VPN_ADMIN_USERNAME }}" \

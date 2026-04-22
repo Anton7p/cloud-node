@@ -19,6 +19,16 @@ set +a
 
 cd "$SCRIPT_DIR"
 
+# Clean SSH known_hosts for reinstalled servers
+echo ""
+echo "========================================="
+echo "CLEANING SSH KNOWN_HOSTS"
+echo "========================================="
+echo "Removing old host keys for reinstalled servers..."
+ssh-keygen -f '/home/anton/.ssh/known_hosts' -R '62.60.229.227' 2>/dev/null || true
+ssh-keygen -f '/home/anton/.ssh/known_hosts' -R '109.172.95.82' 2>/dev/null || true
+echo "SSH known_hosts cleaned successfully"
+
 # Phase 1: Bootstrap all servers (master + nodes)
 echo ""
 echo "========================================="

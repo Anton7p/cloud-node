@@ -209,47 +209,40 @@ image_name: ${{ steps.normalize.outputs.image_name_lower }}  # ghcr.io/anton7p/c
 | 4 | **Generate vars** | Создание `deploy_vars.yml` с переменными для Ansible |
 | 5 | **Run playbook** | `ansible-playbook -i inventory.ini ansible/deploy_app.yml` |
 
-**Ansible Playbook:** `ansible/deploy_app.yml`
+**Ansible Playbook:** `ansible/deploy-phase.yml`
 
 ```
-deploy_app.yml
-├── pre_tasks (валидация)
-│   ├── DEBUG — логирование
-│   ├── Проверка диска (df -h)
-│   ├── Валидация: image_name, image_tag
-│   ├── Валидация: db_password, telegram_bot_token, encryption_key
-│   └── Валидация: vpn_admin_username, vpn_admin_password, domain_name
+deploy-phase.yml
+├── Master Deployment (hosts: master)
+│   ├── pre_tasks (валидация)
+│   │   ├── DEBUG — логирование
+│   │   ├── Валидация: image_name, image_tag, db_password, telegram_bot_token
+│   │   ├── Валидация: encryption_key, vpn_admin_username, vpn_admin_password, domain_name
+│   │   └── Парсинг infrastructure_ip_list
+│   ├── tasks/directory-setup-main.yml
+│   │   ├── Создание /var/www/cloudnode
+│   │   ├── Настройка прав доступа
+│   │   └── Подготовка структуры директорий
+│   └── tasks/deploy-stack-main.yml
+│       ├── BACKUP: /var/backups/cloudnode/{.env,docker-compose.yml}.{timestamp}
+│       ├── CONFIGURE: генерация .env из templates/.env.j2
+│       ├── DOCKER AUTH: docker login ghcr.io
+│       ├── PULL: docker pull ghcr.io/...:<sha>
+│       ├── BOOT SEQUENCE: db redis → marzban → bot
+│       ├── REALITY KEYS: генерация через Marzban API
+│       ├── HEALTH CHECK: проверка всех контейнеров
+│       └── CLEANUP: docker image prune
 │
-├── tasks/docker-setup.yml
-│   ├── Удаление конфликтных пакетов (containerd, docker.io)
-│   ├── Установка Docker через get.docker.com
-│   ├── Enable & start Docker service
-│   ├── Настройка daemon.json (iptables, ip-forward)
-│   └── Настройка iptables цепочки DOCKER-USER
-│
-├── tasks/system-optimization.yml
-│   ├── SSH hardening (отключение password auth)
-│   ├── UFW firewall (порты 22, 443, 8000, 62050)
-│   ├── TCP BBR congestion control
-│   └── Docker firewall protection
-│
-└── tasks/deploy-stack.yml
-    ├── BACKUP: /var/backups/cloudnode/{.env,docker-compose.yml}.{timestamp}
-    ├── CONFIGURE: генерация .env из templates/.env.j2
-    ├── DOCKER AUTH: docker login ghcr.io
-    ├── PULL: docker pull ghcr.io/...:<sha>
-    │
-    ├── BOOT SEQUENCE:
-    │   ├── Шаг 1: docker compose up -d db redis → ожидание PostgreSQL (pg_isready)
-    │   ├── Шаг 2: docker compose up -d marzban → ожидание healthcheck
-    │   └── Шаг 3: setup-reality-keys.yml (генерация Reality keys через Marzban API)
-    │
-    ├── HEALTH CHECK:
-    │   ├── Проверка всех контейнеров: bot, db, redis, marzban
-    │   ├── Сбор логов при ошибках
-    │   └── Fail если критический сервис не запущен
-    │
-    └── CLEANUP: docker image prune -af --filter "until=168h"
+└── Node Deployment (hosts: nodes)
+    ├── pre_tasks (валидация CI/CD переменных)
+    ├── tasks/directory-setup-main.yml
+    │   ├── Создание /var/www/marzban_node
+    │   └── Подготовка SSL директорий
+    └── tasks/marzban-main.yml
+        ├── Получение SSL сертификата от Master
+        ├── Настройка marzban-node конфигурации
+        ├── Запуск gozargah/marzban-node:v0.5.2
+        └── Health check ноды
 ```
 
 **Стек на Master:**
@@ -275,14 +268,21 @@ deploy_app.yml
 | 3 | **Parse master address** | Определение IP мастера для связи |
 | 4 | **Run playbook** | `ansible-playbook -i inventory_nodes.ini ansible/deploy_node.yml` |
 
-**Ansible Playbook:** `ansible/deploy_node.yml`
+**Ansible Playbook:** `ansible/deploy-phase.yml` (Node section)
 ```
-deploy_node.yml
-├── directory-setup.yml       # /var/www/marzban_node
-├── docker-setup.yml          # Docker CE + Compose V2
-├── system-optimization.yml   # SSH hardening, UFW, TCP BBR
-├── auth-certificate.yml      # Получение SSL сертификата от Master
-└── marzban-node.yml          # Запуск gozargah/marzban-node:v0.5.2
+Node Deployment в deploy-phase.yml:
+├── pre_tasks
+│   ├── Валидация CI/CD переменных
+│   ├── Определение master_server_address
+│   └── Вычисление Marzban API URL
+├── tasks/directory-setup-main.yml
+│   ├── Создание /var/www/marzban_node
+│   └── Подготовка SSL директорий
+└── tasks/marzban-main.yml
+    ├── Получение SSL сертификата от Master
+    ├── Настройка конфигурации ноды
+    ├── Запуск marzban-node контейнера
+    └── Health check и валидация
 ```
 
 ### Manual Workflow: Bootstrap (`.github/workflows/bootstrap.yml`)
@@ -310,21 +310,24 @@ deploy_node.yml
 | 6 | **Verify SSH** | Проверка доступа по ключу (без пароля) |
 | 7 | **Cleanup** | Удаление `~/.ssh/id_rsa`, `inventory_bootstrap.ini` |
 
-**Ansible Playbook:** `ansible/bootstrap.yml`
+**Ansible Playbook:** `ansible/bootstrap-phase.yml`
 ```
-bootstrap.yml
-├── Wait for connection (timeout: 60s)
-├── Validate SSH_PUBLIC_KEY
-├── Ensure /root/.ssh (chmod 700)
-├── Ensure authorized_keys (chmod 600)
-├── Install SSH public key (authorized_key module, exclusive: yes)
-├── Backup /etc/ssh/sshd_config
-├── Disable PasswordAuthentication
-├── Enable PubkeyAuthentication
-├── Set PermitRootLogin prohibit-password
-├── Validate SSH config (sshd -t)
-├── Restart SSH service
-└── Verify: вход по ключу работает
+bootstrap-phase.yml
+├── Bootstrap Phase (hosts: all)
+│   ├── pre_tasks
+│   │   ├── Парсинг infrastructure_ip_list из JSON
+│   │   ├── Фильтрация и валидация IP адресов
+│   │   └── Установка defaults для security rules
+│   ├── tasks/bootstrap-main.yml
+│   │   ├── tasks/bootstrap/bootstrap-master.yml (для master)
+│   │   ├── tasks/bootstrap/bootstrap-node.yml (для nodes)
+│   │   └── tasks/bootstrap/common/ (общие задачи)
+│   │       ├── ssh-setup.yml — установка SSH ключей
+│   │       ├── ssh-hardening.yml — отключение password auth
+│   │       ├── docker-setup.yml — установка Docker
+│   │       ├── ufw-setup.yml — настройка firewall
+│   │       └── tcp-bbr.yml — TCP BBR congestion control
+│   └── Создание флага /var/lib/cloudnode/.bootstrapped
 ```
 
 **Output:** Сервер готов для CI/CD деплоя (только SSH ключи, без паролей).
@@ -362,19 +365,20 @@ git push origin main
 
 # Ручной запуск Ansible (отладка)
 cd ansible
-ansible-playbook -i inventory.ini deploy_app.yml \
+ansible-playbook -i inventory.ini deploy-phase.yml \
   -e "image_name=ghcr.io/anton7p/cloud-node" \
   -e "image_tag=<commit-sha>"
 
-# Настройка инфраструктурных нод
+# Настройка инфраструктурных нод (теперь часть deploy-phase.yml)
 cd ansible
-ansible-playbook -i inventory.ini deploy_node.yml \
+ansible-playbook -i inventory_nodes.ini deploy-phase.yml \
   -e "domain_name=your.domain.com" \
   -e "VPN_ADMIN_USERNAME=admin" \
-  -e "VPN_ADMIN_PASSWORD=secret"
+  -e "VPN_ADMIN_PASSWORD=secret" \
+  -e "master_server_address=<master_ip>"
 
 # Деплой приложения с полным набором переменных
-ansible-playbook -i inventory.ini deploy_app.yml \
+ansible-playbook -i inventory.ini deploy-phase.yml \
   -e "image_name=ghcr.io/username/repo" \
   -e "image_tag=latest" \
   -e "telegram_bot_token=xxx" \

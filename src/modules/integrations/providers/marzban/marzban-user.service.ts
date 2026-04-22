@@ -52,7 +52,7 @@ export class MarzbanUserService {
     const inboundTag =
       this.configService.get<AppConfig['marzbanInboundTag']>(
         'app.marzbanInboundTag',
-      ) || 'VLESS_TCP Reality';
+      ) || 'VLESS TCP REALITY';
 
     let requestBody: Record<string, unknown>;
 
