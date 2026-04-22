@@ -30,6 +30,10 @@
 - name: Include health check tasks
   include_tasks: "tasks/deploy-stack/master/health-check.yml"
 
+- name: Include nginx setup for subscription SSL
+  include_tasks: "tasks/nginx/main.yml"
+  when: domain_name is defined and domain_name | length > 0
+
 - name: Fix Xray config - ensure config file exists
   shell: |
     TOKEN=$(curl -s -X POST http://127.0.0.1:8000/api/admin/token \

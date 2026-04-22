@@ -1,0 +1,32 @@
+---
+# SSL Certificate Setup with Certbot
+# ==========================================
+
+- name: Check if SSL certificate already exists
+  stat:
+    path: /etc/letsencrypt/live/{{ domain_name }}/fullchain.pem
+  register: ssl_cert_stat
+
+- name: Obtain SSL certificate with certbot (initial)
+  command: >
+    certbot --nginx -d {{ domain_name }}
+    --non-interactive
+    --agree-tos
+    --email admin@{{ domain_name }}
+    --redirect
+    --hsts
+  when: not ssl_cert_stat.stat.exists
+
+- name: Set up certbot auto-renewal cron job
+  cron:
+    name: "Certbot auto-renewal"
+    minute: "0"
+    hour: "12"
+    job: "certbot renew --quiet --nginx"
+    state: present
+
+- name: Ensure nginx is running after SSL setup
+  service:
+    name: nginx
+    state: started
+    enabled: yes
