@@ -34,18 +34,8 @@
   include_tasks: "tasks/nginx/main.yml"
   when: domain_name is defined and domain_name | length > 0
 
-- name: Fix Xray config - ensure config file exists
-  shell: |
-    TOKEN=$(curl -s -X POST http://127.0.0.1:8000/api/admin/token \
-      -H 'Content-Type: application/x-www-form-urlencoded' \
-      -d 'username={{ vpn_admin_username }}&password={{ vpn_admin_password }}' | python3 -c 'import sys,json; print(json.load(sys.stdin)["access_token"])')
-    curl -s http://127.0.0.1:8000/api/core/config -H "Authorization: Bearer $TOKEN" > /tmp/xray.json
-    docker cp /tmp/xray.json cloudnode-marzban:/var/lib/marzban/xray_config.json
-    curl -X POST http://127.0.0.1:8000/api/core/restart -H "Authorization: Bearer $TOKEN"
-  args:
-    chdir: "{{ deploy_dir }}"
-  register: xray_fix
-  changed_when: xray_fix.rc == 0
+# NOTE: Xray config fix removed - master only hosts panel, no Xray inbounds
+# Xray on master is internal to Marzban Panel only
 
 - name: Include cleanup tasks
   include_tasks: "tasks/deploy-stack/master/cleanup.yml"

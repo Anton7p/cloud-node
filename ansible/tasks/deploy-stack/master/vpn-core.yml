@@ -1,6 +1,6 @@
 ---
 # VPN Core Boot Sequence - Master-specific
-# Marzban
+# Marzban Panel only - no Xray inbounds on Master
 # ==========================================
 
 - name: Start VPN Core (Marzban)

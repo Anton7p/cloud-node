@@ -5,8 +5,21 @@
 - name: Include nginx installation
   include_tasks: install.yml
 
-- name: Include nginx configuration
+# Step 1: Deploy HTTP-only config (for initial certbot challenge)
+- name: Include nginx configuration (HTTP only)
   include_tasks: configure.yml
 
+# Step 2: Reload nginx with HTTP config
+- name: Reload nginx to apply HTTP configuration
+  service:
+    name: nginx
+    state: reloaded
+
+# Step 3: Obtain SSL certificate
 - name: Include SSL/certbot setup
   include_tasks: ssl-certbot.yml
+
+# Step 4: Re-deploy with SSL configuration
+- name: Include nginx configuration (with SSL)
+  include_tasks: configure.yml
+  when: ssl_cert_stat.stat.exists | default(false)

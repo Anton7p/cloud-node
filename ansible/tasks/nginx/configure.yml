@@ -2,11 +2,22 @@
 # Nginx Configuration for Subscription Endpoint
 # ==========================================
 
+- name: Check if SSL certificate exists for nginx config
+  stat:
+    path: /etc/letsencrypt/live/{{ domain_name }}/fullchain.pem
+  register: ssl_cert_stat
+
+- name: Set SSL certificate existence fact
+  set_fact:
+    ssl_cert_exists: "{{ ssl_cert_stat.stat.exists }}"
+
 - name: Deploy nginx subscription config
   template:
     src: nginx-subscription.conf.j2
     dest: /etc/nginx/sites-available/subscription.conf
     mode: '0644'
+  vars:
+    ssl_cert_exists: "{{ ssl_cert_exists }}"
   notify: reload nginx
 
 - name: Enable subscription site

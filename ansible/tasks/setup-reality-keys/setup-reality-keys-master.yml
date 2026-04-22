@@ -8,8 +8,8 @@
 - name: Include keys generation tasks
   include_tasks: "tasks/setup-reality-keys/master/keys-generation.yml"
 
-- name: Include inbound creation tasks
-  include_tasks: "tasks/setup-reality-keys/master/inbound-creation.yml"
+# NOTE: Inbound creation removed - master only hosts panel, no Xray inbounds
+# Xray inbounds (VLESS Reality, API_INBOUND) are configured on nodes only
 
 - name: Include bot startup tasks
   include_tasks: "tasks/setup-reality-keys/master/bot-startup.yml"

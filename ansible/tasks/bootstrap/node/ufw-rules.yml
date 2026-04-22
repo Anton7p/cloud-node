@@ -30,3 +30,13 @@
     rule: allow
     port: '62051'
     proto: tcp
+
+- name: Allow outgoing to master API (port 8000)
+  ufw:
+    rule: allow
+    port: '8000'
+    proto: tcp
+    dest: "{{ master_server_ip }}"
+  when:
+    - master_server_ip is defined
+    - master_server_ip | length > 0
