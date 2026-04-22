@@ -205,12 +205,18 @@ image_name: ${{ steps.normalize.outputs.image_name_lower }}  # ghcr.io/anton7p/c
 |---|-----|----------|
 | 1 | **Setup SSH** | Создание `~/.ssh/id_rsa`, `chmod 600`, отключение `StrictHostKeyChecking` |
 | 2 | **Install deps** | `pip install ansible`, `apt-get install jq sshpass` |
-| 3 | **Parse SERVER_IP** | Парсинг JSON → генерация `inventory.ini` (парольная или ключевая аутентификация) |
-| 4 | **Generate vars** | Создание `deploy_vars.yml` с переменными для Ansible |
-| 5 | **Run playbook** | `ansible-playbook -i inventory.ini ansible/deploy_app.yml` |
+| 3 | **Check Bootstrap Status** | Test SSH key access to detect if server needs bootstrap |
+| 4 | **Auto Bootstrap (if needed)** | Run `bootstrap-phase.yml` with password auth, install SSH keys |
+| 5 | **Generate inventory** | Create `inventory.ini` with SSH key authentication |
+| 6 | **Generate vars** | Create `deploy_vars.yml` with variables for Ansible |
+| 7 | **Run playbook** | `ansible-playbook -i inventory.ini ansible/deploy-phase.yml` |
+
+**Automatic Bootstrap Detection:**
+- First-time servers: Pipeline detects SSH key failure, automatically runs bootstrap with password from `SERVER_IP`
+- Existing servers: Uses SSH key authentication directly
+- Bootstrap installs SSH keys, disables password auth, creates `/var/lib/cloudnode/.bootstrapped` flag |
 
 **Ansible Playbook:** `ansible/deploy-phase.yml`
-
 ```
 deploy-phase.yml
 ├── Master Deployment (hosts: master)

@@ -157,45 +157,54 @@ jobs:
           pip install ansible
           sudo apt-get update && sudo apt-get install -y jq sshpass
 
-      - name: Parse SERVER_IP and generate inventory
+      
+      - name: Check if server needs bootstrap
+        id: check_bootstrap
         run: |
-          # Parse JSON format: {"address": "1.2.3.4", "password": "..."}
-          SERVER_IP_JSON='${{ secrets.SERVER_IP }}'
-          SERVER_ADDRESS=$(echo "$SERVER_IP_JSON" | jq -r '.address // empty')
-          SERVER_PASSWORD=$(echo "$SERVER_IP_JSON" | jq -r '.password // empty')
+          echo "=== Checking Server Bootstrap Status ==="
           
-          if [ -z "$SERVER_ADDRESS" ]; then
-            echo "Failed to parse SERVER_IP. Expected format: {\"address\": \"1.2.3.4\", \"password\": \"...\"}"
-            exit 1
-          fi
+          SERVER_ADDRESS=$(echo '${{ secrets.SERVER_IP }}' | jq -r '.address')
           
-          echo "Parsed server address: $SERVER_ADDRESS"
-          echo "Password length: ${#SERVER_PASSWORD}"
-
-          # Check if SSH key exists, fallback to password auth
-          if [ -n "$SERVER_PASSWORD" ]; then
-            echo "Using password authentication for bootstrap"
-            echo "[master]" > inventory.ini
-            echo "$SERVER_ADDRESS" >> inventory.ini
-            echo "" >> inventory.ini
-            echo "[master:vars]" >> inventory.ini
-            echo "ansible_user=root" >> inventory.ini
-            echo "ansible_ssh_pass=$SERVER_PASSWORD" >> inventory.ini
-            echo "ansible_python_interpreter=/usr/bin/python3" >> inventory.ini
-            echo "ansible_ssh_extra_args='-o PubkeyAuthentication=no -o PasswordAuthentication=yes'" >> inventory.ini
+          # Test SSH key access first
+          if ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@$SERVER_ADDRESS "echo 'SSH key access works'" 2>/dev/null; then
+            echo "Server already bootstrapped - SSH key access works"
+            echo "needs_bootstrap=false" >> $GITHUB_OUTPUT
           else
-            echo "WARNING: No password found, using SSH key"
-            echo "[master]" > inventory.ini
-            echo "$SERVER_ADDRESS" >> inventory.ini
-            echo "" >> inventory.ini
-            echo "[master:vars]" >> inventory.ini
-            echo "ansible_user=root" >> inventory.ini
-            echo "ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory.ini
-            echo "ansible_python_interpreter=/usr/bin/python3" >> inventory.ini
+            echo "Server needs bootstrap - SSH key access failed"
+            echo "needs_bootstrap=true" >> $GITHUB_OUTPUT
           fi
 
-          echo "=== Generated inventory.ini ==="
-          cat inventory.ini
+      - name: Bootstrap server if needed
+        if: steps.check_bootstrap.outputs.needs_bootstrap == 'true'
+        run: |
+          echo "=== Bootstrapping Server ==="
+          
+          # Parse server credentials
+          SERVER_IP_JSON='${{ secrets.SERVER_IP }}'
+          SERVER_ADDRESS=$(echo "$SERVER_IP_JSON" | jq -r '.address')
+          SERVER_PASSWORD=$(echo "$SERVER_IP_JSON" | jq -r '.password')
+          
+          echo "Bootstrapping server: $SERVER_ADDRESS"
+          
+          # Generate bootstrap inventory with password auth
+          cat > inventory_bootstrap.ini << EOF
+          [master]
+          $SERVER_ADDRESS ansible_user=root ansible_ssh_pass='$SERVER_PASSWORD' ansible_ssh_extra_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+          
+          [all:vars]
+          ansible_python_interpreter=/usr/bin/python3
+          ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+          EOF
+          
+          # Run bootstrap playbook
+          ansible-playbook -i inventory_bootstrap.ini ansible/bootstrap-phase.yml \
+            -e "ssh_public_key='${{ secrets.SSH_PUBLIC_KEY }}'" \
+            -v
+          
+          # Clean up bootstrap inventory
+          rm -f inventory_bootstrap.ini
+          
+          echo "=== Bootstrap completed ==="
 
       - name: Deploy to server
         env:
@@ -204,6 +213,23 @@ jobs:
         run: |
           echo "=== Starting Deploy ==="
           echo "Image: ${IMAGE_NAME}"
+          
+          # Regenerate inventory with SSH key authentication (bootstrap complete)
+          SERVER_ADDRESS=$(echo '${{ secrets.SERVER_IP }}' | jq -r '.address')
+          
+          cat > inventory.ini << EOF
+          [master]
+          $SERVER_ADDRESS
+          
+          [master:vars]
+          ansible_user=root
+          ansible_ssh_private_key_file=~/.ssh/id_rsa
+          ansible_python_interpreter=/usr/bin/python3
+          ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+          EOF
+          
+          echo "=== Generated inventory.ini (SSH key auth) ==="
+          cat inventory.ini
           
           # Write vars to file to avoid shell escaping issues with JSON
           cat > deploy_vars.yml << VARS_EOF
