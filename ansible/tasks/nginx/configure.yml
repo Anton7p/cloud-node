@@ -9,7 +9,7 @@
 
 - name: Set SSL certificate existence fact
   set_fact:
-    ssl_cert_exists: "{{ ssl_cert_stat.stat.exists }}"
+    ssl_cert_exists: "{{ ssl_cert_stat.stat.exists | default(false) }}"
 
 - name: Deploy nginx subscription config
   template:

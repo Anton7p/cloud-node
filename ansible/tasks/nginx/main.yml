@@ -9,7 +9,7 @@
 - name: Include nginx configuration (HTTP only)
   include_tasks: configure.yml
 
-# Step 2: Reload nginx with HTTP config
+# Step 2: Reload nginx to apply HTTP configuration
 - name: Reload nginx to apply HTTP configuration
   service:
     name: nginx
