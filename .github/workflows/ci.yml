@@ -316,6 +316,28 @@ jobs:
           echo "MASTER_ADDRESS=$MASTER_ADDRESS" >> $GITHUB_ENV
           echo "Master server address: $MASTER_ADDRESS"
 
+      - name: Bootstrap nodes if needed
+        run: |
+          echo "=== Checking and Bootstrapping Nodes ==="
+          NODES_JSON='${{ secrets.INFRASTRUCTURE_IP_LIST }}'
+          echo "$NODES_JSON" | jq -c '.[]' | while read node; do
+            node_address=$(echo "$node" | jq -r '.address // empty')
+            node_password=$(echo "$node" | jq -r '.password // empty')
+            [ -z "$node_address" ] && continue
+            if ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa root@$node_address "echo ok" 2>/dev/null; then
+              echo "Node $node_address already bootstrapped"
+              continue
+            fi
+            if [ -z "$node_password" ] || [ "$node_password" = "null" ]; then
+              echo "WARNING: Node $node_address no password, skipping"
+              continue
+            fi
+            echo "Bootstrapping $node_address with password auth"
+            printf "[nodes]\n%s ansible_user=root ansible_ssh_pass='%s' ansible_ssh_extra_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'\n[nodes:vars]\nansible_python_interpreter=/usr/bin/python3\n" "$node_address" "$node_password" > bootstrap_node.ini
+            ansible-playbook -i bootstrap_node.ini ansible/bootstrap-phase.yml -e "ssh_public_key='${{ secrets.SSH_PUBLIC_KEY }}'" -v || echo "WARNING: Bootstrap failed"
+            rm -f bootstrap_node.ini
+          done
+
       - name: Setup infrastructure
         env:
           IMAGE_NAME: ${{ needs.test-and-build.outputs.image_name }}
