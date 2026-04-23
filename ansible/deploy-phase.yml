@@ -20,7 +20,7 @@
     marzban_password: "{{ vpn_admin_password }}"
     marzban_node_image: "gozargah/marzban-node:v0.5.2"
     marzban_image: "gozargah/marzban:v0.8.4"
-    marzban_inbound_tag: "{{ hostvars[inventory_hostname]['marzban_inbound_tag'] | default('VLESS_REALITY') }}"
+    marzban_inbound_tag: "{{ hostvars[inventory_hostname]['marzban_inbound_tag'] | default('VLESS TCP REALITY') }}"
 
   pre_tasks:
     - name: Parse infrastructure IPs from JSON

@@ -12,7 +12,7 @@
   loop:
     - { key: "REALITY_PUBLIC_KEY", value: "{{ ansible_facts.reality_public_key | default('') }}" }
     - { key: "REALITY_SHORT_ID", value: "{{ ansible_facts.reality_short_id | default('') }}" }
-    - { key: "MARZBAN_INBOUND_TAG", value: "VLESS_REALITY" }
+    - { key: "MARZBAN_INBOUND_TAG", value: "VLESS TCP REALITY" }
   when: (ansible_facts.reality_public_key | default('')) | length > 0
   become: true
   no_log: true

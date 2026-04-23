@@ -141,7 +141,7 @@ DOMAIN_NAME=                  # Домен для VPN (для TLS сертифи
 REALITY_PRIVATE_KEY=          # Приватный ключ X25519
 REALITY_PUBLIC_KEY=           # Публичный ключ X25519
 REALITY_SHORT_ID=             # Short ID (8 hex символов)
-MARZBAN_INBOUND_TAG=          # Тег инбаунда (default: VLESS_REALITY)
+MARZBAN_INBOUND_TAG=          # Тег инбаунда (default: VLESS TCP REALITY)
 ```
 
 > **Note:** `GITHUB_TOKEN` выдаётся автоматически для пуша в GHCR.
