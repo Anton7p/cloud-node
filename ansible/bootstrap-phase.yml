@@ -44,15 +44,10 @@
         infrastructure_ips: "['0.0.0.0/0']"
       when: infrastructure_ips is not defined
 
-    - name: Filter out empty IPs
+    - name: Use parsed IPs or default
       set_fact:
-        infrastructure_ips_filtered: "{{ infrastructure_ips | select('match', '^(?!\\[?\\]?$).+') | list }}"
+        infrastructure_ips: "{{ infrastructure_ips | default(['0.0.0.0/0'], true) }}"
       when: infrastructure_ips is defined
-
-    - name: Use filtered IPs or default
-      set_fact:
-        infrastructure_ips: "{{ infrastructure_ips_filtered | default(['0.0.0.0/0'], true) }}"
-      when: infrastructure_ips_filtered is defined
 
     - name: Display bootstrap information
       debug:
