@@ -48,6 +48,11 @@ server {
     # Admin panel proxy
     location /admin {
         proxy_pass http://127.0.0.1:8000;
+    }
+
+    # Dashboard proxy (Marzban default)
+    location /dashboard {
+        proxy_pass http://127.0.0.1:8000;
         proxy_http_version 1.1;
 
         proxy_set_header Host $host;
