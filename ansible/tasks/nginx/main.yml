@@ -5,21 +5,37 @@
 - name: Include nginx installation
   include_tasks: install.yml
 
-# Step 1: Deploy HTTP-only config (for initial certbot challenge)
-- name: Include nginx configuration (HTTP only)
+# Step 1: Check SSL certificate status
+- name: Check if SSL certificate exists
+  stat:
+    path: /etc/letsencrypt/live/{{ domain_name }}/fullchain.pem
+  register: ssl_cert_stat
+
+# Step 2: Deploy config (works with or without SSL)
+- name: Include nginx configuration
   include_tasks: configure.yml
 
-# Step 2: Reload nginx to apply HTTP configuration
-- name: Reload nginx to apply HTTP configuration
+# Step 3: Reload nginx to apply configuration
+- name: Reload nginx to apply configuration
   service:
     name: nginx
     state: reloaded
 
-# Step 3: Obtain SSL certificate
+# Step 4: Obtain SSL certificate if needed
 - name: Include SSL/certbot setup
   include_tasks: ssl-certbot.yml
+  when: not ssl_cert_stat.stat.exists | default(false)
 
-# Step 4: Re-deploy with SSL configuration
-- name: Include nginx configuration (with SSL)
+# Step 5: Re-check SSL status after certbot
+- name: Re-check SSL certificate status after certbot
+  stat:
+    path: /etc/letsencrypt/live/{{ domain_name }}/fullchain.pem
+  register: ssl_cert_stat_after
+  when: not ssl_cert_stat.stat.exists | default(false)
+
+# Step 6: Re-deploy config with SSL if cert was obtained
+- name: Re-deploy nginx configuration with SSL
   include_tasks: configure.yml
-  when: ssl_cert_stat.stat.exists | default(false)
+  when:
+    - not ssl_cert_stat.stat.exists | default(false)
+    - ssl_cert_stat_after.stat.exists | default(false)

@@ -12,12 +12,17 @@ server {
         root /var/www/certbot;
     }
 
-    # Redirect HTTP to HTTPS
+    # ACME challenge handling - no redirect for certbot
     location / {
+{% if ssl_cert_exists | default(false) %}
         return 301 https://$host$request_uri;
+{% else %}
+        return 503 "SSL certificate not yet configured. Check back shortly.";
+{% endif %}
     }
 }
 
+{% if ssl_cert_exists | default(false) %}
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
@@ -83,3 +88,4 @@ server {
         return 404;
     }
 }
+{% endif %}

@@ -49,9 +49,3 @@
   when:
     - item | trim | length > 0
     - item | trim != '[]'
-
-- name: Allow Marzban Admin Panel (port 8000) from any IP for external access
-  ufw:
-    rule: allow
-    port: '8000'
-    proto: tcp
