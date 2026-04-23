@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RentalsService } from '../rentals/rentals.service';
+import { UsersService } from '../users/users.service';
+import { PrismaService } from '../../shared/prisma/prisma.service';
 import { AppConfig } from '../../shared/config/configuration';
 
 export interface PaymentResult {
@@ -24,6 +26,8 @@ export class PaymentService {
   constructor(
     private readonly rentalsService: RentalsService,
     private readonly configService: ConfigService,
+    private readonly usersService: UsersService,
+    private readonly prisma: PrismaService,
   ) {}
 
   /**
@@ -41,11 +45,19 @@ export class PaymentService {
 
   /**
    * Проверка, использовал ли пользователь триал ранее
+   * Проверяем ЛЮБУЮ аренду (включая EXPIRED и COMPLETED)
    */
   async hasUsedTrial(telegramId: number): Promise<boolean> {
-    // Проверяем наличие любой активной или завершенной аренды
-    const rental = await this.rentalsService.getRental(telegramId);
-    return rental !== null;
+    const user = await this.usersService.findByTelegramId(telegramId);
+    if (!user) return false;
+
+    // Проверяем наличие ЛЮБОЙ аренды - хоть одной записи в таблице rental
+    const anyRental = await this.prisma.rental.findFirst({
+      where: { userId: user.id },
+      select: { id: true },
+    });
+
+    return anyRental !== null;
   }
 
   /**

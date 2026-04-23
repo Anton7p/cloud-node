@@ -170,8 +170,8 @@
                 "network": "tcp",
                 "security": "reality",
                 "realitySettings": {
-                  "dest": "{{ domain_name }}:443",
-                  "serverNames": ["{{ domain_name }}"],
+                  "dest": "google.com:443",
+                  "serverNames": ["google.com", "www.google.com", ""],
                   "privateKey": "{{ ansible_facts.reality_private_key }}",
                   "publicKey": "{{ ansible_facts.reality_public_key }}",
                   "shortIds": ["{{ ansible_facts.reality_short_id }}"]

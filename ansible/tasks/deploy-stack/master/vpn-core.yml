@@ -10,6 +10,7 @@
   environment:
     VPN_ADMIN_USERNAME: "{{ vpn_admin_username }}"
     VPN_ADMIN_PASSWORD: "{{ vpn_admin_password }}"
+    DOMAIN_NAME: "{{ domain_name }}"
   register: marzban_up
   retries: 3
   delay: 5

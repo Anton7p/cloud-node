@@ -13,8 +13,9 @@ server {
     }
 
     # ACME challenge handling - no redirect for certbot
+    # All other requests - redirect to HTTPS only when SSL is ready
     location / {
-{% if ssl_cert_exists | default(false) %}
+{% if ssl_cert_exists | default(false) | bool %}
         return 301 https://$host$request_uri;
 {% else %}
         return 503 "SSL certificate not yet configured. Check back shortly.";
@@ -22,7 +23,7 @@ server {
     }
 }
 
-{% if ssl_cert_exists | default(false) %}
+{% if ssl_cert_exists | default(false) | bool %}
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;

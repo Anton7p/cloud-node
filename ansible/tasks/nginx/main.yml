@@ -21,21 +21,28 @@
     name: nginx
     state: reloaded
 
+# Step 3.5: Ensure nginx is listening on port 80 for ACME challenge
+- name: Wait for nginx to listen on port 80
+  wait_for:
+    port: 80
+    timeout: 30
+  ignore_errors: yes
+
 # Step 4: Obtain SSL certificate if needed
 - name: Include SSL/certbot setup
   include_tasks: ssl-certbot.yml
-  when: not ssl_cert_stat.stat.exists | default(false)
+  when: not ssl_cert_stat.stat.exists | default(false) | bool
 
 # Step 5: Re-check SSL status after certbot
 - name: Re-check SSL certificate status after certbot
   stat:
     path: /etc/letsencrypt/live/{{ domain_name }}/fullchain.pem
   register: ssl_cert_stat_after
-  when: not ssl_cert_stat.stat.exists | default(false)
+  when: not ssl_cert_stat.stat.exists | default(false) | bool
 
 # Step 6: Re-deploy config with SSL if cert was obtained
 - name: Re-deploy nginx configuration with SSL
   include_tasks: configure.yml
   when:
-    - not ssl_cert_stat.stat.exists | default(false)
-    - ssl_cert_stat_after.stat.exists | default(false)
+    - not ssl_cert_stat.stat.exists | default(false) | bool
+    - ssl_cert_stat_after.stat.exists | default(false) | bool

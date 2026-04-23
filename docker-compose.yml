@@ -116,8 +116,9 @@ services:
       - XRAY_EXECUTABLE_PATH=/usr/local/bin/xray
       - SUDO_USERNAME=${VPN_ADMIN_USERNAME:-admin}
       - SUDO_PASSWORD=${VPN_ADMIN_PASSWORD:-admin123}
-      - SUB_UPSTREAM_PATH=/sub
-      - SUB_SUPPORT_HTTP=true
+      - XRAY_SUBSCRIPTION_PATH=/sub
+      - XRAY_SUBSCRIPTION_URL_PREFIX=https://${DOMAIN_NAME}
+      - XRAY_SUPPORT_HTTP_SUBSCRIPTION=true
     volumes:
       - marzban-data:/var/lib/marzban
     networks:
