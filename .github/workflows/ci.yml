@@ -246,7 +246,7 @@ jobs:
           infrastructure_ip_list: '${{ secrets.INFRASTRUCTURE_IP_LIST }}'
           reality_public_key: "${{ secrets.REALITY_PUBLIC_KEY }}"
           reality_short_id: "${{ secrets.REALITY_SHORT_ID }}"
-          marzban_inbound_tag: "${{ vars.MARZBAN_INBOUND_TAG || 'VLESS_REALITY' }}"
+          marzban_inbound_tag: "${{ vars.MARZBAN_INBOUND_TAG || 'VLESS TCP REALITY' }}"
           github_token: "${{ secrets.GITHUB_TOKEN }}"
           github_actor: "${{ github.actor }}"
           VARS_EOF
@@ -260,7 +260,7 @@ jobs:
   # ==========================================
   infrastructure:
     runs-on: ubuntu-latest
-    needs: deploy
+    needs: [deploy, test-and-build]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -317,8 +317,32 @@ jobs:
           echo "Master server address: $MASTER_ADDRESS"
 
       - name: Setup infrastructure
+        env:
+          IMAGE_NAME: ${{ needs.test-and-build.outputs.image_name }}
+          IMAGE_TAG: ${{ needs.test-and-build.outputs.image_tag }}
         run: |
           echo "=== Deploying Infrastructure ==="
+
+          # Create deploy_vars.yml from secrets (same as deploy job)
+          cat > deploy_vars.yml << VARS_EOF
+          ---
+          image_name: "${IMAGE_NAME}"
+          image_tag: "${IMAGE_TAG}"
+          domain_name: "${{ secrets.DOMAIN_NAME }}"
+          db_password: "${{ secrets.VPN_ADMIN_PASSWORD }}"
+          redis_password: "${{ secrets.VPN_ADMIN_PASSWORD }}"
+          telegram_bot_token: "${{ secrets.TELEGRAM_BOT_TOKEN }}"
+          encryption_key: "${{ secrets.ENCRYPTION_KEY }}"
+          vpn_admin_username: "${{ secrets.VPN_ADMIN_USERNAME }}"
+          vpn_admin_password: "${{ secrets.VPN_ADMIN_PASSWORD }}"
+          infrastructure_ip_list: '${{ secrets.INFRASTRUCTURE_IP_LIST }}'
+          reality_public_key: "${{ secrets.REALITY_PUBLIC_KEY }}"
+          reality_short_id: "${{ secrets.REALITY_SHORT_ID }}"
+          marzban_inbound_tag: "${{ vars.MARZBAN_INBOUND_TAG || 'VLESS_REALITY' }}"
+          github_token: "${{ secrets.GITHUB_TOKEN }}"
+          github_actor: "${{ github.actor }}"
+          VARS_EOF
+
           # Deploy phase includes both master and nodes in unified playbook
           ansible-playbook -i inventory_nodes.ini ansible/deploy-phase.yml \
             -e "@deploy_vars.yml" \
