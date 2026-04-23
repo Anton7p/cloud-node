@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PaymentService } from './payment.service';
 import { RentalsModule } from '../rentals/rentals.module';
+import { UsersModule } from '../users/users.module';
 
 /**
  * PaymentModule - модуль платежной системы (заглушка)
@@ -12,7 +13,7 @@ import { RentalsModule } from '../rentals/rentals.module';
  * - Конфигурация через ConfigModule
  */
 @Module({
-  imports: [ConfigModule, RentalsModule],
+  imports: [ConfigModule, RentalsModule, UsersModule],
   providers: [PaymentService],
   exports: [PaymentService],
 })
