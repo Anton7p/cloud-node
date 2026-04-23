@@ -157,7 +157,7 @@ jobs:
           pip install ansible
           sudo apt-get update && sudo apt-get install -y jq sshpass
 
-      
+
       - name: Check if server needs bootstrap
         id: check_bootstrap
         run: |
@@ -338,7 +338,7 @@ jobs:
           infrastructure_ip_list: '${{ secrets.INFRASTRUCTURE_IP_LIST }}'
           reality_public_key: "${{ secrets.REALITY_PUBLIC_KEY }}"
           reality_short_id: "${{ secrets.REALITY_SHORT_ID }}"
-          marzban_inbound_tag: "${{ vars.MARZBAN_INBOUND_TAG || 'VLESS_REALITY' }}"
+          marzban_inbound_tag: "${{ vars.MARZBAN_INBOUND_TAG || 'VLESS TCP REALITY' }}"
           github_token: "${{ secrets.GITHUB_TOKEN }}"
           github_actor: "${{ github.actor }}"
           VARS_EOF
