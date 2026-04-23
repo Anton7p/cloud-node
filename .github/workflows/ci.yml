@@ -277,37 +277,6 @@ jobs:
           pip install ansible
           sudo apt-get update && sudo apt-get install -y sshpass jq
 
-      - name: Parse INFRASTRUCTURE_IP_LIST and generate inventory
-        run: |
-          # Parse JSON array format: [{"address": "1.2.3.5", "password": "..."}]
-          NODES_JSON='${{ secrets.INFRASTRUCTURE_IP_LIST }}'
-
-          echo "[nodes]" > inventory_nodes.ini
-
-          # Extract nodes with passwords from JSON array
-          echo "$NODES_JSON" | jq -c '.[]' | while read node; do
-            node_address=$(echo "$node" | jq -r '.address // empty')
-            node_password=$(echo "$node" | jq -r '.password // empty')
-
-            if [ -n "$node_address" ]; then
-              if [ -n "$node_password" ] && [ "$node_password" != "null" ]; then
-                # Password authentication (fresh server)
-                echo "$node_address ansible_user=root ansible_ssh_pass=$node_password ansible_ssh_extra_args='-o PubkeyAuthentication=no -o PasswordAuthentication=yes -o StrictHostKeyChecking=no'" >> inventory_nodes.ini
-                echo "Added node (password auth): $node_address"
-              else
-                # Key authentication (already bootstrapped)
-                echo "$node_address ansible_user=root ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory_nodes.ini
-                echo "Added node (key auth): $node_address"
-              fi
-            fi
-          done
-
-          echo "[nodes:vars]" >> inventory_nodes.ini
-          echo "ansible_python_interpreter=/usr/bin/python3" >> inventory_nodes.ini
-
-          echo "=== Generated inventory_nodes.ini ==="
-          cat inventory_nodes.ini
-
       - name: Parse master server address for nodes
         run: |
           # Parse master server IP from JSON
@@ -337,6 +306,27 @@ jobs:
             ansible-playbook -i bootstrap_node.ini ansible/bootstrap-phase.yml -e "ssh_public_key='${{ secrets.SSH_PUBLIC_KEY }}'" -v || echo "WARNING: Bootstrap failed"
             rm -f bootstrap_node.ini
           done
+
+      - name: Generate inventory for nodes
+        run: |
+          # All nodes now use SSH key auth after bootstrap
+          NODES_JSON='${{ secrets.INFRASTRUCTURE_IP_LIST }}'
+
+          echo "[nodes]" > inventory_nodes.ini
+
+          echo "$NODES_JSON" | jq -c '.[]' | while read node; do
+            node_address=$(echo "$node" | jq -r '.address // empty')
+            if [ -n "$node_address" ]; then
+              echo "$node_address ansible_user=root ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory_nodes.ini
+              echo "Added node: $node_address"
+            fi
+          done
+
+          echo "[nodes:vars]" >> inventory_nodes.ini
+          echo "ansible_python_interpreter=/usr/bin/python3" >> inventory_nodes.ini
+
+          echo "=== Generated inventory_nodes.ini ==="
+          cat inventory_nodes.ini
 
       - name: Setup infrastructure
         env:
