@@ -4,7 +4,7 @@
 
 - name: Check if bootstrap already applied
   stat:
-    path: /var/lib/cloudnode/.bootstrapped
+    path: /var/lib/bootstrap/.bootstrapped
   register: bootstrap_flag
   changed_when: false
 
@@ -13,7 +13,7 @@
     msg: |
       ==========================================
       BOOTSTRAP ALREADY APPLIED
-      Flag file: /var/lib/cloudnode/.bootstrapped
+      Flag file: /var/lib/bootstrap/.bootstrapped
       First applied: {{ bootstrap_flag.stat.mtime | default('unknown') }}
       Skipping all bootstrap tasks
       ==========================================
@@ -45,14 +45,14 @@
 
     - name: Ensure flag directory exists
       file:
-        path: /var/lib/cloudnode
+        path: /var/lib/bootstrap
         state: directory
         mode: '0755'
 
     - name: Create bootstrap flag file
       copy:
         content: "Server bootstrapped: {{ ansible_facts['date_time']['iso8601'] }}"
-        dest: /var/lib/cloudnode/.bootstrapped
+        dest: /var/lib/bootstrap/.bootstrapped
         mode: '0644'
 
     - name: Display bootstrap completion
@@ -60,7 +60,7 @@
         msg: |
           ==========================================
           BOOTSTRAP COMPLETED FOR MASTER
-          Flag created: /var/lib/cloudnode/.bootstrapped
+          Flag created: /var/lib/bootstrap/.bootstrapped
           Applied at: {{ ansible_facts['date_time']['iso8601'] }}
           - SSH keys installed
           - Password authentication disabled

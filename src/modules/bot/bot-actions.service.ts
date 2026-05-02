@@ -9,7 +9,6 @@ import { StartCommand } from './application/commands/start.command';
 import {
   BuyMenuCommand,
   MyKeysCommand,
-  PartnersCommand,
   LegalCommand,
 } from './application/commands/menu.commands';
 import { RentCommand } from './application/commands/rental.commands';
@@ -67,7 +66,6 @@ export class BotActionsService implements OnModuleInit {
       SupportCommand,
       // Новые команды меню
       MyKeysCommand,
-      PartnersCommand,
       LegalCommand,
     ];
 
@@ -127,38 +125,6 @@ export class BotActionsService implements OnModuleInit {
       await handler.execute(context);
     } else {
       this.logger.error('No handler found for "start" command');
-      await ctx.reply(MESSAGES.UNKNOWN_COMMAND);
-    }
-  }
-
-  /**
-   * Обработка команды /key
-   */
-  async handleKey(ctx: BotContext): Promise<void> {
-    const userId = ctx.from?.id || 0;
-    const handler = this.findHandler('key');
-
-    if (handler) {
-      const context = createCommandContext(ctx, userId, 'key', handler);
-      await handler.execute(context);
-    } else {
-      this.logger.error('No handler found for "key" command');
-      await ctx.reply(MESSAGES.UNKNOWN_COMMAND);
-    }
-  }
-
-  /**
-   * Обработка команды /help
-   */
-  async handleHelp(ctx: BotContext): Promise<void> {
-    const userId = ctx.from?.id || 0;
-    const handler = this.findHandler('help');
-
-    if (handler) {
-      const context = createCommandContext(ctx, userId, 'help', handler);
-      await handler.execute(context);
-    } else {
-      this.logger.error('No handler found for "help" command');
       await ctx.reply(MESSAGES.UNKNOWN_COMMAND);
     }
   }

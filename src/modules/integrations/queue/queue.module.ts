@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
 import { ProvisioningQueue } from './provisioning.queue';
 import { ProvisioningProcessor } from './provisioning.processor';
-import { MarzbanModule } from '../providers/marzban/marzban.module';
+import { VpnPanelModule } from '../vpn-panel';
 import { RentalsModule } from '../../rentals/rentals.module';
 import { AppConfig } from '../../../shared/config/configuration';
 
@@ -37,7 +37,7 @@ import { AppConfig } from '../../../shared/config/configuration';
     BullModule.registerQueue({
       name: 'provisioning',
     }),
-    MarzbanModule,
+    VpnPanelModule,
     RentalsModule,
   ],
   providers: [ProvisioningQueue, ProvisioningProcessor],

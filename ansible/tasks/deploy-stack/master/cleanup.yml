@@ -7,14 +7,9 @@
   changed_when: true
 
 - name: Remove old Docker images
-  shell: |
-    docker image prune -af --filter "until=168h" || true
+  command: docker image prune -af --filter "until=168h"
   register: image_prune
   changed_when: "'Total reclaimed space' in image_prune.stderr"
-
-- name: Display cleanup results
-  debug:
-    msg: "{{ image_prune.stderr | default('No images to prune') }}"
 
 - name: Logout from Docker registry
   command: docker logout {{ registry_url }}

@@ -1,10 +1,3 @@
----
-# Setup Reality Keys - Main Entry Point (NEW)
-# This file imports and orchestrates Reality Keys setup tasks
-# Use setup-reality-keys-master.yml for master-only deployment
-# Use setup-reality-keys-node.yml for node-only deployment
-# Original file: setup-reality-keys.yml (unchanged)
-# ==========================================
 
 - name: Include master Reality Keys setup
   include_tasks: "tasks/setup-reality-keys/setup-reality-keys-master.yml"

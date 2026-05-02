@@ -98,15 +98,6 @@ export abstract class BaseAction {
   abstract execute(context: CommandContext): Promise<void>;
 
   /**
-   * Валидация доступа (заглушка для проверки банов/прав)
-   * Переопределите в наследниках для реальной проверки
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async validate(_context: CommandContext): Promise<boolean> {
-    return true; // Заезд для проверки банов или прав доступа
-  }
-
-  /**
    * Вспомогательный метод для логирования
    */
   protected logExecution(data: string, userId: number): void {

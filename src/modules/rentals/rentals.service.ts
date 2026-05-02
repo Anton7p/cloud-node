@@ -3,7 +3,6 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Rental, RentalStatus } from '@prisma/client';
 import { PrismaService } from '../../shared/prisma/prisma.service';
 import { RentalsRepository } from './repositories/rentals.repository';
-import { RentalData } from '../bot/types/bot.types';
 import { UsersService } from '../users/users.service';
 import { EncryptionService } from '../../shared/encryption/encryption.service';
 import dayjs from 'dayjs';
@@ -181,37 +180,6 @@ export class RentalsService {
     return this.rentalsRepository.findActiveByUserId(user.id);
   }
 
-  async completeRental(id: number): Promise<boolean> {
-    return this.rentalsRepository.complete(id);
-  }
-
-  async getAllRentals(): Promise<Rental[]> {
-    return this.rentalsRepository.findAllActive();
-  }
-
-  /**
-   * Поиск аренд с истекающим сроком (для Cron задач)
-   */
-  async findExpiringRentals(hours: number): Promise<Rental[]> {
-    const cutoff = dayjs().add(hours, 'hour').toDate();
-    const now = new Date();
-
-    return this.prisma.rental.findMany({
-      where: {
-        status: RentalStatus.ACTIVE,
-        endDate: {
-          gt: now,
-          lte: cutoff,
-        },
-        lastNotifiedAt: {
-          lt: dayjs().subtract(1, 'day').toDate(),
-          // Или null - будет обработано
-        },
-      },
-      include: { user: true },
-    });
-  }
-
   /**
    * Обновление Access Key для аренды (с шифрованием)
    */
@@ -252,19 +220,5 @@ export class RentalsService {
       this.logger.error(`Failed to decrypt Access Key for rental ${rental.id}`);
       return null;
     }
-  }
-
-  /**
-   * Конвертация Rental из БД в RentalData для UI
-   */
-  toRentalData(rental: Rental | null): RentalData | undefined {
-    if (!rental) return undefined;
-    return {
-      userId: rental.userId,
-      term: rental.term,
-      status: rental.status as RentalData['status'],
-      startDate: rental.startDate || undefined,
-      endDate: rental.endDate || undefined,
-    };
   }
 }

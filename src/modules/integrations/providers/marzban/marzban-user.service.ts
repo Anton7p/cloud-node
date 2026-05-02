@@ -1,7 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
-import { CreateUserResult, MarzbanUserResponse } from './types/marzban.types';
+import {
+  CreateUserResult,
+  MarzbanUserResponse,
+  SuspendUserResult,
+} from './types/marzban.types';
 import { AppConfig } from '../../../../shared/config/configuration';
 import { MarzbanApiClient } from './marzban-api-client.service';
 
@@ -122,9 +126,11 @@ export class MarzbanUserService {
       }
 
       if (axios.isAxiosError(error) && error.response?.status === 401) {
-        // Token expired, try to re-login and retry once
-        this.logger.log('Token expired, re-authenticating...');
-        // This will be handled by the main service
+        return {
+          success: false,
+          unauthorized: true,
+          error: 'Unauthorized',
+        };
       }
 
       // Log detailed error for 422 validation errors
@@ -179,29 +185,30 @@ export class MarzbanUserService {
   }
 
   /**
-   * Get subscription URL for existing user
-   * Used for retrieving subscription URL for already created users
+   * Disable VPN user (e.g. subscription expired).
    */
-  async getUserSubscriptionUrl(username: string): Promise<string | null> {
+  async suspendUser(telegramId: string): Promise<SuspendUserResult> {
+    const username = `user_${telegramId}`;
     try {
-      const response = await this.apiClient
-        .getAxiosInstance()
-        .get<MarzbanUserResponse>(`/user/${username}`);
-
-      if (response.data.subscription_url) {
-        return this.getSubscriptionUrl(
-          response.data.subscription_url,
-          username,
-        );
-      }
-
-      return null;
+      await this.apiClient.getAxiosInstance().put(`/user/${username}`, {
+        status: 'disabled',
+      });
+      this.logger.log(`Suspended Marzban user ${username}`);
+      return { ok: true };
     } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        this.logger.warn(`Marzban user ${username} not found during suspend`);
+        return { ok: false, unauthorized: false };
+      }
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        this.logger.warn('suspendUser: unauthorized (caller should re-login)');
+        return { ok: false, unauthorized: true };
+      }
       this.logger.error(
-        `Failed to get subscription URL for ${username}:`,
+        `Failed to suspend Marzban user ${username}:`,
         error instanceof Error ? error.message : 'Unknown error',
       );
-      return null;
+      return { ok: false, unauthorized: false };
     }
   }
 }

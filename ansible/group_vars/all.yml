@@ -1,0 +1,10 @@
+---
+# Единые значения для playbooks и CI (переопределяются через -e при необходимости).
+deploy_dir_master: /var/www/marzban
+deploy_dir_node: /var/www/marzban_node
+
+marzban_panel_image: gozargah/marzban:v0.8.4
+marzban_node_image: gozargah/marzban-node:v0.5.2
+
+service_port: 62050
+xray_api_port: 62051

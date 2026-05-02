@@ -29,13 +29,15 @@ export interface CreateUserResult {
   subscriptionUrl?: string;
   username?: string;
   error?: string;
+  /** Протухший JWT: фасад может перелогиниться и повторить запрос. */
+  unauthorized?: boolean;
 }
+
+export type SuspendUserResult =
+  | { ok: true }
+  | { ok: false; unauthorized: boolean };
 
 export interface MarzbanCredentials {
   username: string;
   password: string;
 }
-
-export const NODE_SERVICE_PORT = 62050;
-export const DEFAULT_CERT_DIR = '/var/www/marzban_node/var';
-export const CERT_FILENAME = 'ssl_client_cert.pem';

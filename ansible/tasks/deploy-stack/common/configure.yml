@@ -29,6 +29,3 @@
     group: root
   register: env_generation
 
-- name: Display .env generation status
-  debug:
-    msg: "Environment file generated at {{ deploy_dir }}/.env (changed: {{ env_generation.changed }})"

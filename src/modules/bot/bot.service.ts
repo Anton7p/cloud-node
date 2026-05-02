@@ -2,7 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { Telegraf } from 'telegraf';
 import { ConfigService } from '@nestjs/config';
+import dayjs from 'dayjs';
 import { AppConfig } from '../../shared/config/configuration';
+import { NOTIFY_HTML } from './ui';
 
 interface SubscriptionSuccessPayload {
   chatId: number;
@@ -52,69 +54,38 @@ export class BotService {
   }
 
   /**
-   * Edit an existing message
-   */
-  async editMessage(
-    chatId: number,
-    messageId: number,
-    text: string,
-  ): Promise<void> {
-    try {
-      await this.bot.telegram.editMessageText(
-        chatId,
-        messageId,
-        undefined,
-        text,
-        {
-          parse_mode: 'HTML',
-        },
-      );
-      this.logger.log(`Message ${messageId} edited in chat ${chatId}`);
-    } catch (error) {
-      this.logger.error(
-        `Failed to edit message ${messageId} in chat ${chatId}:`,
-        error instanceof Error ? error.message : 'Unknown error',
-      );
-      throw error;
-    }
-  }
-
-  /**
    * Notify user about successful subscription activation
    */
   async notifySubscriptionSuccess(
     chatId: number,
     subscriptionUrl: string,
   ): Promise<void> {
-    const message = `
-✅ <b>Подписка успешно активирована!</b>
-
-Ваш ключ доступа:
-<code>${subscriptionUrl}</code>
-
-Нажмите на ключ, чтобы скопировать его.
-    `.trim();
-
-    await this.sendMessage(chatId, message);
+    await this.sendMessage(
+      chatId,
+      NOTIFY_HTML.SUBSCRIPTION_SUCCESS(subscriptionUrl),
+    );
   }
 
-  /**
-   * Notify user about subscription activation failure
-   */
+  /** Напоминание: подписка заканчивается в течение ~24 часов. */
+  async notifySubscriptionExpiringSoon(
+    chatId: number,
+    endDate: Date,
+  ): Promise<void> {
+    const until = dayjs(endDate).format('DD.MM.YYYY');
+    await this.sendMessage(
+      chatId,
+      NOTIFY_HTML.SUBSCRIPTION_EXPIRING_SOON(until),
+    );
+  }
+
   async notifySubscriptionFailed(
     chatId: number,
     errorMessage: string,
   ): Promise<void> {
-    const message = `
-❌ <b>Ошибка активации подписки</b>
-
-К сожалению, не удалось создать подписку.
-Ошибка: ${errorMessage}
-
-Пожалуйста, обратитесь в поддержку.
-    `.trim();
-
-    await this.sendMessage(chatId, message);
+    await this.sendMessage(
+      chatId,
+      NOTIFY_HTML.SUBSCRIPTION_FAILED(errorMessage),
+    );
   }
 
   /**

@@ -11,4 +11,6 @@ export {
   LEGAL_LINKS,
   PLATFORM_GUIDES,
   ERROR_MESSAGES,
+  UI_LABELS,
+  NOTIFY_HTML,
 } from './clean.templates';

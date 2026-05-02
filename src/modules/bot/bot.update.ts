@@ -86,24 +86,6 @@ export class BotUpdate implements OnModuleInit {
     await this.botActionsService.handleStart(ctx);
   }
 
-  @Command('key')
-  async onKey(@Ctx() ctx: BotContext): Promise<void> {
-    const userId = ctx.from?.id;
-    if (userId) {
-      await this.usersService.touch(userId).catch(() => {});
-    }
-    await this.botActionsService.handleKey(ctx);
-  }
-
-  @Command('help')
-  async onHelp(@Ctx() ctx: BotContext): Promise<void> {
-    const userId = ctx.from?.id;
-    if (userId) {
-      await this.usersService.touch(userId).catch(() => {});
-    }
-    await this.botActionsService.handleHelp(ctx);
-  }
-
   @Command('support')
   async onSupport(@Ctx() ctx: BotContext): Promise<void> {
     const userId = ctx.from?.id;

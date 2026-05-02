@@ -15,6 +15,8 @@ export interface AppConfig {
   redisPassword: string | undefined;
   // VPN Panel API (Marzban & XUI shared)
   vpnPanelUrl: string | undefined;
+  /** Which IVpnPanelAdapter implementation to bind (future: xui, …). */
+  vpnPanelAdapter: 'marzban' | 'xui';
   vpnAdminUsername: string | undefined;
   vpnAdminPassword: string | undefined;
   // Domain name for external links
@@ -60,8 +62,12 @@ export const configuration = registerAs('app', (): AppConfig => {
     redisHost: process.env.REDIS_HOST?.trim() || 'redis',
     redisPort: parseInt(process.env.REDIS_PORT, 10) || 6379,
     redisPassword: process.env.REDIS_PASSWORD,
-    // VPN Panel API (shared for Marzban & XUI)
-    vpnPanelUrl: process.env.VPN_PANEL_URL,
+    // VPN Panel API (shared for Marzban & XUI) — only VPN_PANEL_URL
+    vpnPanelUrl: process.env.VPN_PANEL_URL?.trim() || undefined,
+    vpnPanelAdapter:
+      process.env.VPN_PANEL_ADAPTER === 'xui'
+        ? ('xui' as const)
+        : ('marzban' as const),
     vpnAdminUsername: process.env.VPN_ADMIN_USERNAME,
     vpnAdminPassword: process.env.VPN_ADMIN_PASSWORD,
     // Domain name for external links
@@ -117,8 +123,9 @@ export const validationSchema = Joi.object({
   REDIS_HOST: Joi.string().allow('').default('redis'),
   REDIS_PORT: Joi.number().port().default(6379),
   REDIS_PASSWORD: Joi.string().allow('', null).optional(),
-  // VPN Panel configuration (shared for Marzban & XUI) - optional, warns only
+  // VPN Panel base URL (e.g. http://marzban:8000 in Docker network)
   VPN_PANEL_URL: Joi.string().uri().optional(),
+  VPN_PANEL_ADAPTER: Joi.string().valid('marzban', 'xui').optional(),
   VPN_ADMIN_USERNAME: Joi.string().optional(),
   VPN_ADMIN_PASSWORD: Joi.string().optional(),
   // Domain name for external links - optional
@@ -143,4 +150,21 @@ export const validationSchema = Joi.object({
   // Trial configuration - optional with defaults
   TRIAL_DAYS: Joi.number().integer().min(1).optional(),
   TRIAL_IP_LIMIT: Joi.number().integer().min(1).optional(),
+}).custom((value, helpers) => {
+  const nodeEnv =
+    typeof value.NODE_ENV === 'string' ? value.NODE_ENV : 'development';
+  const adapterRaw = value.VPN_PANEL_ADAPTER;
+  const adapter =
+    typeof adapterRaw === 'string'
+      ? adapterRaw.trim().toLowerCase()
+      : 'marzban';
+  const domain =
+    typeof value.DOMAIN_NAME === 'string' ? value.DOMAIN_NAME.trim() : '';
+  if (nodeEnv === 'production' && adapter !== 'xui' && !domain) {
+    return helpers.message({
+      custom:
+        'DOMAIN_NAME is required in production when VPN_PANEL_ADAPTER is marzban (subscription links).',
+    });
+  }
+  return value;
 });

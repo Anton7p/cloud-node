@@ -64,15 +64,25 @@ export class RentalsSchedulerService {
         `Found ${expiringRentals.length} rentals expiring within 24h`,
       );
 
-      // Обновляем lastNotifiedAt для всех найденных аренд
-      const rentalIds = expiringRentals.map((r) => r.id);
-      await this.prisma.rental.updateMany({
-        where: { id: { in: rentalIds } },
-        data: { lastNotifiedAt: now.toDate() },
-      });
+      for (const rental of expiringRentals) {
+        const tid = rental.user?.telegramId;
+        if (tid == null || !rental.endDate) {
+          this.logger.warn(
+            `Skipping expiring notification for rental ${rental.id}: no telegramId or endDate`,
+          );
+          continue;
+        }
 
-      // TODO: Отправка уведомлений пользователям через BotService
-      this.logger.log(`Updated lastNotifiedAt for ${rentalIds.length} rentals`);
+        this.eventEmitter.emit('rental.expiringSoon', {
+          rentalId: rental.id,
+          telegramId: Number(tid),
+          endDate: rental.endDate.toISOString(),
+        });
+      }
+
+      this.logger.log(
+        `Queued ${expiringRentals.length} rental.expiringSoon notification(s)`,
+      );
     } catch (error) {
       this.logger.error(`Failed to check expiring rentals: ${error}`);
     }

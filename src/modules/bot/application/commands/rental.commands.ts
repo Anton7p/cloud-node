@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { RentalsService } from '../../../rentals/rentals.service';
-import { MarzbanService } from '../../../integrations/providers/marzban/marzban.service';
+import { VPN_PANEL_ADAPTER } from '../../../integrations/vpn-panel/vpn-panel.tokens';
+import type { IVpnPanelAdapter } from '../../../integrations/vpn-panel/vpn-panel.interface';
 import { PaymentService } from '../../../payments/payment.service';
 import { BaseAction, CommandContext, safeDeleteMessage } from '../base.action';
 import {
@@ -18,7 +19,7 @@ import {
 export async function handleRental(
   ctx: CommandContext['ctx'],
   rentalsService: RentalsService,
-  marzbanService: MarzbanService,
+  vpnPanel: IVpnPanelAdapter,
   paymentService: PaymentService,
   userId: number,
   months: number,
@@ -35,12 +36,8 @@ export async function handleRental(
       return;
     }
 
-    // Create Marzban user for trial (limitIp: 2 is set automatically for trials)
-    const marzbanResult = await marzbanService.createUser(
-      String(userId),
-      months,
-    );
-    if (!marzbanResult.success || !marzbanResult.subscriptionUrl) {
+    const provision = await vpnPanel.provisionUser(String(userId), months);
+    if (!provision.success || !provision.subscriptionUrl) {
       await ctx.reply(MESSAGES.ERROR);
       return;
     }
@@ -49,15 +46,15 @@ export async function handleRental(
     if (result.rentalId) {
       await rentalsService.updateAccessKey(
         result.rentalId,
-        marzbanResult.subscriptionUrl,
+        provision.subscriptionUrl,
       );
     }
 
     await ctx.reply(
-      MESSAGES.KEY_READY('3 дня бесплатно', marzbanResult.subscriptionUrl),
+      MESSAGES.KEY_READY('3 дня бесплатно', provision.subscriptionUrl),
       {
         parse_mode: 'Markdown',
-        reply_markup: keyDisplayKeyboard(marzbanResult.subscriptionUrl)
+        reply_markup: keyDisplayKeyboard(provision.subscriptionUrl)
           .reply_markup,
       },
     );
@@ -110,7 +107,7 @@ export async function handleRental(
     return;
   }
 
-  const result = await marzbanService.createUser(String(userId), months);
+  const result = await vpnPanel.provisionUser(String(userId), months);
   if (!result.success || !result.subscriptionUrl) {
     await ctx.reply(MESSAGES.ERROR);
     return;
@@ -134,7 +131,8 @@ export class RentCommand extends BaseAction {
 
   constructor(
     private readonly rentalsService: RentalsService,
-    private readonly marzbanService: MarzbanService,
+    @Inject(VPN_PANEL_ADAPTER)
+    private readonly vpnPanel: IVpnPanelAdapter,
     private readonly paymentService: PaymentService,
   ) {
     super(RentCommand.name);
@@ -159,7 +157,7 @@ export class RentCommand extends BaseAction {
     await handleRental(
       ctx,
       this.rentalsService,
-      this.marzbanService,
+      this.vpnPanel,
       this.paymentService,
       userId,
       months,

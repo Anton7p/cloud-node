@@ -61,10 +61,9 @@ export class PaymentService {
   }
 
   /**
-   * Обработка бесплатного триала
-   * Создает аренду на trialDays с лимитом trialIpLimit устройств
+   * Бесплатный триал (trialDays / trialIpLimit из конфигурации)
    */
-  async processTrial(telegramId: number): Promise<PaymentResult> {
+  async createTrialRental(telegramId: number): Promise<PaymentResult> {
     const { days, ipLimit } = this.getTrialConfig();
 
     try {
@@ -115,13 +114,6 @@ export class PaymentService {
         message: 'Ошибка при создании бесплатного периода.',
       };
     }
-  }
-
-  /**
-   * Legacy method alias for backward compatibility
-   */
-  async createTrialRental(telegramId: number): Promise<PaymentResult> {
-    return this.processTrial(telegramId);
   }
 
   /**

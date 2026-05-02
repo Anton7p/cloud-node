@@ -5,7 +5,7 @@ import { SocksProxyAgent } from 'socks-proxy-agent';
 import { PrismaModule } from '../../shared/prisma/prisma.module';
 import { UsersModule } from '../users/users.module';
 import { RentalsModule } from '../rentals/rentals.module';
-import { MarzbanModule } from '../integrations/providers/marzban/marzban.module';
+import { VpnPanelModule } from '../integrations/vpn-panel';
 import { PaymentModule } from '../payments/payment.module';
 import { BotUpdate } from './bot.update';
 import { BotActionsService } from './bot-actions.service';
@@ -20,10 +20,10 @@ import {
   InstructionsCommand,
   PlatformInstructionsCommand,
   SupportCommand,
-  PartnersCommand,
   LegalCommand,
 } from './application/commands';
 import { BotService } from './bot.service';
+import { ExpiringRentalListener } from './listeners/expiring-rental.listener';
 
 /**
  * Все Command handlers, реализующие BaseAction
@@ -40,7 +40,6 @@ const commandHandlers = [
   InstructionsCommand,
   PlatformInstructionsCommand,
   SupportCommand,
-  PartnersCommand,
   LegalCommand,
 ];
 
@@ -81,7 +80,7 @@ const commandHandlers = [
     PrismaModule,
     UsersModule,
     RentalsModule,
-    MarzbanModule,
+    VpnPanelModule,
     PaymentModule,
   ],
   providers: [
@@ -91,6 +90,7 @@ const commandHandlers = [
     BotActionsService,
     // Bot API Service for notifications
     BotService,
+    ExpiringRentalListener,
     // Application Layer: Command Handlers
     ...commandHandlers,
   ],

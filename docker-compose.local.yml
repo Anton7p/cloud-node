@@ -1,0 +1,27 @@
+# Локальная разработка (подмешивается к основному compose):
+# PostgreSQL и Redis доступны с хоста (127.0.0.1), образ бота собирается из Dockerfile.
+#
+# Инфраструктура (Marzban + БД + Redis):
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up -d db redis marzban
+#
+# Приложение на хосте (Windows):
+#   npx prisma generate && npx prisma migrate deploy && npm run start:dev
+#
+# Полный стек в Docker (бот в контейнере):
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build -d
+
+services:
+  db:
+    # На Windows :5432 часто занят резервом портов — с хоста используем 5433.
+    ports:
+      - "127.0.0.1:5433:5432"
+
+  redis:
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cloudnode-bot:local

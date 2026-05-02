@@ -4,6 +4,7 @@ import {
   LEGAL_LINKS,
   ACCESS_PRICES,
   PLATFORM_GUIDES,
+  UI_LABELS,
 } from '../templates/clean.templates';
 
 // ============================================================================
@@ -15,12 +16,12 @@ import {
  * Сетка 1-2-2:
  * 🚀 Быстрый старт
  * 📁 Мои ключи | 🧭 Как подключить
- * 🤝 Партнёрам | ⚖️ Условия
+ * ⚖️ Условия
  */
 export const mainKeyboard = () => {
   const rows: any[] = [
     // Row 1: 🚀 Быстрый старт
-    [Markup.button.callback('🚀 Быстрый старт', ACTIONS.BUY_MENU)],
+    [Markup.button.callback(UI_LABELS.QUICK_START, ACTIONS.BUY_MENU)],
   ];
 
   // Row 2: 📁 Мои ключи | 🧭 Как подключить
@@ -29,11 +30,8 @@ export const mainKeyboard = () => {
     Markup.button.callback('🧭 Как подключить', ACTIONS.INSTRUCTIONS),
   ]);
 
-  // Row 3: 🤝 Партнёрам | ⚖️ Условия
-  rows.push([
-    Markup.button.callback('🤝 Партнёрам', ACTIONS.PARTNERS),
-    Markup.button.callback('⚖️ Условия', ACTIONS.LEGAL),
-  ]);
+  // Row 3: ⚖️ Условия
+  rows.push([Markup.button.callback('⚖️ Условия', ACTIONS.LEGAL)]);
 
   return Markup.inlineKeyboard(rows);
 };
@@ -140,32 +138,9 @@ export const platformKeyboard = () => {
 };
 
 /**
- * Партнёрская программа:
- * 📲 Поделиться ссылкой (switch_inline_query)
- * ⤴️ В меню
- */
-export const partnersKeyboard = (referralLink: string) => {
-  const rows: any[] = [];
-
-  // Поделиться ссылкой
-  rows.push([
-    Markup.button.switchToChat(
-      '📲 Поделиться ссылкой',
-      `Присоединяйся! ${referralLink}`,
-    ),
-  ]);
-
-  // ⤴️ В меню
-  rows.push([Markup.button.callback('⤴️ В меню', ACTIONS.START_MENU)]);
-
-  return Markup.inlineKeyboard(rows);
-};
-
-/**
  * Условия и Поддержка:
  * 🧠 FAQ и ответы
- * � Написать в поддержку
- * �📄 Условия сервиса
+ * 📄 Условия сервиса
  * 📄 Политика конфиденциальности
  * ⤴️ В меню
  */
@@ -176,9 +151,6 @@ export const legalKeyboard = () => {
   rows.push([
     Markup.button.url(`${LEGAL_LINKS.FAQ.name} `, LEGAL_LINKS.FAQ.url),
   ]);
-
-  // Написать в поддержку (ВК)
-  rows.push([Markup.button.url(`${LEGAL_LINKS.VK.name} `, LEGAL_LINKS.VK.url)]);
 
   // Условия сервиса
   rows.push([
@@ -214,14 +186,6 @@ export const keyDisplayKeyboard = (key: string) =>
  * Клавиатура для успеха продления: ⤴️ В меню
  */
 export const extendSuccessKeyboard = () =>
-  Markup.inlineKeyboard([
-    [Markup.button.callback('⤴️ В меню', ACTIONS.START_MENU)],
-  ]);
-
-/**
- * Клавиатура с кнопкой ⤴️ В меню
- */
-export const backKeyboard = () =>
   Markup.inlineKeyboard([
     [Markup.button.callback('⤴️ В меню', ACTIONS.START_MENU)],
   ]);

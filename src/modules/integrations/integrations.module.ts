@@ -3,7 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { RentalsModule } from '../rentals/rentals.module';
 import { RentalActivatedListener } from './listeners/rental-activated.listener';
 import { RentalExpiredListener } from './listeners/rental-expired.listener';
-import { MarzbanModule } from './providers/marzban/marzban.module';
+import { VpnPanelModule } from './vpn-panel';
 import { QueueModule } from './queue/queue.module';
 
 /**
@@ -11,14 +11,13 @@ import { QueueModule } from './queue/queue.module';
  *
  * Features:
  * - Обработка событий rental.activated, rental.expired
- * - Управление VPN клиентами через Marzban API
+ * - VPN: IVpnPanelAdapter (по умолчанию Marzban)
  * - BullMQ очереди для масштабируемости (5000+ users)
- * - Провайдер: MarzbanService
  * - Логирование интеграций
  */
 @Module({
-  imports: [ConfigModule, RentalsModule, QueueModule, MarzbanModule],
+  imports: [ConfigModule, RentalsModule, QueueModule, VpnPanelModule],
   providers: [RentalActivatedListener, RentalExpiredListener],
-  exports: [QueueModule, MarzbanModule],
+  exports: [QueueModule, VpnPanelModule],
 })
 export class IntegrationsModule {}

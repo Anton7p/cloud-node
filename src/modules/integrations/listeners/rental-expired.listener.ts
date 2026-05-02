@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { MarzbanService } from '../providers/marzban/marzban.service';
+import { VPN_PANEL_ADAPTER } from '../vpn-panel/vpn-panel.tokens';
+import type { IVpnPanelAdapter } from '../vpn-panel/vpn-panel.interface';
 
 /**
  * Payload события rental.expired
@@ -14,13 +15,16 @@ export interface RentalExpiredPayload {
 /**
  * RentalExpiredListener - обработка истечения срока аренды VPN
  *
- * Приостанавливает пользователя в Marzban при истечении аренды
+ * Приостанавливает пользователя на VPN-панели при истечении аренды
  */
 @Injectable()
 export class RentalExpiredListener {
   private readonly logger = new Logger(RentalExpiredListener.name);
 
-  constructor(private readonly marzbanService: MarzbanService) {}
+  constructor(
+    @Inject(VPN_PANEL_ADAPTER)
+    private readonly vpnPanel: IVpnPanelAdapter,
+  ) {}
 
   @OnEvent('rental.expired')
   async handleRentalExpired(payload: RentalExpiredPayload): Promise<void> {
@@ -31,12 +35,16 @@ export class RentalExpiredListener {
     );
 
     try {
-      // TODO: Реализовать suspendUser в MarzbanService
-      // await this.marzbanService.suspendUser(telegramId.toString());
-
-      this.logger.log(
-        `Successfully suspended user ${telegramId} in Marzban (rental ${rentalId})`,
-      );
+      const ok = await this.vpnPanel.suspendUser(String(telegramId));
+      if (ok) {
+        this.logger.log(
+          `Suspended user ${telegramId} on VPN panel (rental ${rentalId})`,
+        );
+      } else {
+        this.logger.warn(
+          `suspendUser returned false for ${telegramId} (rental ${rentalId})`,
+        );
+      }
     } catch (error) {
       this.logger.error(
         `Failed to suspend user ${telegramId}:`,

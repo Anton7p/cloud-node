@@ -1,0 +1,19 @@
+---
+# Шаблон для локального Ansible. Рабочий файл deploy_vars.yml в .gitignore;
+# на сервер переменные пишутся из CI (scripts/ci/write-deploy-vars.sh).
+image_name: "ghcr.io/owner/repo"
+image_tag: "main"
+domain_name: "vpn.example.com"
+db_password: "CHANGE_ME"
+redis_password: "CHANGE_ME"
+telegram_bot_token: "CHANGE_ME"
+encryption_key: "CHANGE_ME"
+vpn_admin_username: "admin"
+vpn_admin_password: "CHANGE_ME"
+infrastructure_ip_list: '[]'
+reality_public_key: ""
+reality_short_id: ""
+marzban_inbound_tag: "VLESS TCP REALITY"
+vpn_panel_url: "http://marzban:8000"
+github_token: ""
+github_actor: ""

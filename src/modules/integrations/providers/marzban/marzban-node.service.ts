@@ -1,8 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { MarzbanNode, NODE_SERVICE_PORT } from './types/marzban.types';
+import { MarzbanNode } from './types/marzban.types';
 import { AppConfig } from '../../../../shared/config/configuration';
 import { MarzbanApiClient } from './marzban-api-client.service';
+
+/**
+ * Одна строка из `INFRASTRUCTURE_IP_LIST` (GitHub secret / .env).
+ * `password` не уходит в Marzban REST — нужен для Ansible/CI при настройке ноды по SSH.
+ */
+interface InfrastructureEntry {
+  address: string;
+  password?: string;
+}
 
 @Injectable()
 export class MarzbanNodeService {
@@ -27,38 +36,21 @@ export class MarzbanNodeService {
       return;
     }
 
-    let ips: string[] = [];
-
-    // Try parsing as JSON array of objects with 'address' field
-    try {
-      if (ipList.trim().startsWith('[')) {
-        const parsed = JSON.parse(ipList.replace(/'/g, '"')) as Array<{
-          address?: string;
-          password?: string;
-        }>;
-        ips = parsed
-          .map((item) => item.address)
-          .filter((ip): ip is string => !!ip);
-      }
-    } catch {
-      // Not JSON, fall back to comma-separated list
-      ips = ipList
-        .split(',')
-        .map((ip) => ip.trim())
-        .filter((ip) => ip);
-    }
-    if (ips.length === 0) {
+    const entries = this.parseInfrastructureEntries(ipList);
+    if (entries.length === 0) {
       this.logger.log('No infrastructure IPs found');
       return;
     }
 
-    this.logger.log(`Found ${ips.length} infrastructure node(s) to register`);
+    this.logger.log(
+      `Found ${entries.length} infrastructure node(s) to register`,
+    );
 
     // Get existing nodes to check for duplicates
     const existingNodes = await this.getExistingNodes();
     const existingAddresses = new Set(existingNodes.map((n) => n.address));
 
-    for (const ip of ips) {
+    for (const { address: ip } of entries) {
       if (existingAddresses.has(ip)) {
         this.logger.log(`Node ${ip} already exists, skipping`);
         continue;
@@ -74,6 +66,72 @@ export class MarzbanNodeService {
         );
       }
     }
+  }
+
+  /**
+   * GitHub secrets и Ansible отдают валидный JSON:
+   * `[{"address":"1.2.3.4","password":"..."}]`.
+   * Локально допускается fallback: CSV `1.2.3.4, 5.6.7.8` (без паролей).
+   */
+  private parseInfrastructureEntries(raw: string): InfrastructureEntry[] {
+    const trimmed = this.unwrapOuterQuotes(raw.trim());
+    if (trimmed.startsWith('[')) {
+      try {
+        const parsed: unknown = JSON.parse(trimmed);
+        if (!Array.isArray(parsed)) {
+          this.logger.warn(
+            'INFRASTRUCTURE_IP_LIST: expected JSON array, skipping node registration',
+          );
+          return [];
+        }
+        const out: InfrastructureEntry[] = [];
+        for (const item of parsed) {
+          if (
+            item &&
+            typeof item === 'object' &&
+            'address' in item &&
+            typeof (item as InfrastructureEntry).address === 'string'
+          ) {
+            const address = (item as InfrastructureEntry).address.trim();
+            const password =
+              'password' in item &&
+              typeof (item as InfrastructureEntry).password === 'string'
+                ? (item as InfrastructureEntry).password
+                : undefined;
+            if (address) {
+              out.push(
+                password !== undefined ? { address, password } : { address },
+              );
+            }
+          }
+        }
+        return out;
+      } catch {
+        this.logger.warn(
+          'INFRASTRUCTURE_IP_LIST: invalid JSON starting with "["; fix secret or env value',
+        );
+        return [];
+      }
+    }
+
+    return trimmed
+      .split(',')
+      .map((ip) => ip.trim())
+      .filter((ip) => ip.length > 0)
+      .map((address) => ({ address }));
+  }
+
+  /** Снимает внешние одинарные/двойные кавычки, если вся строка в них обёрнута (частый .env-стиль). */
+  private unwrapOuterQuotes(value: string): string {
+    if (value.length < 2) {
+      return value;
+    }
+    const first = value[0];
+    const last = value[value.length - 1];
+    if ((first === "'" && last === "'") || (first === '"' && last === '"')) {
+      return value.slice(1, -1).trim();
+    }
+    return value;
   }
 
   /**
@@ -101,33 +159,9 @@ export class MarzbanNodeService {
     const nodeData: MarzbanNode = {
       name: `Node-${ip}`,
       address: ip,
-      port: NODE_SERVICE_PORT,
+      port: 62050,
     };
 
     await this.apiClient.getAxiosInstance().post('/node', nodeData);
-  }
-
-  /**
-   * Get available nodes from Marzban
-   */
-  async getNodes(): Promise<string[]> {
-    try {
-      const existingNodes = await this.getExistingNodes();
-      return existingNodes.filter((node) => node.name).map((node) => node.name);
-    } catch (error) {
-      this.logger.error(
-        'Failed to get nodes:',
-        error instanceof Error ? error.message : 'Unknown error',
-      );
-      return [];
-    }
-  }
-
-  /**
-   * Get formatted nodes message for Telegram
-   */
-  async getNodesMessage(): Promise<string> {
-    const nodes = await this.getNodes();
-    return `Доступ активен. Вам доступны узлы: ${nodes.join(', ')}.`;
   }
 }

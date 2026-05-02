@@ -3,14 +3,8 @@
 # This file orchestrates all master-specific deployment tasks
 # ==========================================
 
-- name: Include backup tasks
-  include_tasks: "tasks/deploy-stack/common/backup.yml"
-
 - name: Include configure tasks
   include_tasks: "tasks/deploy-stack/common/configure.yml"
-
-- name: Include docker auth tasks
-  include_tasks: "tasks/deploy-stack/common/docker-auth.yml"
 
 - name: Include docker login tasks
   include_tasks: "tasks/deploy-stack/common/docker-login.yml"

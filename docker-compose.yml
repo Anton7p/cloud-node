@@ -1,3 +1,11 @@
+# Секреты: один комплект VPN_ADMIN_USERNAME / VPN_ADMIN_PASSWORD на Marzban (SUDO_* в сервисе
+# marzban), пароль Redis и REDIS_PASSWORD бота — намеренно, без раздельных REDIS_* в .env.
+# Пароль PostgreSQL задаётся отдельно: DB_PASSWORD.
+#
+# Единственный источник правды для секретов в проде — GitHub Secrets (.github/workflows + Ansible extras).
+# На сервер файл .env — только материализованная копия для docker compose и env_file (не второй источник).
+# Подстановка ${VAR} в блоке environment идёт из .env каталога, где выполняют `docker compose` (runner/хост).
+
 services:
   # Bot service - NestJS Telegram Bot application
   bot:
@@ -11,27 +19,36 @@ services:
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
+      # Redis пароль совпадает с VPN_ADMIN_PASSWORD (см. комментарий вверху файла).
       REDIS_PASSWORD: ${VPN_ADMIN_PASSWORD}
-      MARZBAN_URL: http://marzban:8000
+      VPN_PANEL_URL: ${VPN_PANEL_URL:-http://marzban:8000}
       VPN_ADMIN_USERNAME: ${VPN_ADMIN_USERNAME}
       VPN_ADMIN_PASSWORD: ${VPN_ADMIN_PASSWORD}
       INFRASTRUCTURE_IP_LIST: ${INFRASTRUCTURE_IP_LIST}
       DOMAIN_NAME: ${DOMAIN_NAME}
       MARZBAN_NODE_CERT_DIR: /var/www/marzban_node/var
+    # То же содержание, что .env после деплоя из GitHub; при совпадении ключей блок environment выше важнее.
     env_file:
       - .env
     command: >
       sh -c '
         echo "[BOT] Starting with environment: NODE_ENV=$${NODE_ENV}" &&
         echo "[BOT] Database: $${DATABASE_URL//:*@/***:****@}" &&
-        echo "[BOT] Marzban URL: $${MARZBAN_URL}" &&
+        echo "[BOT] VPN panel URL: $${VPN_PANEL_URL}" &&
         echo "[BOT] Running Prisma migrate deploy..." &&
         npx prisma migrate deploy &&
         echo "[BOT] Migration complete, starting application..." &&
         node dist/main.js
       '
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      # Как в Dockerfile: только Node (в Alpine нет wget).
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://127.0.0.1:3000/health',(r)=>{process.exit(r.statusCode===200?0:1);}).on('error',()=>process.exit(1));",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3

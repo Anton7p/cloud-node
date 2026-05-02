@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance, AxiosError } from 'axios';
-import { AppConfig } from '../../../../shared/config/configuration';
 import { MarzbanAuthService } from './marzban-auth.service';
+import { requireVpnPanelBaseUrl } from './marzban-panel-url';
+import { PANEL_HTTP_TIMEOUT_MS } from './marzban-panel-http';
 
 /**
  * MarzbanApiClient - транспортный слой для запросов к API Marzban
@@ -22,18 +23,17 @@ export class MarzbanApiClient {
     private readonly configService: ConfigService,
     private readonly authService: MarzbanAuthService,
   ) {
-    this.internalBaseUrl =
-      this.configService.get<AppConfig['vpnPanelUrl']>('app.vpnPanelUrl') ||
-      'http://cloudnode-marzban:8000';
+    this.internalBaseUrl = requireVpnPanelBaseUrl(this.configService);
 
     // Create isolated axios instance for Marzban API
     this.axiosInstance = axios.create({
       baseURL: `${this.internalBaseUrl}/api`,
-      timeout: 30000,
+      timeout: PANEL_HTTP_TIMEOUT_MS,
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
+      maxRedirects: 5,
     });
 
     // Add authorization interceptor

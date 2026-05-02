@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { BaseAction, CommandContext, safeDeleteMessage } from '../base.action';
-import { MESSAGES, ACTIONS, backKeyboard } from '../../ui';
+import { MESSAGES, ACTIONS, legalKeyboard } from '../../ui';
 
 @Injectable()
 export class SupportCommand extends BaseAction {
@@ -17,7 +17,7 @@ export class SupportCommand extends BaseAction {
     // Режим одного окна: удаляем старое сообщение и отправляем новое
     await safeDeleteMessage(ctx);
     await ctx.reply(MESSAGES.SUPPORT, {
-      reply_markup: backKeyboard().reply_markup,
+      reply_markup: legalKeyboard().reply_markup,
     });
   }
 }

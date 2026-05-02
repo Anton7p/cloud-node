@@ -4,26 +4,6 @@ import { Rental, RentalStatus } from '@prisma/client';
 
 export { RentalStatus } from '@prisma/client';
 
-export interface CreateRentalData {
-  userId: number;
-  term: number;
-  status?: RentalStatus;
-}
-
-export interface RentalData {
-  userId: number;
-  term: number;
-  status: RentalStatus;
-  startDate?: Date;
-  endDate?: Date;
-}
-
-export interface ExtendRentalData {
-  id: number;
-  additionalTerm: number;
-  newEndDate: Date;
-}
-
 /**
  * RentalsRepository - изоляция доступа к данным аренды
  *
@@ -71,49 +51,8 @@ export class RentalsRepository {
     });
   }
 
-  /**
-   * Создание новой активной аренды
-   */
-  async create(
-    userId: number,
-    term: number,
-    startDate: Date,
-    endDate: Date,
-  ): Promise<Rental> {
-    const rental = await this.prisma.rental.create({
-      data: {
-        userId,
-        term,
-        status: RentalStatus.ACTIVE,
-        startDate,
-        endDate,
-      },
-    });
-
-    this.logger.log(
-      `Created active rental ${rental.id} for user ${userId}, expires: ${endDate.toISOString()}`,
-    );
-    return rental;
-  }
-
-  /**
-   * Продление существующей аренды
-   */
-  async extend(data: ExtendRentalData): Promise<Rental> {
-    const { id, additionalTerm, newEndDate } = data;
-
-    const rental = await this.prisma.rental.update({
-      where: { id },
-      data: {
-        term: { increment: additionalTerm },
-        endDate: newEndDate,
-      },
-    });
-
-    this.logger.log(
-      `Extended rental ${rental.id}, new term: ${rental.term} months, expires: ${newEndDate.toISOString()}`,
-    );
-    return rental;
+  async findById(id: number): Promise<Rental | null> {
+    return this.prisma.rental.findUnique({ where: { id } });
   }
 
   /**
@@ -124,18 +63,6 @@ export class RentalsRepository {
       where: {
         userId,
         status: RentalStatus.ACTIVE,
-      },
-    });
-  }
-
-  /**
-   * Получение pending аренды пользователя
-   */
-  async findPendingByUserId(userId: number): Promise<Rental | null> {
-    return this.prisma.rental.findFirst({
-      where: {
-        userId,
-        status: RentalStatus.PENDING,
       },
     });
   }
@@ -203,88 +130,5 @@ export class RentalsRepository {
       );
       return null;
     }
-  }
-
-  /**
-   * Завершение аренды (мягкое удаление для сохранения истории)
-   * Вместо физического удаления обновляет статус на COMPLETED
-   */
-  async complete(id: number): Promise<boolean> {
-    try {
-      await this.prisma.rental.update({
-        where: { id },
-        data: { status: RentalStatus.COMPLETED },
-      });
-      this.logger.log(`Completed rental: ${id}`);
-      return true;
-    } catch (error) {
-      this.logger.error(
-        `Failed to complete rental ${id}:`,
-        error instanceof Error ? error.message : 'Unknown error',
-      );
-      return false;
-    }
-  }
-
-  /**
-   * Получение всех активных аренд
-   */
-  async findAllActive(): Promise<Rental[]> {
-    return this.prisma.rental.findMany({
-      where: { status: RentalStatus.ACTIVE },
-      include: { user: true },
-    });
-  }
-
-  /**
-   * Получение активных аренд с пагинацией (limit/offset)
-   * @param limit - количество записей на странице
-   * @param offset - смещение от начала
-   * @returns массив активных аренд с информацией о пользователях
-   */
-  async findActivePaginated(limit: number, offset: number): Promise<Rental[]> {
-    return this.prisma.rental.findMany({
-      where: { status: RentalStatus.ACTIVE },
-      include: { user: true },
-      take: limit,
-      skip: offset,
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  /**
-   * Получение общего количества активных аренд (для пагинации)
-   * @returns количество активных аренд
-   */
-  async countActive(): Promise<number> {
-    return this.prisma.rental.count({
-      where: { status: RentalStatus.ACTIVE },
-    });
-  }
-
-  /**
-   * Поиск активных аренд с пагинацией и фильтрацией по пользователю
-   * @param userId - ID пользователя (опционально)
-   * @param limit - количество записей на странице
-   * @param offset - смещение от начала
-   * @returns массив активных аренд
-   */
-  async findActiveByUserIdPaginated(
-    userId: number | undefined,
-    limit: number,
-    offset: number,
-  ): Promise<Rental[]> {
-    const where = {
-      status: RentalStatus.ACTIVE,
-      ...(userId && { userId }),
-    };
-
-    return this.prisma.rental.findMany({
-      where,
-      include: { user: true },
-      take: limit,
-      skip: offset,
-      orderBy: { createdAt: 'desc' },
-    });
   }
 }

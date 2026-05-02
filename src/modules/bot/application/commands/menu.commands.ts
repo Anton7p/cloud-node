@@ -4,12 +4,10 @@ import {
   MESSAGES,
   ACTIONS,
   durationKeyboard,
-  partnersKeyboard,
   legalKeyboard,
   emptyKeysKeyboard,
 } from '../../ui';
 import { RentalsService } from '../../../rentals/rentals.service';
-import { UsersService } from '../../../users/users.service';
 import dayjs from 'dayjs';
 
 /**
@@ -44,10 +42,7 @@ export class BuyMenuCommand extends BaseAction {
 export class MyKeysCommand extends BaseAction {
   readonly pattern = [ACTIONS.MY_KEYS, 'my_keys'];
 
-  constructor(
-    private readonly rentalsService: RentalsService,
-    private readonly usersService: UsersService,
-  ) {
+  constructor(private readonly rentalsService: RentalsService) {
     super(MyKeysCommand.name);
   }
 
@@ -100,37 +95,6 @@ export class MyKeysCommand extends BaseAction {
       this.logger.warn(`Failed to send empty keys: ${error}`);
       await ctx.reply(MESSAGES.ERROR);
     }
-  }
-}
-
-/**
- * Партнёрская программа
- */
-@Injectable()
-export class PartnersCommand extends BaseAction {
-  readonly pattern = ACTIONS.PARTNERS;
-
-  constructor(private readonly usersService: UsersService) {
-    super(PartnersCommand.name);
-  }
-
-  async execute(context: CommandContext): Promise<void> {
-    const { ctx, userId, data } = context;
-    this.logExecution(data, userId);
-
-    // Генерируем реферальную ссылку
-    // TODO: добавить referralCount в схему пользователя
-    const referralCount = 0; // Заглушка, пока не добавлено поле в схему
-    const botUsername = ctx.botInfo?.username || 'your_bot';
-    const referralLink = `https://t.me/${botUsername}?start=ref_${userId}`;
-
-    // Режим одного окна: удаляем старое сообщение
-    await safeDeleteMessage(ctx);
-
-    // Отправляем новое сообщение
-    await ctx.reply(MESSAGES.PARTNERS_TITLE(referralLink, referralCount), {
-      reply_markup: partnersKeyboard(referralLink).reply_markup,
-    });
   }
 }
 

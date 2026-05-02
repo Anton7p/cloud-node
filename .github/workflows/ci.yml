@@ -17,7 +17,7 @@ jobs:
   # ==========================================
   # Stage 1: Build & Push Docker Image
   # ==========================================
-  test-and-build:
+  build-and-push:
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.meta.outputs.version }}
@@ -75,7 +75,9 @@ jobs:
   # ==========================================
   verify-secrets:
     runs-on: ubuntu-latest
-    needs: test-and-build
+    needs: build-and-push
+    env:
+      INFRA_JSON: ${{ secrets.INFRASTRUCTURE_IP_LIST }}
     steps:
       - name: Check required secrets
         run: |
@@ -110,14 +112,13 @@ jobs:
             echo "DOMAIN_NAME is set"
           fi
 
-          # Validate INFRASTRUCTURE_IP_LIST JSON format if set
-          INFRA_JSON='${{ secrets.INFRASTRUCTURE_IP_LIST }}'
-          if [ -n "$INFRA_JSON" ] && [ "$INFRA_JSON" != "null" ]; then
-            NODE_COUNT=$(echo "$INFRA_JSON" | jq -r '. | length')
-            if [ "$NODE_COUNT" -gt 0 ] 2>/dev/null; then
-              echo "INFRASTRUCTURE_IP_LIST is set ($NODE_COUNT nodes)"
+          # INFRASTRUCTURE_IP_LIST: если задан — строго валидный непустой JSON-массив с address
+          if [ -n "${INFRA_JSON:-}" ] && [ "$INFRA_JSON" != "null" ]; then
+            if N=$(python3 -c "import json,os; d=json.loads((os.environ.get('INFRA_JSON') or '').strip()); assert isinstance(d,list) and len(d)>0; assert all(isinstance(x,dict) and x.get('address') for x in d); print(len(d))"); then
+              echo "INFRASTRUCTURE_IP_LIST OK ($N nodes)"
             else
-              echo "INFRASTRUCTURE_IP_LIST has invalid format or empty. Expected: [{\"address\": \"1.2.3.5\", \"password\": \"...\"}]"
+              echo "INFRASTRUCTURE_IP_LIST is invalid. Expected non-empty [{\"address\": \"…\", \"password\": \"…\"}, …]"
+              errors=$((errors + 1))
             fi
           else
             echo "INFRASTRUCTURE_IP_LIST is not set (optional)"
@@ -135,11 +136,32 @@ jobs:
           echo "Note: DB_PASSWORD, VPN_ADMIN_PASSWORD and other vars will be validated by Ansible during deploy"
 
   # ==========================================
+  # Stage 2b: Ansible syntax (без доступа к серверам)
+  # ==========================================
+  ansible-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Ansible
+        run: pip install "ansible-core>=2.14,<3"
+      - name: Syntax check playbooks
+        run: |
+          set -euo pipefail
+          INV=ansible/ci_inventory.ini
+          ansible-playbook --syntax-check -i "$INV" ansible/bootstrap-phase.yml
+          ansible-playbook --syntax-check -i "$INV" ansible/deploy-phase.yml
+          ansible-playbook --syntax-check -i "$INV" ansible/deploy-master.yml
+          ansible-playbook --syntax-check -i "$INV" ansible/deploy-node.yml
+
+  # ==========================================
   # Stage 3: Deploy Application
   # ==========================================
   deploy:
     runs-on: ubuntu-latest
-    needs: [test-and-build, verify-secrets]
+    needs: [build-and-push, verify-secrets, ansible-validate]
     environment: production
     steps:
       - name: Checkout
@@ -157,14 +179,13 @@ jobs:
           pip install ansible
           sudo apt-get update && sudo apt-get install -y jq sshpass
 
-
       - name: Check if server needs bootstrap
         id: check_bootstrap
         run: |
           echo "=== Checking Server Bootstrap Status ==="
-          
+
           SERVER_ADDRESS=$(echo '${{ secrets.SERVER_IP }}' | jq -r '.address')
-          
+
           # Test SSH key access first
           if ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@$SERVER_ADDRESS "echo 'SSH key access works'" 2>/dev/null; then
             echo "Server already bootstrapped - SSH key access works"
@@ -178,79 +199,73 @@ jobs:
         if: steps.check_bootstrap.outputs.needs_bootstrap == 'true'
         run: |
           echo "=== Bootstrapping Server ==="
-          
+
           # Parse server credentials
           SERVER_IP_JSON='${{ secrets.SERVER_IP }}'
           SERVER_ADDRESS=$(echo "$SERVER_IP_JSON" | jq -r '.address')
           SERVER_PASSWORD=$(echo "$SERVER_IP_JSON" | jq -r '.password')
-          
+
           echo "Bootstrapping server: $SERVER_ADDRESS"
-          
+
           # Generate bootstrap inventory with password auth
           cat > inventory_bootstrap.ini << EOF
           [master]
           $SERVER_ADDRESS ansible_user=root ansible_ssh_pass='$SERVER_PASSWORD' ansible_ssh_extra_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
-          
+
           [all:vars]
           ansible_python_interpreter=/usr/bin/python3
           ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
           EOF
-          
+
           # Run bootstrap playbook
           ansible-playbook -i inventory_bootstrap.ini ansible/bootstrap-phase.yml \
             -e "ssh_public_key='${{ secrets.SSH_PUBLIC_KEY }}'" \
             -v
-          
+
           # Clean up bootstrap inventory
           rm -f inventory_bootstrap.ini
-          
+
           echo "=== Bootstrap completed ==="
 
-      - name: Deploy to server
+      - name: Write Ansible deploy vars
         env:
-          IMAGE_NAME: ${{ needs.test-and-build.outputs.image_name }}
-          IMAGE_TAG: ${{ needs.test-and-build.outputs.image_tag }}
+          IMAGE_NAME: ${{ needs.build-and-push.outputs.image_name }}
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+          DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          VPN_ADMIN_USERNAME: ${{ secrets.VPN_ADMIN_USERNAME }}
+          VPN_ADMIN_PASSWORD: ${{ secrets.VPN_ADMIN_PASSWORD }}
+          INFRASTRUCTURE_IP_LIST: ${{ secrets.INFRASTRUCTURE_IP_LIST }}
+          REALITY_PUBLIC_KEY: ${{ secrets.REALITY_PUBLIC_KEY }}
+          REALITY_SHORT_ID: ${{ secrets.REALITY_SHORT_ID }}
+          MARZBAN_INBOUND_TAG: ${{ vars.MARZBAN_INBOUND_TAG || 'VLESS TCP REALITY' }}
+          VPN_PANEL_URL: ${{ secrets.VPN_PANEL_URL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+        run: bash scripts/ci/write-deploy-vars.sh
+
+      - name: Deploy to server
         run: |
+          set -euo pipefail
           echo "=== Starting Deploy ==="
-          echo "Image: ${IMAGE_NAME}"
-          
-          # Regenerate inventory with SSH key authentication (bootstrap complete)
+
           SERVER_ADDRESS=$(echo '${{ secrets.SERVER_IP }}' | jq -r '.address')
-          
+
           cat > inventory.ini << EOF
           [master]
           $SERVER_ADDRESS
-          
+
           [master:vars]
           ansible_user=root
           ansible_ssh_private_key_file=~/.ssh/id_rsa
           ansible_python_interpreter=/usr/bin/python3
           ansible_ssh_common_args='-o StrictHostKeyChecking=no'
           EOF
-          
+
           echo "=== Generated inventory.ini (SSH key auth) ==="
           cat inventory.ini
-          
-          # Write vars to file to avoid shell escaping issues with JSON
-          cat > deploy_vars.yml << VARS_EOF
-          ---
-          image_name: "${IMAGE_NAME}"
-          image_tag: "${IMAGE_TAG}"
-          domain_name: "${{ secrets.DOMAIN_NAME }}"
-          db_password: "${{ secrets.VPN_ADMIN_PASSWORD }}"
-          redis_password: "${{ secrets.VPN_ADMIN_PASSWORD }}"
-          telegram_bot_token: "${{ secrets.TELEGRAM_BOT_TOKEN }}"
-          encryption_key: "${{ secrets.ENCRYPTION_KEY }}"
-          vpn_admin_username: "${{ secrets.VPN_ADMIN_USERNAME }}"
-          vpn_admin_password: "${{ secrets.VPN_ADMIN_PASSWORD }}"
-          infrastructure_ip_list: '${{ secrets.INFRASTRUCTURE_IP_LIST }}'
-          reality_public_key: "${{ secrets.REALITY_PUBLIC_KEY }}"
-          reality_short_id: "${{ secrets.REALITY_SHORT_ID }}"
-          marzban_inbound_tag: "${{ vars.MARZBAN_INBOUND_TAG || 'VLESS TCP REALITY' }}"
-          github_token: "${{ secrets.GITHUB_TOKEN }}"
-          github_actor: "${{ github.actor }}"
-          VARS_EOF
-          
+
           ansible-playbook -i inventory.ini ansible/deploy-phase.yml \
             -e "@deploy_vars.yml" \
             -v
@@ -260,7 +275,7 @@ jobs:
   # ==========================================
   infrastructure:
     runs-on: ubuntu-latest
-    needs: [deploy, test-and-build]
+    needs: [deploy, build-and-push]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -285,11 +300,18 @@ jobs:
           echo "MASTER_ADDRESS=$MASTER_ADDRESS" >> $GITHUB_ENV
           echo "Master server address: $MASTER_ADDRESS"
 
+      # inventory только [nodes]: play «master» в deploy-phase.yml будет с 0 хостов (пропуск) — так и задумано.
       - name: Bootstrap nodes if needed
         run: |
+          set -euo pipefail
           echo "=== Checking and Bootstrapping Nodes ==="
           NODES_JSON='${{ secrets.INFRASTRUCTURE_IP_LIST }}'
-          echo "$NODES_JSON" | jq -c '.[]' | while read node; do
+          if [ -z "$NODES_JSON" ] || [ "$NODES_JSON" = "null" ] || [ "$NODES_JSON" = "[]" ]; then
+            echo "No infrastructure nodes in secrets, skipping node bootstrap"
+            exit 0
+          fi
+          while IFS= read -r node; do
+            [ -z "$node" ] && continue
             node_address=$(echo "$node" | jq -r '.address // empty')
             node_password=$(echo "$node" | jq -r '.password // empty')
             [ -z "$node_address" ] && continue
@@ -298,29 +320,32 @@ jobs:
               continue
             fi
             if [ -z "$node_password" ] || [ "$node_password" = "null" ]; then
-              echo "WARNING: Node $node_address no password, skipping"
-              continue
+              echo "ERROR: Node $node_address has no password for initial bootstrap"
+              exit 1
             fi
             echo "Bootstrapping $node_address with password auth"
             printf "[nodes]\n%s ansible_user=root ansible_ssh_pass='%s' ansible_ssh_extra_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'\n[nodes:vars]\nansible_python_interpreter=/usr/bin/python3\n" "$node_address" "$node_password" > bootstrap_node.ini
-            ansible-playbook -i bootstrap_node.ini ansible/bootstrap-phase.yml -e "ssh_public_key='${{ secrets.SSH_PUBLIC_KEY }}'" -v || echo "WARNING: Bootstrap failed"
+            ansible-playbook -i bootstrap_node.ini ansible/bootstrap-phase.yml -e "ssh_public_key='${{ secrets.SSH_PUBLIC_KEY }}'" -v
             rm -f bootstrap_node.ini
-          done
+          done < <(echo "$NODES_JSON" | jq -c '.[]')
 
       - name: Generate inventory for nodes
         run: |
-          # All nodes now use SSH key auth after bootstrap
+          set -euo pipefail
           NODES_JSON='${{ secrets.INFRASTRUCTURE_IP_LIST }}'
 
           echo "[nodes]" > inventory_nodes.ini
 
-          echo "$NODES_JSON" | jq -c '.[]' | while read node; do
-            node_address=$(echo "$node" | jq -r '.address // empty')
-            if [ -n "$node_address" ]; then
-              echo "$node_address ansible_user=root ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory_nodes.ini
-              echo "Added node: $node_address"
-            fi
-          done
+          if [ -n "$NODES_JSON" ] && [ "$NODES_JSON" != "null" ] && [ "$NODES_JSON" != "[]" ]; then
+            while IFS= read -r node; do
+              [ -z "$node" ] && continue
+              node_address=$(echo "$node" | jq -r '.address // empty')
+              if [ -n "$node_address" ]; then
+                echo "$node_address ansible_user=root ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory_nodes.ini
+                echo "Added node: $node_address"
+              fi
+            done < <(echo "$NODES_JSON" | jq -c '.[]')
+          fi
 
           echo "[nodes:vars]" >> inventory_nodes.ini
           echo "ansible_python_interpreter=/usr/bin/python3" >> inventory_nodes.ini
@@ -328,34 +353,30 @@ jobs:
           echo "=== Generated inventory_nodes.ini ==="
           cat inventory_nodes.ini
 
-      - name: Setup infrastructure
+      - name: Write Ansible deploy vars
         env:
-          IMAGE_NAME: ${{ needs.test-and-build.outputs.image_name }}
-          IMAGE_TAG: ${{ needs.test-and-build.outputs.image_tag }}
+          IMAGE_NAME: ${{ needs.build-and-push.outputs.image_name }}
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+          DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          VPN_ADMIN_USERNAME: ${{ secrets.VPN_ADMIN_USERNAME }}
+          VPN_ADMIN_PASSWORD: ${{ secrets.VPN_ADMIN_PASSWORD }}
+          INFRASTRUCTURE_IP_LIST: ${{ secrets.INFRASTRUCTURE_IP_LIST }}
+          REALITY_PUBLIC_KEY: ${{ secrets.REALITY_PUBLIC_KEY }}
+          REALITY_SHORT_ID: ${{ secrets.REALITY_SHORT_ID }}
+          MARZBAN_INBOUND_TAG: ${{ vars.MARZBAN_INBOUND_TAG || 'VLESS TCP REALITY' }}
+          VPN_PANEL_URL: ${{ secrets.VPN_PANEL_URL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+        run: bash scripts/ci/write-deploy-vars.sh
+
+      - name: Setup infrastructure
         run: |
+          set -euo pipefail
           echo "=== Deploying Infrastructure ==="
 
-          # Create deploy_vars.yml from secrets (same as deploy job)
-          cat > deploy_vars.yml << VARS_EOF
-          ---
-          image_name: "${IMAGE_NAME}"
-          image_tag: "${IMAGE_TAG}"
-          domain_name: "${{ secrets.DOMAIN_NAME }}"
-          db_password: "${{ secrets.VPN_ADMIN_PASSWORD }}"
-          redis_password: "${{ secrets.VPN_ADMIN_PASSWORD }}"
-          telegram_bot_token: "${{ secrets.TELEGRAM_BOT_TOKEN }}"
-          encryption_key: "${{ secrets.ENCRYPTION_KEY }}"
-          vpn_admin_username: "${{ secrets.VPN_ADMIN_USERNAME }}"
-          vpn_admin_password: "${{ secrets.VPN_ADMIN_PASSWORD }}"
-          infrastructure_ip_list: '${{ secrets.INFRASTRUCTURE_IP_LIST }}'
-          reality_public_key: "${{ secrets.REALITY_PUBLIC_KEY }}"
-          reality_short_id: "${{ secrets.REALITY_SHORT_ID }}"
-          marzban_inbound_tag: "${{ vars.MARZBAN_INBOUND_TAG || 'VLESS TCP REALITY' }}"
-          github_token: "${{ secrets.GITHUB_TOKEN }}"
-          github_actor: "${{ github.actor }}"
-          VARS_EOF
-
-          # Deploy phase includes both master and nodes in unified playbook
+          # Только группа nodes: play master в deploy-phase.yml пропускается (0 хостов).
           ansible-playbook -i inventory_nodes.ini ansible/deploy-phase.yml \
             -e "@deploy_vars.yml" \
             -e "master_server_address=$MASTER_ADDRESS" \

@@ -1,6 +1,4 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { AppConfig } from '../../../../shared/config/configuration';
 import { MarzbanAuthService } from './marzban-auth.service';
 import { MarzbanCertificateService } from './marzban-certificate.service';
 import { MarzbanNodeService } from './marzban-node.service';
@@ -26,27 +24,27 @@ import { CreateUserResult } from './types/marzban.types';
 @Injectable()
 export class MarzbanService implements OnModuleInit {
   private readonly logger = new Logger(MarzbanService.name);
-  private readonly domainName: string | undefined;
-  private readonly internalBaseUrl: string;
 
   constructor(
-    private readonly configService: ConfigService,
     private readonly authService: MarzbanAuthService,
     private readonly certificateService: MarzbanCertificateService,
     private readonly nodeService: MarzbanNodeService,
     private readonly userService: MarzbanUserService,
-  ) {
-    // Internal URL for Docker service communication (uses VPN_PANEL_URL)
-    this.internalBaseUrl =
-      this.configService.get<AppConfig['vpnPanelUrl']>('app.vpnPanelUrl') ||
-      'http://cloudnode-marzban:8000';
+  ) {}
 
-    // External domain for public links
-    this.domainName =
-      this.configService.get<AppConfig['domainName']>('app.domainName');
+  /**
+   * Тяжёлая работа не блокирует поднятие Nest: панель может стартовать позже приложения.
+   */
+  async onModuleInit(): Promise<void> {
+    void this.runDeferredInitialization().catch((error: unknown) => {
+      this.logger.error(
+        'Marzban deferred initialization failed:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
+    });
   }
 
-  async onModuleInit(): Promise<void> {
+  private async runDeferredInitialization(): Promise<void> {
     try {
       const loggedIn = await this.login();
       if (!loggedIn) {
@@ -55,7 +53,6 @@ export class MarzbanService implements OnModuleInit {
         );
         return;
       }
-      // Only proceed with cert fetch and node registration after successful login
       await this.fetchAndSaveCert();
       await this.registerInfrastructureNodes();
     } catch (error) {
@@ -109,14 +106,13 @@ export class MarzbanService implements OnModuleInit {
         }
       }
 
-      const result = await this.userService.createUser(telegramId, months);
+      let result = await this.userService.createUser(telegramId, months);
 
-      // Handle token expiration and retry
-      if (!result.success && result.error?.includes('401')) {
-        this.logger.log('Token expired, re-authenticating...');
+      if (!result.success && result.unauthorized) {
+        this.logger.log('Marzban API returned 401, re-authenticating...');
         const loggedIn = await this.login();
         if (loggedIn) {
-          return this.userService.createUser(telegramId, months);
+          result = await this.userService.createUser(telegramId, months);
         }
       }
 
@@ -134,32 +130,28 @@ export class MarzbanService implements OnModuleInit {
   }
 
   /**
-   * Get available nodes from Marzban
+   * Disable user access in the panel (status disabled).
    */
-  async getNodes(): Promise<string[]> {
-    return this.nodeService.getNodes();
-  }
+  async suspendUser(telegramId: string): Promise<boolean> {
+    if (!this.authService.isAuthenticated()) {
+      const loggedIn = await this.login();
+      if (!loggedIn) {
+        return false;
+      }
+    }
 
-  /**
-   * Get formatted nodes message for Telegram
-   */
-  async getNodesMessage(): Promise<string> {
-    return this.nodeService.getNodesMessage();
-  }
-
-  /**
-   * Get external URL for Marzban panel (for user-facing links)
-   */
-  getExternalUrl(): string {
-    return this.domainName
-      ? `https://${this.domainName}`
-      : this.internalBaseUrl;
-  }
-
-  /**
-   * Get internal URL for API calls (Docker service name)
-   */
-  getInternalUrl(): string {
-    return this.internalBaseUrl;
+    const first = await this.userService.suspendUser(telegramId);
+    if (first.ok === true) {
+      return true;
+    }
+    if (first.unauthorized !== true) {
+      return false;
+    }
+    const loggedIn = await this.login();
+    if (!loggedIn) {
+      return false;
+    }
+    const second = await this.userService.suspendUser(telegramId);
+    return second.ok;
   }
 }

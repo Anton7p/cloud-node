@@ -1,0 +1,34 @@
+---
+# Устаревающая точка входа только для master; в CI используйте deploy-phase.yml (master + при необходимости nodes).
+
+- name: Deploy Application - Master
+  hosts: master
+  become: yes
+  strategy: linear
+
+  vars:
+    deploy_dir: "{{ deploy_dir_master }}"
+    registry_url: "ghcr.io"
+    server_ip: "{{ inventory_hostname }}"
+    computed_api_url: "http://{{ inventory_hostname }}:8000/api"
+    marzban_username: "{{ vpn_admin_username }}"
+    marzban_password: "{{ vpn_admin_password }}"
+    marzban_image: "{{ marzban_panel_image }}"
+
+  tasks:
+    - name: Setup directory structure
+      include_tasks: tasks/directory-setup-main.yml
+
+    - name: Deploy application stack
+      include_tasks: tasks/deploy-stack/deploy-stack-master.yml
+
+  handlers:
+    - name: restart docker
+      systemd:
+        name: docker
+        state: restarted
+
+    - name: Restart bot container
+      command: docker compose restart bot
+      args:
+        chdir: "{{ deploy_dir }}"

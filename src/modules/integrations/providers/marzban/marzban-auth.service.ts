@@ -1,28 +1,21 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { HttpService } from '@nestjs/axios';
-import axios from 'axios';
+import axios, { AxiosInstance } from 'axios';
 import {
   MarzbanTokenResponse,
   MarzbanCredentials,
 } from './types/marzban.types';
 import { AppConfig } from '../../../../shared/config/configuration';
+import { createPanelApiBareClient } from './marzban-panel-http';
 
 @Injectable()
 export class MarzbanAuthService {
   private readonly logger = new Logger(MarzbanAuthService.name);
+  private readonly axios: AxiosInstance;
   private accessToken: string | null = null;
 
-  constructor(
-    private readonly configService: ConfigService,
-    private readonly httpService: HttpService,
-  ) {}
-
-  private getInternalBaseUrl(): string {
-    return (
-      this.configService.get<AppConfig['vpnPanelUrl']>('app.vpnPanelUrl') ||
-      'http://cloudnode-marzban:8000'
-    );
+  constructor(private readonly configService: ConfigService) {
+    this.axios = createPanelApiBareClient(configService);
   }
 
   /**
@@ -73,18 +66,15 @@ export class MarzbanAuthService {
         params.append('username', credentials.username);
         params.append('password', credentials.password);
 
-        const baseUrl = this.getInternalBaseUrl();
-        const response =
-          await this.httpService.axiosRef.post<MarzbanTokenResponse>(
-            `${baseUrl}/api/admin/token`,
-            params,
-            {
-              headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-              },
-              timeout: 30000,
+        const response = await this.axios.post<MarzbanTokenResponse>(
+          '/admin/token',
+          params.toString(),
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
             },
-          );
+          },
+        );
 
         if (response.data.access_token) {
           this.accessToken = response.data.access_token;
@@ -148,9 +138,8 @@ export class MarzbanAuthService {
 
       this.logger.log('Creating first admin user in Marzban...');
 
-      const baseUrl = this.getInternalBaseUrl();
-      const response = await this.httpService.axiosRef.post(
-        `${baseUrl}/api/admin`,
+      const response = await this.axios.post(
+        '/admin',
         {
           username: credentials.username,
           password: credentials.password,
@@ -160,7 +149,6 @@ export class MarzbanAuthService {
           headers: {
             'Content-Type': 'application/json',
           },
-          timeout: 30000,
         },
       );
 

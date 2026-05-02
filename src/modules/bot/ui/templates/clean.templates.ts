@@ -9,17 +9,15 @@ export const ACCESS_PRICES = [
     price: 0,
     label: 'Бесплатный тест на 3дн.',
     devices: 2,
-    callback: 'free_test',
   },
-  { months: 0.25, price: 49, label: 'Неделя', devices: 2, callback: 'week' },
-  { months: 1, price: 99, label: 'Месяц', devices: 2, callback: 'month_1' },
-  { months: 3, price: 279, label: '3 Месяца', devices: 2, callback: 'month_3' },
+  { months: 0.25, price: 49, label: 'Неделя', devices: 2 },
+  { months: 1, price: 99, label: 'Месяц', devices: 2 },
+  { months: 3, price: 279, label: '3 Месяца', devices: 2 },
   {
     months: 6,
     price: 449,
     label: '6 Месяцев',
     devices: 2,
-    callback: 'month_6',
   },
 ] as const;
 
@@ -27,6 +25,48 @@ export const ACCESS_PRICES = [
 export const MENU_COMMANDS = {
   START: { command: 'start', description: 'Главное меню' },
   SUPPORT: { command: 'support', description: 'Поддержка' },
+} as const;
+
+// ============================================================================
+// ПОДПИСИ КНОПОК / ОБЩИЕ ЯРЛЫКИ UI (единый источник для текстов и клавиатур)
+// ============================================================================
+
+export const UI_LABELS = {
+  QUICK_START: '🚀 Быстрый старт',
+} as const;
+
+// ============================================================================
+// УВЕДОМЛЕНИЯ (parse_mode: HTML, см. BotService.sendMessage)
+// ============================================================================
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+export const NOTIFY_HTML = {
+  SUBSCRIPTION_SUCCESS: (subscriptionUrl: string) => {
+    const safe = escapeHtml(subscriptionUrl);
+    return (
+      `✅ <b>Подписка успешно активирована!</b>\n\n` +
+      `Ваш ключ доступа:\n` +
+      `<code>${safe}</code>\n\n` +
+      `Нажмите на ключ, чтобы скопировать его.`
+    );
+  },
+
+  SUBSCRIPTION_EXPIRING_SOON: (until: string) =>
+    `⏳ <b>Подписка скоро закончится</b>\n\n` +
+    `Действует до: <b>${escapeHtml(until)}</b>\n\n` +
+    `Продлите доступ в боте через «${UI_LABELS.QUICK_START}», чтобы не потерять VPN.`,
+
+  SUBSCRIPTION_FAILED: (errorMessage: string) =>
+    `❌ <b>Ошибка активации подписки</b>\n\n` +
+    `К сожалению, не удалось создать подписку.\n` +
+    `Ошибка: ${escapeHtml(errorMessage)}\n\n` +
+    `Пожалуйста, обратитесь в поддержку.`,
 } as const;
 
 // ============================================================================
@@ -40,7 +80,6 @@ export const MESSAGES = {
     '➖ Нам более года\n' +
     '➖ Высокая скорость\n' +
     '➖ Приватность\n' +
-    '➖ Реферальная система 50%\n' +
     '➖ Быстрая поддержка\n' +
     '➖ Поддержка ПК, Телефонов, Телевизоров!\n\n' +
     'VPN прямо в Telegram!\n\n' +
@@ -59,9 +98,6 @@ export const MESSAGES = {
     `Доступ активен до: ${newEndDate}\n\n` +
     `Ваш текущий ключ продолжает работать.`,
 
-  // Заголовок для экрана продления
-  EXTEND_DURATION_TITLE: 'Продлите подписку:',
-
   // Показать текущий ключ
   MY_KEY_TITLE: '🧾 Ваш текущий ключ:',
   NO_KEY:
@@ -76,13 +112,6 @@ export const MESSAGES = {
   // Поддержка / Условия
   SUPPORT:
     '⚖️ Условия и поддержка\n\nНаши ресурсы:\n▬ FAQ и ответы на вопросы\n▬ Условия сервиса\n▬ Политика конфиденциальности',
-
-  // Партнёрская программа
-  PARTNERS_TITLE: (referralLink: string, referralCount: number) =>
-    `🤝 Партнёрская программа\n\n` +
-    `Приглашайте друзей и получайте бонусы!\n\n` +
-    `Ваша реферальная ссылка:\n${referralLink}\n\n` +
-    `└ Приглашено: ${referralCount} чел.`,
 
   // Экран с моими ключами (когда есть ключ)
   MY_KEYS_ACTIVE: (expiryDate: string, key: string) =>
@@ -107,15 +136,12 @@ export const MESSAGES = {
 export const ACTIONS = {
   // Главное меню
   START_MENU: 'start_menu',
-  SHOW_MAIN_MENU: 'show_main_menu',
   BUY_MENU: 'buy_menu',
   MY_KEYS: 'my_keys',
   INSTRUCTIONS: 'instructions',
-  PARTNERS: 'partners',
   LEGAL: 'legal',
 
-  // Альтернативные названия для совместимости
-  MY_KEY: 'my_keys',
+  /** Алиас LEGAL: callback «условия» и маршрут SupportCommand */
   SUPPORT: 'legal',
 
   // Платформы для инструкций
@@ -130,9 +156,6 @@ export const ACTIONS = {
   MONTH_1: 'month_1',
   MONTH_3: 'month_3',
   MONTH_6: 'month_6',
-
-  // Навигация
-  BACK_TO_MAIN: 'start_menu',
 
   // Копирование ключа
   COPY_KEY: 'copy_key',
@@ -160,10 +183,6 @@ export const LEGAL_LINKS = {
   PRIVACY: {
     name: '📄 Политика конфиденциальности',
     url: 'https://telegra.ph/Politika-konfidencialnosti-04-01-26',
-  },
-  VK: {
-    name: '📨 Написать в поддержку',
-    url: 'https://vk.com/im?sel=-XXXXXX',
   },
 } as const;
 

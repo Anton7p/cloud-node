@@ -3,23 +3,12 @@
 # DB & Redis
 # ==========================================
 
-- name: DEBUG - Starting stack deployment
-  debug:
-    msg:
-      - "=== STACK DEPLOY START ==="
-      - "Directory: {{ deploy_dir }}"
-      - "Database exists check starting"
-
 - name: Stop existing containers gracefully
   command: docker compose down --timeout 30
   args:
     chdir: "{{ deploy_dir }}"
   register: compose_down
   changed_when: compose_down.rc == 0
-
-- name: DEBUG - Compose down result
-  debug:
-    msg: "Compose down exit code: {{ compose_down.rc }}"
 
 - name: Start infrastructure services (db, redis)
   command: docker compose up -d db redis

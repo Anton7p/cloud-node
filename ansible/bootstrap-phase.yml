@@ -1,9 +1,7 @@
 ---
-# Ansible Playbook: Bootstrap Phase (NEW)
-# Description: Initial server preparation - SSH, Docker, Security, Directories
-# Creates flag file to skip on subsequent runs
-# Original: bootstrap.yml (unchanged)
-# ==========================================
+# Ansible Playbook: Bootstrap Phase
+# Начальная подготовка: SSH-ключ по CI, Docker, UFW, флаг /var/lib/bootstrap/.bootstrapped
+# ============================================
 
 - name: Bootstrap Server - Initial Preparation
   hosts: all
@@ -12,52 +10,38 @@
   strategy: linear
 
   vars:
-    ssh_public_key: "{{ lookup('env', 'SSH_PUBLIC_KEY') }}"
-    infrastructure_ip_list: "{{ lookup('env', 'INFRASTRUCTURE_IP_LIST') | default('[]', true) }}"
+    ssh_public_key: "{{ ssh_public_key | default(lookup('env', 'SSH_PUBLIC_KEY') | default('', true), true) }}"
+    infrastructure_ip_list: "{{ infrastructure_ip_list | default(lookup('env', 'INFRASTRUCTURE_IP_LIST') | default('[]', true), true) }}"
 
   pre_tasks:
-    - name: Parse infrastructure IPs from JSON
-      set_fact:
-        infrastructure_ips_parsed: "{{ (infrastructure_ip_list | from_json) | map(attribute='address') | list }}"
-      when:
-        - infrastructure_ip_list | length > 0
-        - infrastructure_ip_list != '[]'
-      ignore_errors: true
+    - name: Require non-empty ssh_public_key
+      fail:
+        msg: "Передайте ssh_public_key через -e или переменную окружения SSH_PUBLIC_KEY"
+      when: ssh_public_key | default('') | length == 0
 
-    - name: Set infrastructure IPs from parsed result
+    # JSON массив [{"address":"…"}] парсится строго; legacy — CSV через запятую; пусто → 0.0.0.0/0 для UFW
+    - name: Parse infrastructure_ips as JSON
       set_fact:
-        infrastructure_ips: "{{ infrastructure_ips_parsed }}"
-      when: infrastructure_ips_parsed is defined and infrastructure_ips_parsed | length > 0
-
-    - name: Fallback to split if not JSON
-      set_fact:
-        infrastructure_ips: "{{ infrastructure_ip_list.split(',') }}"
+        infrastructure_ips: "{{ (infrastructure_ip_list | from_json) | map(attribute='address') | list }}"
       when:
-        - infrastructure_ip_list | length > 0
-        - infrastructure_ip_list != '[]'
-        - infrastructure_ips is not defined
         - infrastructure_ip_list is string
-      ignore_errors: true
+        - infrastructure_ip_list | trim | length > 0
+        - infrastructure_ip_list | trim != '[]'
+        - (infrastructure_ip_list | trim | first) == '['
 
-    - name: Set default infrastructure IPs if all parsing failed
+    - name: Parse infrastructure_ips as comma-separated (legacy)
       set_fact:
-        infrastructure_ips: "['0.0.0.0/0']"
+        infrastructure_ips: "{{ infrastructure_ip_list.split(',') | map('trim') | select('truthy') | list }}"
+      when:
+        - infrastructure_ip_list is string
+        - infrastructure_ip_list | trim | length > 0
+        - infrastructure_ip_list | trim != '[]'
+        - infrastructure_ips is not defined
+
+    - name: Default infrastructure_ips when list empty or unset
+      set_fact:
+        infrastructure_ips: "{{ ['0.0.0.0/0'] }}"
       when: infrastructure_ips is not defined
-
-    - name: Use parsed IPs or default
-      set_fact:
-        infrastructure_ips: "{{ infrastructure_ips | default(['0.0.0.0/0'], true) }}"
-      when: infrastructure_ips is defined
-
-    - name: Display bootstrap information
-      debug:
-        msg: |
-          ==========================================
-          BOOTSTRAP PHASE START
-          Target: {{ inventory_hostname }}
-          Role: {{ group_names | join(', ') }}
-          Infrastructure IPs: {{ infrastructure_ips }}
-          ==========================================
 
   tasks:
     - name: Run bootstrap tasks
@@ -73,8 +57,3 @@
       systemd:
         name: docker
         state: restarted
-
-    - name: Restart bot container
-      command: docker compose restart bot
-      args:
-        chdir: "{{ deploy_dir }}"

@@ -29,7 +29,7 @@ export class CopyKeyCommand extends BaseAction {
 
 @Injectable()
 export class MyKeyCommand extends BaseAction {
-  readonly pattern = [ACTIONS.MY_KEY, 'mykey'];
+  readonly pattern = [ACTIONS.MY_KEYS, 'mykey'];
 
   constructor(private readonly rentalsService: RentalsService) {
     super(MyKeyCommand.name);
