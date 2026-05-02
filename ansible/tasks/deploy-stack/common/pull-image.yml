@@ -13,3 +13,7 @@
   command: docker images "{{ image_name }}" --format "{% raw %}{{.Repository}}:{{.Tag}}{% endraw %}"
   register: image_verify
   changed_when: false
+
+- name: Display pulled image
+  debug:
+    msg: "Successfully pulled image: {{ image_verify.stdout }}"

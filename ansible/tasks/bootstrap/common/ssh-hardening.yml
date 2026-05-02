@@ -44,6 +44,11 @@
   command: sshd -t
   changed_when: false
 
+- name: Restart SSH service to apply changes
+  systemd:
+    name: ssh
+    state: restarted
+
 - name: Wait for SSH to come back
   wait_for:
     port: 22

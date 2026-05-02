@@ -8,8 +8,8 @@
 - name: Include keys generation tasks
   include_tasks: "tasks/setup-reality-keys/master/keys-generation.yml"
 
-- name: Include inbound creation tasks
-  include_tasks: "tasks/setup-reality-keys/master/inbound-creation.yml"
+# NOTE: Inbound is NOT created on master - Xray runs on nodes only
+# Keys are used only for node registration, not for master inbound
 
 - name: Include bot startup tasks
   include_tasks: "tasks/setup-reality-keys/master/bot-startup.yml"

@@ -3,7 +3,8 @@
 # ==========================================
 
 - name: Docker login to GitHub Container Registry
-  command: echo "{{ github_token }}" | docker login ghcr.io -u "{{ github_actor }}" --password-stdin
+  shell: |
+    echo "{{ github_token }}" | docker login ghcr.io -u "{{ github_actor }}" --password-stdin
   no_log: true
   changed_when: true
   when: github_token is defined and github_token | length > 0

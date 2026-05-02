@@ -3,4 +3,4 @@
 # ==========================================
 
 - name: Setup Reality Keys via Marzban API and start bot
-  include_tasks: tasks/setup-reality-keys/master/setup-reality-keys-master.yml
+  include_tasks: tasks/setup-reality-keys-main.yml

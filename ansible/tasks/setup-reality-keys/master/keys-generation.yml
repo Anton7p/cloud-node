@@ -18,33 +18,51 @@
     vless_reality_exists: >-
       {{ core_config.json is defined and
          core_config.json.inbounds is defined and
-         core_config.json.inbounds | selectattr('tag', 'equalto', 'VLESS TCP REALITY') | list | length > 0 }}
+         core_config.json.inbounds | selectattr('tag', 'equalto', 'VLESS REALITY') | list | length > 0 }}
 
 - name: Generate Reality keys and write directly to .env
   shell: |
     set -e
-
+    
+    # Generate X25519 keys
     OUTPUT=$(docker run --rm {{ marzban_node_image }} xray x25519)
-
+    echo "DEBUG: Raw output: $OUTPUT" >&2
+    
+    # Parse keys
     PRIVATE_KEY=$(echo "$OUTPUT" | grep 'Private key:' | sed 's/Private key: //')
     PUBLIC_KEY=$(echo "$OUTPUT" | grep 'Public key:' | sed 's/Public key: //')
-
+    
+    # Generate short_id
     SHORT_ID=$(openssl rand -hex 4)
-
+    
+    echo "DEBUG: Keys parsed - pub=$PUBLIC_KEY, short=$SHORT_ID" >&2
+    
+    # Write directly to .env file
     sed -i "s/^REALITY_PRIVATE_KEY=.*/REALITY_PRIVATE_KEY=$PRIVATE_KEY/" {{ deploy_dir }}/.env
     sed -i "s/^REALITY_PUBLIC_KEY=.*/REALITY_PUBLIC_KEY=$PUBLIC_KEY/" {{ deploy_dir }}/.env
     sed -i "s/^REALITY_SHORT_ID=.*/REALITY_SHORT_ID=$SHORT_ID/" {{ deploy_dir }}/.env
+    
+    echo "DEBUG: .env updated" >&2
+    
+    # Output for Ansible
+    echo "private_key=$PRIVATE_KEY"
+    echo "public_key=$PUBLIC_KEY"
+    echo "short_id=$SHORT_ID"
+  register: reality_keys_result
   when: not vless_reality_exists | bool
   changed_when: true
+  check_mode: no
 
-- name: Read .env file to get keys
-  slurp:
-    src: "{{ deploy_dir }}/.env"
-  register: env_file
+- name: Set facts from shell result
+  set_fact:
+    new_private_key: "{{ reality_keys_result.stdout_lines[0] | regex_replace('private_key=', '') }}"
+    new_public_key: "{{ reality_keys_result.stdout_lines[1] | regex_replace('public_key=', '') }}"
+    new_short_id: "{{ reality_keys_result.stdout_lines[2] | regex_replace('short_id=', '') }}"
+  when: reality_keys_result.stdout is defined and not vless_reality_exists | bool
 
 - name: Select final keys (new or existing)
   set_fact:
-    reality_private_key: "{{ (env_file.content | b64decode | regex_search('REALITY_PRIVATE_KEY=(.*)', '\\1') | first) }}"
-    reality_public_key: "{{ (env_file.content | b64decode | regex_search('REALITY_PUBLIC_KEY=(.*)', '\\1') | first) }}"
-    reality_short_id: "{{ (env_file.content | b64decode | regex_search('REALITY_SHORT_ID=(.*)', '\\1') | first) }}"
+    reality_private_key: "{{ new_private_key if not vless_reality_exists else lookup('env', 'REALITY_PRIVATE_KEY') | default('') }}"
+    reality_public_key: "{{ new_public_key if not vless_reality_exists else lookup('env', 'REALITY_PUBLIC_KEY') | default('') }}"
+    reality_short_id: "{{ new_short_id if not vless_reality_exists else lookup('env', 'REALITY_SHORT_ID') | default('abcd1234') }}"
     cacheable: yes

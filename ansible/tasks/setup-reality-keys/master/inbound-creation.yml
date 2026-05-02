@@ -2,41 +2,58 @@
 # VLESS Reality Inbound Creation - Master-specific
 # ==========================================
 
+- name: Create VLESS Reality inbound JSON
+  copy:
+    content: |
+      {
+        "tag": "VLESS TCP REALITY",
+        "listen": "0.0.0.0",
+        "port": 443,
+        "protocol": "vless",
+        "settings": {
+          "clients": [],
+          "decryption": "none"
+        },
+        "streamSettings": {
+          "network": "tcp",
+          "tcpSettings": {},
+          "security": "reality",
+          "realitySettings": {
+            "show": false,
+            "dest": "google.com:443",
+            "xver": 0,
+            "serverNames": [
+              "google.com",
+              "www.google.com",
+              ""
+            ],
+            "privateKey": "{{ ansible_facts.reality_private_key }}",
+            "SpiderX": "/example",
+            "shortIds": [
+              "{{ ansible_facts.reality_short_id }}"
+            ]
+          }
+        },
+        "sniffing": {
+          "enabled": true,
+          "destOverride": [
+            "http",
+            "tls",
+            "quic"
+          ]
+        }
+      }
+    dest: "/tmp/vless_reality_inbound.json"
+  when: not vless_reality_exists | bool and (ansible_facts.reality_private_key | default('')) | length > 0
+
 - name: Build updated core config
-  set_fact:
-    updated_config_json: "{{ core_config.json | combine({'inbounds': [new_inbound]}, recursive=true) }}"
-  when: not vless_reality_exists | bool
-  vars:
-    new_inbound:
-      tag: "VLESS TCP REALITY"
-      listen: "0.0.0.0"
-      port: 50443
-      protocol: "vless"
-      settings:
-        clients: []
-        decryption: "none"
-      streamSettings:
-        network: "tcp"
-        tcpSettings: {}
-        security: "reality"
-        realitySettings:
-          show: false
-          dest: "google.com:443"
-          xver: 0
-          serverNames:
-            - "google.com"
-            - "www.google.com"
-            - ""
-          privateKey: "{{ ansible_facts.reality_private_key }}"
-          SpiderX: "/example"
-          shortIds:
-            - "{{ ansible_facts.reality_short_id }}"
-      sniffing:
-        enabled: true
-        destOverride:
-          - "http"
-          - "tls"
-          - "quic"
+  shell: |
+    cat > /tmp/current_core_config.json << 'EOF'
+    {{ core_config.json | to_nice_json }}
+    EOF
+    jq --slurpfile inbound /tmp/vless_reality_inbound.json '.inbounds = (.inbounds // []) + $inbound' /tmp/current_core_config.json
+  register: updated_config_json
+  when: not vless_reality_exists | bool and (ansible_facts.reality_private_key | default('')) | length > 0
 
 - name: Update Xray core config with VLESS Reality
   uri:
@@ -46,7 +63,7 @@
       Authorization: "Bearer {{ auth_response.json.access_token }}"
       Content-Type: "application/json"
     body_format: json
-    body: "{{ updated_config_json }}"
+    body: "{{ updated_config_json.stdout }}"
     status_code: [200, 201, 204]
     timeout: 30
-  when: not vless_reality_exists | bool
+  when: not vless_reality_exists | bool and (ansible_facts.reality_private_key | default('')) | length > 0 and updated_config_json.rc == 0

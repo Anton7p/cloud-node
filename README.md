@@ -136,7 +136,6 @@ SSH_PUBLIC_KEY=               # SSH публичный ключ (для authoriz
 VPN_ADMIN_USERNAME=           # Админ логин Marzban
 VPN_ADMIN_PASSWORD=           # Админ пароль Marzban (используется для DB, Redis)
 DOMAIN_NAME=                  # Домен для VPN (для TLS сертификатов)
-VPN_PANEL_URL=                # Базовый URL API панели (опционально: в Docker дефолт http://marzban:8000)
 
 # VLESS + Reality (генерируются автоматически если не указаны)
 REALITY_PRIVATE_KEY=          # Приватный ключ X25519
@@ -156,7 +155,7 @@ MARZBAN_INBOUND_TAG=          # Тег инбаунда (default: VLESS TCP REAL
 
 ---
 
-### Stage 1: Build & Push Docker Image (`build-and-push`)
+### Stage 1: Build & Push Docker Image (`test-and-build`)
 
 **Файл:** `.github/workflows/ci.yml`
 
@@ -180,7 +179,7 @@ image_name: ${{ steps.normalize.outputs.image_name_lower }}  # ghcr.io/anton7p/c
 
 ### Stage 2: Verify Secrets (`verify-secrets`)
 
-**Зависимость:** `build-and-push`
+**Зависимость:** `test-and-build`
 
 Проверяет обязательные секреты GitHub перед деплоем:
 
@@ -189,7 +188,7 @@ image_name: ${{ steps.normalize.outputs.image_name_lower }}  # ghcr.io/anton7p/c
 | `SERVER_IP` | JSON формат `{"address": "1.2.3.4", "password": "..."}` |
 | `SSH_PRIVATE_KEY` | Установлен или нет |
 | `DOMAIN_NAME` | Установлен или нет |
-| `INFRASTRUCTURE_IP_LIST` | Опционально; если задан — строго непустой JSON-массив с полем `address` |
+| `INFRASTRUCTURE_IP_LIST` | Опционально — проверка JSON массива |
 
 **При ошибке:** пайплайн фейлится до начала деплоя.
 
@@ -197,7 +196,7 @@ image_name: ${{ steps.normalize.outputs.image_name_lower }}  # ghcr.io/anton7p/c
 
 ### Stage 3: Deploy Application (`deploy`)
 
-**Зависимости:** `[build-and-push, verify-secrets, ansible-validate]`  
+**Зависимости:** `[test-and-build, verify-secrets]`  
 **Environment:** `production`  
 **Цель:** Master сервер (из `SERVER_IP`)
 
@@ -209,7 +208,7 @@ image_name: ${{ steps.normalize.outputs.image_name_lower }}  # ghcr.io/anton7p/c
 | 3 | **Check Bootstrap Status** | Test SSH key access to detect if server needs bootstrap |
 | 4 | **Auto Bootstrap (if needed)** | Run `bootstrap-phase.yml` with password auth, install SSH keys |
 | 5 | **Generate inventory** | Create `inventory.ini` with SSH key authentication |
-| 6 | **Generate vars** | шаг CI пишет `deploy_vars.json` для `ansible-playbook -e @…` |
+| 6 | **Generate vars** | Create `deploy_vars.yml` with variables for Ansible |
 | 7 | **Run playbook** | `ansible-playbook -i inventory.ini ansible/deploy-phase.yml` |
 
 **Automatic Bootstrap Detection:**
@@ -221,7 +220,11 @@ image_name: ${{ steps.normalize.outputs.image_name_lower }}  # ghcr.io/anton7p/c
 ```
 deploy-phase.yml
 ├── Master Deployment (hosts: master)
-│   ├── vars: deploy_dir из `deploy_dir_master`, образ панели из `marzban_panel_image` и т. д.
+│   ├── pre_tasks (валидация)
+│   │   ├── DEBUG — логирование
+│   │   ├── Валидация: image_name, image_tag, db_password, telegram_bot_token
+│   │   ├── Валидация: encryption_key, vpn_admin_username, vpn_admin_password, domain_name
+│   │   └── Парсинг infrastructure_ip_list
 │   ├── tasks/directory-setup-main.yml
 │   │   ├── Создание /var/www/cloudnode
 │   │   ├── Настройка прав доступа
@@ -259,9 +262,9 @@ deploy-phase.yml
 
 ### Stage 4: Setup Infrastructure Nodes (`infrastructure`)
 
-**Зависимости:** `deploy`, `build-and-push`  
-**Условие:** job всегда идёт после деплоя; bootstrap нод пропускается, если секрет пустой/`[]`. Инвентарь `inventory_nodes.ini` только с группой `[nodes]` — play `master` в `deploy-phase.yml` пропускается (0 хостов).  
-**Цель:** Ноды из `INFRASTRUCTURE_IP_LIST` (если заданы).
+**Зависимость:** `deploy`  
+**Условие:** Выполняется только если `INFRASTRUCTURE_IP_LIST` задан  
+**Цель:** Ноды из `INFRASTRUCTURE_IP_LIST`
 
 **Подготовка:**
 | # | Шаг | Действие |
@@ -269,9 +272,9 @@ deploy-phase.yml
 | 1 | **Parse INFRASTRUCTURE_IP_LIST** | Парсинг JSON массива нод |
 | 2 | **Generate inventory** | Создание `inventory_nodes.ini` |
 | 3 | **Parse master address** | Определение IP мастера для связи |
-| 4 | **Run playbook** | `ansible-playbook -i inventory_nodes.ini ansible/deploy-phase.yml` |
+| 4 | **Run playbook** | `ansible-playbook -i inventory_nodes.ini ansible/deploy_node.yml` |
 
-**Ansible Playbook:** `ansible/deploy-phase.yml` (section `hosts: nodes`)
+**Ansible Playbook:** `ansible/deploy-phase.yml` (Node section)
 ```
 Node Deployment в deploy-phase.yml:
 ├── pre_tasks
@@ -309,19 +312,18 @@ Node Deployment в deploy-phase.yml:
 | 2 | **Install deps** | `pip install ansible jq`, `apt-get install sshpass` |
 | 3 | **Clean old keys** | `ssh-keygen -R <IP>` для мастера и всех нод |
 | 4 | **Parse servers** | Парсинг JSON, генерация `inventory_bootstrap.ini` с парольной аутентификацией |
-| 5 | **Run Bootstrap** | `ansible-playbook -i inventory_bootstrap.ini ansible/bootstrap-phase.yml` (из корня репозитория) |
+| 5 | **Run Bootstrap** | `ansible-playbook -i inventory_bootstrap.ini bootstrap.yml` |
 | 6 | **Verify SSH** | Проверка доступа по ключу (без пароля) |
 | 7 | **Cleanup** | Удаление `~/.ssh/id_rsa`, `inventory_bootstrap.ini` |
 
-**Ansible Playbook:** `ansible/bootstrap-phase.yml`  
-Перечисления по умолчанию — в `ansible/group_vars/all.yml`; секретный набор — по примеру `ansible/deploy_vars.example.yml`. Синтаксис плейбуков (CI job `ansible-validate`):  
-`ansible-playbook --syntax-check -i ansible/ci_inventory.ini ansible/deploy-phase.yml` и др.
+**Ansible Playbook:** `ansible/bootstrap-phase.yml`
 ```
 bootstrap-phase.yml
 ├── Bootstrap Phase (hosts: all)
 │   ├── pre_tasks
-│   │   ├── Проверка `ssh_public_key` (-e / `SSH_PUBLIC_KEY`)
-│   │   ├── Парсинг infrastructure_ip_list (JSON / CSV / fallback)
+│   │   ├── Парсинг infrastructure_ip_list из JSON
+│   │   ├── Фильтрация и валидация IP адресов
+│   │   └── Установка defaults для security rules
 │   ├── tasks/bootstrap-main.yml
 │   │   ├── tasks/bootstrap/bootstrap-master.yml (для master)
 │   │   ├── tasks/bootstrap/bootstrap-node.yml (для nodes)
@@ -412,9 +414,9 @@ GET http://localhost:3000/health
 
 ### Инлайн-кнопки
 - **🚀 Быстрый старт** — Получить/продлить ключ
-- **🔑 Мои ключи** — Текущий ключ и срок подписки
 - **🧭 Как подключить** — Инструкции для iOS/Android/Windows/macOS
-- **⚖️ Условия** — FAQ и документы сервиса (Telegra.ph)
+- **🤝 Партнёрам** — Реферальная программа
+- **⚖️ Условия** — FAQ, поддержка ВК, условия сервиса
 
 ## Добавление новой команды
 
@@ -492,5 +494,6 @@ const commandHandlers = [
 ## Поддержка
 
 - **FAQ**: https://telegra.ph/VPN-01-10-14
+- **Написать в поддержку (ВК)**: https://vk.com/im?sel=-XXXXXX
 - **Условия сервиса**: https://telegra.ph/Polzovatelskoe-soglashenie-04-01-19
 - **Политика конфиденциальности**: https://telegra.ph/Politika-konfidencialnosti-04-01-26

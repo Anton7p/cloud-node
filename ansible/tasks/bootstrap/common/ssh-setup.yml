@@ -32,6 +32,10 @@
   changed_when: false
   ignore_errors: true
 
+- name: Display SSH key auth status
+  debug:
+    msg: "SSH PubkeyAuthentication setting: {{ pubkey_auth_check.stdout | default('NOT FOUND') }}"
+
 - name: Verify SSH service is running
   systemd:
     name: ssh

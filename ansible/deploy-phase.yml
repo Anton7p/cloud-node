@@ -1,7 +1,9 @@
 ---
-# Ansible Playbook: Deploy Phase
-# Приложение: master (docker-compose стек), затем ноды marzban-node (inventory только [nodes] в CI допустим).
-# ============================================
+# Ansible Playbook: Deploy Phase (NEW)
+# Description: Application deployment - containers, Marzban, Bot
+# Runs after bootstrap phase
+# Originals: deploy_app.yml, deploy_node.yml (unchanged)
+# ==========================================
 
 - name: Deploy Application - Master
   hosts: master
@@ -9,20 +11,52 @@
   strategy: linear
 
   vars:
-    deploy_dir: "{{ deploy_dir_master }}"
+    deploy_dir: /var/www/cloudnode
+    backup_dir: /var/backups/cloudnode
     registry_url: "ghcr.io"
     server_ip: "{{ inventory_hostname }}"
     computed_api_url: "http://{{ inventory_hostname }}:8000/api"
     marzban_username: "{{ vpn_admin_username }}"
     marzban_password: "{{ vpn_admin_password }}"
-    marzban_image: "{{ marzban_panel_image }}"
+    marzban_node_image: "gozargah/marzban-node:v0.5.2"
+    marzban_image: "gozargah/marzban:v0.8.4"
+    marzban_inbound_tag: "{{ hostvars[inventory_hostname]['marzban_inbound_tag'] | default('VLESS TCP REALITY') }}"
+
+  pre_tasks:
+    - name: Parse infrastructure IPs from JSON
+      set_fact:
+        infrastructure_ips_parsed: "{{ (infrastructure_ip_list | from_json) | map(attribute='address') | list }}"
+      when: infrastructure_ip_list is defined and infrastructure_ip_list | length > 0
+      ignore_errors: true
+
+    - name: DEBUG - Log deployment start
+      debug:
+        msg:
+          - "=== DEPLOY PHASE START (MASTER) ==="
+          - "Target: {{ inventory_hostname }}"
+          - "Image: {{ image_name }}:{{ image_tag }}"
+          - "Domain: {{ domain_name }}"
+
+    - name: Validate required variables
+      fail:
+        msg: "Missing required variable: {{ item }}"
+      when: vars[item] | length == 0
+      loop:
+        - image_name
+        - image_tag
+        - db_password
+        - telegram_bot_token
+        - encryption_key
+        - vpn_admin_username
+        - vpn_admin_password
+        - domain_name
 
   tasks:
     - name: Setup directory structure
       include_tasks: tasks/directory-setup-main.yml
 
     - name: Deploy application stack
-      include_tasks: tasks/deploy-stack/deploy-stack-master.yml
+      include_tasks: tasks/deploy-stack-main.yml
 
   handlers:
     - name: restart docker
@@ -41,15 +75,25 @@
   strategy: free
 
   vars:
-    node_dir: "{{ deploy_dir_node }}"
+    node_dir: /var/www/marzban_node
     node_var_dir: "{{ node_dir }}/var"
     cert_file: "{{ node_var_dir }}/ssl_client_cert.pem"
+    service_port: 62050
+    xray_api_port: 62051
+    marzban_node_image: gozargah/marzban-node:v0.5.2
     compose_project_name: "marzban-node"
     marzban_username: "{{ vpn_admin_username | default(lookup('env', 'VPN_ADMIN_USERNAME'), true) }}"
     marzban_password: "{{ vpn_admin_password | default(lookup('env', 'VPN_ADMIN_PASSWORD'), true) }}"
     domain_name: "{{ domain_name_extra | default(lookup('env', 'DOMAIN_NAME'), true) }}"
 
   pre_tasks:
+    - name: DEBUG - Start node deployment
+      debug:
+        msg:
+          - "=== DEPLOY PHASE START (NODE) ==="
+          - "Target node: {{ inventory_hostname }}"
+          - "Master server: {{ master_server_address | default('NOT SET') }}"
+
     - name: Get master server address
       set_fact:
         master_server_address: "{{ lookup('env', 'SERVER_IP_ADDRESS') | default(groups['master'][0] | default(''), true) }}"
@@ -61,12 +105,26 @@
       become: no
       run_once: yes
 
+    - name: Validate required CI/CD variables
+      fail:
+        msg: "Missing required CI/CD variable: {{ item.var }}"
+      when: item.value | length == 0
+      loop:
+        - { var: "VPN_ADMIN_USERNAME", value: "{{ marzban_username }}" }
+        - { var: "VPN_ADMIN_PASSWORD", value: "{{ marzban_password }}" }
+        - { var: "DOMAIN_NAME", value: "{{ domain_name }}" }
+      loop_control:
+        label: "{{ item.var }}"
+      delegate_to: localhost
+      become: no
+      run_once: yes
+
   tasks:
     - name: Setup directory structure
       include_tasks: tasks/directory-setup-main.yml
 
     - name: Setup Marzban Node
-      include_tasks: tasks/marzban/deploy-node.yml
+      include_tasks: tasks/marzban-main.yml
 
   handlers:
     - name: restart docker

@@ -4,7 +4,7 @@
 
 - name: Update bot .env file on master server with Reality keys
   lineinfile:
-    path: /var/www/marzban/.env
+    path: /var/www/cloudnode/.env
     regexp: "^{{ item.key }}="
     line: "{{ item.key }}={{ item.value }}"
     create: yes
@@ -20,6 +20,6 @@
 - name: Restart bot container to apply new env vars
   command: docker compose restart bot
   args:
-    chdir: /var/www/marzban
+    chdir: /var/www/cloudnode
   when: (ansible_facts.reality_public_key | default('')) | length > 0
   become: true

@@ -54,4 +54,3 @@ deploy.sh
 inventory.ini
 inventory_nodes.ini
 deploy_vars.yml
-deploy_vars.json
