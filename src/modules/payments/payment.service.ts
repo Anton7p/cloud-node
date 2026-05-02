@@ -1,24 +1,27 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RentalsService } from '../rentals/rentals.service';
 import { UsersService } from '../users/users.service';
 import { PrismaService } from '../../shared/prisma/prisma.service';
 import { AppConfig } from '../../shared/config/configuration';
+import { PAYMENT_GATEWAY } from './gateway/payment-gateway.tokens';
+import type { IPaymentGateway } from './gateway/payment-gateway.interface';
+import type { NormalizedPaymentStatus } from './gateway/payment-gateway.types';
+import { ACCESS_PRICES } from '../bot/ui/templates/clean.templates';
 
 export interface PaymentResult {
   success: boolean;
   message?: string;
   rentalId?: number;
+  /** Новая подписка: нужен вызов VPN-панели */
+  needsProvisioning?: boolean;
+  termMonths?: number;
+  tariffLabel?: string;
+  /** Продление существующей активной аренды */
+  isExtension?: boolean;
+  extendEndDateLabel?: string;
 }
 
-/**
- * PaymentService - заглушка для платежной системы
- *
- * Features:
- * - Обработка бесплатного триала (конфигурируемые дни)
- * - Проверка использования триала ранее
- * - Заглушки для платных тарифов
- */
 @Injectable()
 export class PaymentService {
   private readonly logger = new Logger(PaymentService.name);
@@ -28,11 +31,10 @@ export class PaymentService {
     private readonly configService: ConfigService,
     private readonly usersService: UsersService,
     private readonly prisma: PrismaService,
+    @Inject(PAYMENT_GATEWAY)
+    private readonly paymentGateway: IPaymentGateway,
   ) {}
 
-  /**
-   * Получение настроек триала из конфигурации
-   */
   private getTrialConfig() {
     return {
       days:
@@ -43,15 +45,10 @@ export class PaymentService {
     };
   }
 
-  /**
-   * Проверка, использовал ли пользователь триал ранее
-   * Проверяем ЛЮБУЮ аренду (включая EXPIRED и COMPLETED)
-   */
   async hasUsedTrial(telegramId: number): Promise<boolean> {
     const user = await this.usersService.findByTelegramId(telegramId);
     if (!user) return false;
 
-    // Проверяем наличие ЛЮБОЙ аренды - хоть одной записи в таблице rental
     const anyRental = await this.prisma.rental.findFirst({
       where: { userId: user.id },
       select: { id: true },
@@ -60,9 +57,6 @@ export class PaymentService {
     return anyRental !== null;
   }
 
-  /**
-   * Бесплатный триал (trialDays / trialIpLimit из конфигурации)
-   */
   async createTrialRental(telegramId: number): Promise<PaymentResult> {
     const { days, ipLimit } = this.getTrialConfig();
 
@@ -76,13 +70,10 @@ export class PaymentService {
         };
       }
 
-      // Конвертируем дни в месяцы (приблизительно) для совместимости
       const termInMonths = days / 30;
 
-      // Создаем pending аренду (fire and forget, result not needed)
       await this.rentalsService.createPendingRental(telegramId, termInMonths);
 
-      // Активируем аренду
       const activatedRental =
         await this.rentalsService.activateRental(telegramId);
 
@@ -116,32 +107,117 @@ export class PaymentService {
     }
   }
 
-  /**
-   * Заглушка для оплаты недели
-   */
   async processWeekPayment(telegramId: number): Promise<PaymentResult> {
-    this.logger.log(`Week payment stub called for user ${telegramId}`);
-    return {
-      success: false,
-      message:
-        'Оплата временно недоступна, воспользуйтесь бесплатным периодом.',
-    };
+    return this.processPaidTariff(telegramId, 0.25);
   }
 
-  /**
-   * Заглушка для оплаты месяца
-   */
   async processMonthPayment(
     telegramId: number,
     months: number,
   ): Promise<PaymentResult> {
-    this.logger.log(
-      `Month payment stub called for user ${telegramId}, months: ${months}`,
+    return this.processPaidTariff(telegramId, months);
+  }
+
+  private isPaidSuccess(status: NormalizedPaymentStatus): boolean {
+    return status === 'SUCCEEDED';
+  }
+
+  /**
+   * Создание платежа через шлюз, затем аренда (как только оплата подтверждена).
+   */
+  private async processPaidTariff(
+    telegramId: number,
+    termMonths: number,
+  ): Promise<PaymentResult> {
+    const price = ACCESS_PRICES.find((p) => p.months === termMonths);
+    if (!price || price.months === 0) {
+      return {
+        success: false,
+        message: 'Неизвестный тариф. Выберите вариант из меню.',
+      };
+    }
+
+    const user = await this.usersService.findByTelegramId(telegramId);
+    if (!user) {
+      return {
+        success: false,
+        message: 'Пользователь не найден. Нажмите /start.',
+      };
+    }
+
+    const externalReference = `user:${user.id}:tariff:${termMonths}`;
+
+    let paymentResult;
+    try {
+      paymentResult = await this.paymentGateway.createPayment({
+        amount: price.price,
+        currency: 'RUB',
+        description: price.label,
+        externalReference,
+        customerReference: String(user.id),
+        metadata: {
+          telegramId: String(telegramId),
+          termMonths: String(termMonths),
+        },
+      });
+    } catch (e) {
+      this.logger.error(
+        `Gateway createPayment failed for tg=${telegramId}:`,
+        e instanceof Error ? e.message : e,
+      );
+      return {
+        success: false,
+        message: 'Не удалось создать платёж. Попробуйте позже.',
+      };
+    }
+
+    if (!this.isPaidSuccess(paymentResult.status)) {
+      return {
+        success: false,
+        message: 'Оплата не подтверждена.',
+      };
+    }
+
+    this.logger.debug(
+      `Payment recorded providerId=${paymentResult.providerPaymentId} ` +
+        `stub status=${paymentResult.status} tg=${telegramId}`,
     );
+
+    const hadActiveRental =
+      await this.rentalsService.hasActiveRental(telegramId);
+    await this.rentalsService.createPendingRental(telegramId, termMonths);
+    const rental = await this.rentalsService.activateRental(telegramId);
+
+    if (!rental) {
+      return {
+        success: false,
+        message:
+          'Не удалось активировать подписку после оплаты. Обратитесь в поддержку.',
+      };
+    }
+
+    if (hadActiveRental) {
+      const endDateLabel = rental.endDate
+        ? new Date(rental.endDate).toLocaleDateString('ru-RU')
+        : 'неизвестно';
+      return {
+        success: true,
+        rentalId: rental.id,
+        isExtension: true,
+        extendEndDateLabel: endDateLabel,
+        message:
+          '[Тестовый режим оплаты] Подписка продлена.' +
+          (price.label ? ` Тариф: ${price.label}.` : ''),
+      };
+    }
+
     return {
-      success: false,
-      message:
-        'Оплата временно недоступна, воспользуйтесь бесплатным периодом.',
+      success: true,
+      rentalId: rental.id,
+      needsProvisioning: true,
+      termMonths,
+      tariffLabel: price.label,
+      message: '[Тестовый режим оплаты] Условная оплата прошла успешно.',
     };
   }
 }

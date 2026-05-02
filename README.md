@@ -209,7 +209,7 @@ image_name: ${{ steps.normalize.outputs.image_name_lower }}  # ghcr.io/anton7p/c
 | 3 | **Check Bootstrap Status** | Test SSH key access to detect if server needs bootstrap |
 | 4 | **Auto Bootstrap (if needed)** | Run `bootstrap-phase.yml` with password auth, install SSH keys |
 | 5 | **Generate inventory** | Create `inventory.ini` with SSH key authentication |
-| 6 | **Generate vars** | `scripts/ci/write-deploy-vars.sh` → `deploy_vars.yml` |
+| 6 | **Generate vars** | шаг CI пишет `deploy_vars.json` для `ansible-playbook -e @…` |
 | 7 | **Run playbook** | `ansible-playbook -i inventory.ini ansible/deploy-phase.yml` |
 
 **Automatic Bootstrap Detection:**

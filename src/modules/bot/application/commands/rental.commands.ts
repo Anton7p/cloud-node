@@ -61,7 +61,7 @@ export async function handleRental(
     return;
   }
 
-  // Handle paid options (week, month_1, month_3, etc.) - show payment stub message
+  // Платные тарифы: шлюз (сейчас заглушка с мгновенным успехом) → аренда → VPN при необходимости
   if (data === 'week' || data.startsWith('month_')) {
     let result;
     if (data === 'week') {
@@ -71,13 +71,56 @@ export async function handleRental(
       result = await paymentService.processMonthPayment(userId, monthsCount);
     }
 
-    await ctx.reply(
-      result.message ||
-        'Платежная система в процессе подключения. Попробуйте наш бесплатный период.',
-      {
+    if (!result.success) {
+      await ctx.reply(result.message || MESSAGES.ERROR, {
         reply_markup: mainKeyboard().reply_markup,
-      },
-    );
+      });
+      return;
+    }
+
+    if (
+      result.isExtension &&
+      result.extendEndDateLabel !== undefined &&
+      result.extendEndDateLabel !== ''
+    ) {
+      await ctx.reply(MESSAGES.EXTEND_SUCCESS(result.extendEndDateLabel), {
+        reply_markup: extendSuccessKeyboard().reply_markup,
+      });
+      return;
+    }
+
+    if (
+      result.needsProvisioning &&
+      result.rentalId !== undefined &&
+      result.tariffLabel &&
+      typeof result.termMonths === 'number'
+    ) {
+      const provision = await vpnPanel.provisionUser(
+        String(userId),
+        result.termMonths,
+      );
+      if (!provision.success || !provision.subscriptionUrl) {
+        await ctx.reply(MESSAGES.ERROR);
+        return;
+      }
+      await rentalsService.updateAccessKey(
+        result.rentalId,
+        provision.subscriptionUrl,
+      );
+      await ctx.reply(
+        MESSAGES.KEY_READY(result.tariffLabel, provision.subscriptionUrl),
+        {
+          parse_mode: 'Markdown',
+          reply_markup: keyDisplayKeyboard(provision.subscriptionUrl)
+            .reply_markup,
+        },
+      );
+      return;
+    }
+
+    await ctx.reply(result.message || MESSAGES.ERROR, {
+      reply_markup: mainKeyboard().reply_markup,
+    });
     return;
   }
 

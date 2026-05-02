@@ -1,6 +1,6 @@
 ---
-# Шаблон для локального Ansible. Рабочий файл deploy_vars.yml в .gitignore;
-# на сервер переменные пишутся из CI (scripts/ci/write-deploy-vars.sh).
+# Шаблон для локального Ansible (YAML). Файл deploy_vars.yml — в .gitignore.
+# В GitHub Actions переменные пишутся в deploy_vars.json в шагах workflow deploy/infrastructure.
 image_name: "ghcr.io/owner/repo"
 image_tag: "main"
 domain_name: "vpn.example.com"
