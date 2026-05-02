@@ -9,11 +9,20 @@
   gather_facts: yes
   strategy: linear
 
+  # Нельзя писать vars: ssh_public_key: "{{ ssh_public_key | default(...) }}" — рекурсия в шаблоне.
   vars:
-    ssh_public_key: "{{ ssh_public_key | default(lookup('env', 'SSH_PUBLIC_KEY') | default('', true), true) }}"
-    infrastructure_ip_list: "{{ infrastructure_ip_list | default(lookup('env', 'INFRASTRUCTURE_IP_LIST') | default('[]', true), true) }}"
+    _bootstrap_ssh_pub_env: "{{ lookup('env', 'SSH_PUBLIC_KEY') | default('', true) }}"
+    _bootstrap_infra_env: "{{ lookup('env', 'INFRASTRUCTURE_IP_LIST') | default('[]', true) }}"
 
   pre_tasks:
+    - name: Resolve ssh_public_key from extra-vars или SSH_PUBLIC_KEY
+      ansible.builtin.set_fact:
+        ssh_public_key: "{{ ssh_public_key | default(_bootstrap_ssh_pub_env, true) }}"
+
+    - name: Resolve infrastructure_ip_list from extra-vars или INFRASTRUCTURE_IP_LIST
+      ansible.builtin.set_fact:
+        infrastructure_ip_list: "{{ infrastructure_ip_list | default(_bootstrap_infra_env, true) }}"
+
     - name: Require non-empty ssh_public_key
       fail:
         msg: "Передайте ssh_public_key через -e или переменную окружения SSH_PUBLIC_KEY"
